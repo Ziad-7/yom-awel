@@ -262,11 +262,11 @@ git commit -m "build: establish governed implementation baseline"
 - Create: `contracts/fixtures/submission-duplicate.json`
 - Create: `contracts/fixtures/skills-profile.json`
 - Create: `contracts/fixtures/application-error.json`
-- Delete after replacement is verified: `agents/__init__.py`
-- Delete after replacement is verified: `bot/__init__.py`
-- Delete after replacement is verified: `core/__init__.py`
-- Delete after replacement is verified: `evaluators/__init__.py`
-- Delete after `services/api/pyproject.toml` and `uv.lock` exist: `requirements.txt`
+- Verify absent: `agents/`
+- Verify absent: `bot/`
+- Verify absent: `core/`
+- Verify absent: `evaluators/`
+- Verify absent: `requirements.txt`
 - Test: `services/api/tests/contract/test_contract_snapshots.py`
 - Test: `tests/documentation/test_repository_layout.py`
 
@@ -282,9 +282,9 @@ Follow `docs/superpowers/plans/2026-09-20-member-2-domain-persistence.md` throug
 
 Request Members 3, 4, and 5. Each reviewer loads their consumed fixture in a focused contract test before approval.
 
-- [ ] **Step 3: Remove the retired scaffold after replacement exists**
+- [ ] **Step 3: Guard the retired layout boundary**
 
-After the locked `services/api` project and canonical packages exist, delete the four empty top-level Python packages and the root `requirements.txt`. `test_repository_layout.py` fails if retired imports, retired run commands, or the unpinned root manifest return. Do not delete any non-empty user implementation; migrate it through a separately reviewed change if these files stop being empty before execution.
+Keep the already-retired top-level Python packages and root `requirements.txt` absent. `test_repository_layout.py` fails if those paths, retired imports, retired run commands, or an unpinned root manifest return. All new Python modules and dependencies must use the canonical `services/api` layout and locked project manifest.
 
 - [ ] **Step 4: Run the contract gate**
 
