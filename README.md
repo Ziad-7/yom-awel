@@ -1,138 +1,88 @@
 # Yom Awel (يوم أول)
 
-Workplace simulation engine for task-based digital skills training.
+Arabic-first workplace simulation for task-based digital skills training.
 
----
+## Project status
 
-## Overview
+The repository is in the **proposed architecture and delivery-planning stage**. It does not yet contain a working application. Runtime code, datasets, migrations, tests, and deployment configuration will be added only after the design pull request receives the required reviews and merges.
 
-Yom Awel trains entry-level digital and technical skills through workplace simulations rather than passive video lectures or multiple-choice quizzes. The learner interacts with an automated organization via Telegram, receiving practical tasks (spreadsheet cleaning, SQL query development, business communication) from simulated colleagues and managers.
+This status statement is intentional: documentation must not describe planned capabilities as already implemented.
 
-Submissions are evaluated through a two-stage pipeline:
-1. **Deterministic Verification:** Automated unit checks (via `pandas`, `openpyxl`, or `sqlite3`) inspect submitted artifacts for correctness, schema adherence, and data integrity.
-2. **Pedagogical Feedback:** An LLM agent generates constructive, contextual feedback in Egyptian workplace Arabic based on the deterministic test results.
+## Product concept
 
-User progress is persisted in a local state store that tracks completed tasks and generates a competency profile.
+Learners join a simulated Egyptian workplace through a web experience or Telegram. They receive realistic work assignments, submit actual artifacts, and receive two complementary forms of assessment:
 
----
+1. **Deterministic evaluation** checks correctness, schema, data quality, and task-specific rules.
+2. **Generative coaching** explains the deterministic result in culturally authentic Egyptian Arabic and provides targeted guidance.
 
-## System Architecture
+Only deterministic results control task completion and progression. Generative feedback cannot override grades.
 
-```
-                               ┌───────────────────────────┐
-                               │     bot/telegram_app.py   │
-                               │  (Telegram Client Layer)  │
-                               └─────────────┬─────────────┘
-                                             │
-                       ┌─────────────────────┼─────────────────────┐
-                       │                     │                     │
-                       ▼                     ▼                     ▼
-             ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-             │ core/            │  │ evaluators/      │  │ agents/          │
-             │ state_manager.py │  │ excel_evaluator  │  │ feedback_coach.py│
-             │ (State & DB)     │  │ (Unit Checks)    │  │ (LLM Feedback)   │
-             └──────────────────┘  └──────────────────┘  └──────────────────┘
-                                             ▲
-                                             │
-                                   ┌─────────┴─────────┐
-                                   │ data/             │
-                                   │ sales_dirty.csv   │
-                                   └───────────────────┘
-```
+## Proposed architecture
 
-### Module Responsibilities
-- `core/`: State management, user tracking, task progression, and skill scoring.
-- `evaluators/`: Deterministic artifact evaluation scripts for tabular data, spreadsheets, and database queries.
-- `agents/`: LLM persona definitions and feedback generation prompts.
-- `bot/`: Telegram bot service handling incoming messages, file transfers, and user state routing.
-- `data/`: Sample datasets, evaluation benchmarks, and task seed files.
+The target is a modular Python monolith with ports and adapters:
 
----
+- Next.js web experience on Vercel Hobby;
+- FastAPI application and transport on Vercel Python Functions;
+- Telegram webhook adapter;
+- domain and application services independent of frameworks;
+- versioned deterministic evaluators;
+- provider-neutral pedagogical feedback with Gemini free-tier and deterministic fallback;
+- Supabase Free for Postgres and private artifact storage;
+- SQLite and local files for development and cloud-free fallback.
 
-## Module Interfaces
+No approved capability requires a paid plan, billing account, paid add-on, or metered overage.
 
-Components communicate using the following interfaces:
+Read the complete [platform design](docs/superpowers/specs/2026-09-20-yom-awel-platform-design.md).
 
-### 1. `core.state_manager`
-```python
-def get_or_create_user(user_id: str, name: str) -> dict:
-    """Retrieve or initialize a user record.
-    Returns: {'user_id': str, 'name': str, 'current_day': int, 'active_task': str, 'status': str}
-    """
+## Five-member team
 
-def get_current_task(user_id: str) -> dict:
-    """Retrieve details and files for the user's active task.
-    Returns: {'task_id': str, 'title': str, 'description_ar': str, 'file_path': str}
-    """
+| Member | Responsibility |
+|---|---|
+| 1 | Product, learning design, evidence, submission, and release |
+| 2 | Domain, application services, contracts, persistence, and Supabase |
+| 3 | AI personas, feedback, safety, and deterministic fallback |
+| 4 | Deterministic evaluation, task data, and evaluator QA |
+| 5 | Next.js, FastAPI transport, Telegram, integration, and Vercel |
 
-def record_submission(user_id: str, task_id: str, passed: bool, code_score: int, soft_score: int, feedback: str) -> dict:
-    """Record an evaluation attempt, update competency scores, and advance task state if passed."""
+Detailed assignments are indexed in [the team guide](docs/team/README.md).
 
-def get_user_skills_profile(user_id: str) -> dict:
-    """Retrieve aggregate scores across skill categories."""
-```
+## Collaboration
 
-### 2. `evaluators.excel_evaluator`
-```python
-def evaluate_sales_cleaning(submitted_file_path: str) -> dict:
-    """Validate submitted CSV/Excel against benchmark constraints.
-    Returns:
-    {
-        "passed": bool,
-        "score": int,              # 0 to 100
-        "details": dict,           # {duplicates_removed: bool, negatives_fixed: bool, ...}
-        "errors": list[str],       # Specific validation errors
-        "summary_ar": str,         # Brief explanation in Arabic
-        "summary_en": str          # Brief explanation in English
-    }
-    """
-```
+GitHub issues and pull requests are the technical system of record. Contract changes, reviewer requirements, merge gates, branch rules, database review, integration handoffs, and release sign-off are defined in the [collaboration protocol](docs/team/collaboration-protocol.md).
 
-### 3. `agents.feedback_coach`
-```python
-def generate_pedagogical_feedback(task_name: str, deterministic_result: dict, student_message: str = "") -> str:
-    """Generate contextual feedback in Egyptian workplace Arabic based on evaluation output."""
-```
+Every pull request must use the repository template and provide:
 
----
+- acceptance evidence;
+- exact verification commands;
+- contract impact;
+- security and privacy impact;
+- zero-cost impact;
+- required reviewers;
+- preview evidence for user-facing changes.
 
-## Installation & Setup
+## Documentation map
 
-### Prerequisites
-- Python 3.10 or higher
-- Telegram Bot Token (from `@BotFather`)
-- Google Gemini or OpenAI API Key
+- [Canonical platform design](docs/superpowers/specs/2026-09-20-yom-awel-platform-design.md)
+- [Architecture guide](docs/architecture/README.md)
+- [Team ownership index](docs/team/README.md)
+- [Pull request and review protocol](docs/team/collaboration-protocol.md)
+- [Member 1 assignment](docs/team/member-1-product-release.md)
+- [Member 2 assignment](docs/team/member-2-domain-persistence.md)
+- [Member 3 assignment](docs/team/member-3-ai-feedback.md)
+- [Member 4 assignment](docs/team/member-4-evaluation.md)
+- [Member 5 assignment](docs/team/member-5-experience-integration.md)
+- [Parallel delivery and implementation plans](docs/superpowers/plans/README.md)
+- [Hackathon guidelines](HACKATHON_GUIDELINES.md)
+- [Application requirements](APPLICATION_REQUIREMENTS.md)
 
-### Steps
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Ziad-7/yom-awel.git
-   cd yom-awel
-   ```
+## Planned delivery sequence
 
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+1. Review and approve the written platform design.
+2. Produce and approve the detailed implementation plan.
+3. Merge the contract baseline and shared fixtures.
+4. Start all five member lanes in parallel.
+5. Integrate real modules through contract-tested ports.
+6. Verify pull-request previews and the complete release candidate.
+7. Promote the exact verified artifact and tag its commit.
 
-3. Configure environment variables:
-   Create a `.env` file in the project root:
-   ```env
-   TELEGRAM_BOT_TOKEN="your_token_here"
-   GEMINI_API_KEY="your_api_key_here"
-   ```
-
-4. Start the bot:
-   ```bash
-   python bot/telegram_app.py
-   ```
-
----
-
-## Team Responsibilities
-
-- **Member 1 (`submission/`):** Submission documentation, pitch deck, and application forms.
-- **Member 2 (`core/`):** State machine, user progression, and SQLite persistence.
-- **Member 3 (`agents/`):** Persona prompt engineering and LLM feedback generation.
-- **Member 4 (`evaluators/`, `data/`):** Test datasets and deterministic evaluation scripts.
-- **Member 5 (`bot/`):** Telegram bot routing, file I/O, and integration testing.
+Implementation must not begin from the older standalone prompts. After this design pull request receives its required approvals and merges, the platform design, implementation plans, member assignments, and collaboration protocol become the authoritative sources.
