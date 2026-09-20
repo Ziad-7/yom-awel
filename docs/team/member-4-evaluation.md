@@ -29,7 +29,7 @@ Shared ownership:
 - reproducible task package format;
 - deterministic dataset generator with fixed seed;
 - learner-facing dirty artifact;
-- private clean reference and expected checks;
+- public synthetic test reference and expected checks that are distinct from learner release rows and excluded from deployment bundles;
 - spreadsheet evaluator v1;
 - later isolated SQL and communication evaluators through the same port;
 - structured evaluation errors and summaries;

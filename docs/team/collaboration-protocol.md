@@ -8,7 +8,7 @@ Use these sources in order:
 
 1. merged platform design;
 2. canonical contracts and shared fixtures;
-3. approved implementation plan;
+3. merged implementation plan;
 4. accepted Architecture Decision Records;
 5. lane-specific member task file;
 6. pull request discussion for implementation detail.

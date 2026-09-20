@@ -1,6 +1,6 @@
 # Yom Awel Platform Design
 
-- **Status:** Proposed design baseline; becomes approved when this pull request receives the required architecture approvals and merges
+- **Status:** Proposed design baseline; becomes approved when the architecture branch receives the required reviews and is integrated into `main`
 - **Date:** 2026-09-20
 - **Scope:** Architecture and delivery design only; no product implementation is included in this change.
 - **Canonical source:** This document overrides conflicting architecture or ownership guidance in older repository documents.
@@ -47,7 +47,7 @@ The first production-shaped release is successful when:
 
 ## 4. Current repository state
 
-At design time the repository contains planning documents, package initializers, and an unpinned dependency list. Runtime modules, task data, tests, deployment configuration, migrations, and submission artifacts do not yet exist. Existing README interfaces disagree with `TEAM_PROMPTS.md` on field names and responsibilities. This design resolves those contradictions before implementation begins.
+At design time the repository contains planning documents only. The obsolete top-level `agents`, `bot`, `core`, and `evaluators` package markers and the unpinned root dependency list were removed on the architecture branch so contributors cannot build against two competing layouts. Runtime modules, task data, tests, deployment configuration, migrations, and submission artifacts do not yet exist. Existing README interfaces had disagreed with `TEAM_PROMPTS.md` on field names and responsibilities; this design resolves those contradictions before implementation begins.
 
 ## 5. Architectural decision
 
@@ -227,7 +227,7 @@ yom-awel/
 │   └── team/
 ```
 
-Existing top-level Python packages are transitional scaffolding. The implementation plan will specify their removal or migration so two competing architectures do not remain.
+The retired top-level Python scaffold is intentionally absent. Runtime Python code belongs only under `services/api/src/yom_awel/`, and dependencies belong in the locked `services/api/pyproject.toml`/`uv.lock` pair created by the implementation baseline. Repository-layout checks prevent the retired packages or an unpinned root dependency list from returning.
 
 ## 10. Canonical contracts
 

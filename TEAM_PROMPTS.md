@@ -2,14 +2,14 @@
 
 The original standalone AI prompts have been replaced because they assigned files without freezing contracts, defined conflicting interfaces, concentrated integration work in one member, and allowed planned capabilities to be presented as completed.
 
-Use the approved, reviewable work instructions below.
+Use the proposed, reviewable work instructions below. They become authoritative after the architecture branch is reviewed and integrated into `main`.
 
 ## Canonical documents
 
 1. [Platform design](docs/superpowers/specs/2026-09-20-yom-awel-platform-design.md)
 2. [Team index](docs/team/README.md)
 3. [Collaboration and pull-request protocol](docs/team/collaboration-protocol.md)
-4. Approved implementation plan under `docs/superpowers/plans/`
+4. Implementation plans under `docs/superpowers/plans/`
 
 ## Detailed member assignments
 
