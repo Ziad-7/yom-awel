@@ -4,6 +4,8 @@
 
 Ensure Yom Awel solves a clear learner problem, teaches and measures the intended skills, communicates truthfully, and ships as a coherent release rather than a collection of disconnected technical modules.
 
+Execution checklist: [Member 1 implementation plan](../superpowers/plans/2026-09-20-member-1-product-release.md)
+
 ## Owned paths
 
 - `submission/**`

@@ -4,6 +4,8 @@
 
 Create the stable business core that makes learner progress correct, reproducible, secure, and independent of Telegram, Vercel, Supabase, Gemini, and the web framework.
 
+Execution checklist: [Member 2 implementation plan](../superpowers/plans/2026-09-20-member-2-domain-persistence.md)
+
 ## Owned paths
 
 - `services/api/src/yom_awel/domain/**`

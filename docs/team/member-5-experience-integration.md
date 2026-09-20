@@ -4,6 +4,8 @@
 
 Deliver a coherent, accessible learner experience across web and Telegram, integrate every module through the approved application interfaces, and operate the product on a zero-cost Vercel deployment without duplicating business logic.
 
+Execution checklist: [Member 5 implementation plan](../superpowers/plans/2026-09-20-member-5-experience-integration.md)
+
 ## Owned paths
 
 - `apps/web/**`

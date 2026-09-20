@@ -4,6 +4,8 @@
 
 Provide useful, safe, culturally authentic coaching grounded in deterministic evidence, while ensuring the product remains functional when the free Gemini service is unavailable.
 
+Execution checklist: [Member 3 implementation plan](../superpowers/plans/2026-09-20-member-3-ai-feedback.md)
+
 ## Owned paths
 
 - `services/api/src/yom_awel/feedback/**`

@@ -71,6 +71,7 @@ Every pull request must use the repository template and provide:
 - [Member 3 assignment](docs/team/member-3-ai-feedback.md)
 - [Member 4 assignment](docs/team/member-4-evaluation.md)
 - [Member 5 assignment](docs/team/member-5-experience-integration.md)
+- [Parallel delivery and implementation plans](docs/superpowers/plans/README.md)
 - [Hackathon guidelines](HACKATHON_GUIDELINES.md)
 - [Application requirements](APPLICATION_REQUIREMENTS.md)
 

@@ -4,6 +4,8 @@
 
 Make grading objective, secure, versioned, explainable, and reproducible so learner progression never depends on an LLM judgment.
 
+Execution checklist: [Member 4 implementation plan](../superpowers/plans/2026-09-20-member-4-evaluation.md)
+
 ## Owned paths
 
 - `services/api/src/yom_awel/evaluation/**`

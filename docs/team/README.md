@@ -10,7 +10,7 @@ The project uses five parallel workstreams with explicit file ownership, contrac
 | 4 | Deterministic evaluation and task data | [Member 4](member-4-evaluation.md) |
 | 5 | Web, Telegram, integration, and Vercel | [Member 5](member-5-experience-integration.md) |
 
-All members must follow [the collaboration and pull-request protocol](collaboration-protocol.md).
+All members must follow [the collaboration and pull-request protocol](collaboration-protocol.md). Execute work from the [parallel delivery plan and member-specific implementation plans](../superpowers/plans/README.md).
 
 ## Parallel-start rule
 
