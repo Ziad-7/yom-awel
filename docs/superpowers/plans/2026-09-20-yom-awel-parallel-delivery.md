@@ -77,11 +77,12 @@ Member 5
   services/api/src/yom_awel/transport/**
   tests/integration/**
   tests/e2e/**
-  vercel.json
+  apps/web/vercel.json
+  services/api/vercel.json
   .github/workflows/**
 ```
 
-Root dependency manifests are changed by Member 5 with Member 2 review. Canonical contracts are changed by Member 2 with every affected consumer's approval.
+The API dependency manifest is owned by Member 2 and reviewed by Member 5 when runtime/deployment behavior changes. The web manifest is owned by Member 5. Canonical contracts are changed by Member 2 with every affected consumer's approval. Member 2's retention workflow is a cross-lane `.github/workflows/**` change and therefore requires Member 5 approval.
 
 ## Frozen Cross-Lane Interfaces
 
@@ -155,18 +156,30 @@ flowchart TD
 5. **Security/zero-cost PR:** full negative suite, quota behavior, and bundle/config checks.
 6. **Release PR:** product claims, submission artifacts, preview evidence, and final runbook.
 
-## Task 1: Establish the GitHub Work Board
+## Task 1: Establish the GitHub Work Board and Repository Governance
 
 **Files:**
 - Create: `.github/ISSUE_TEMPLATE/work-item.yml`
+- Create: `.github/CODEOWNERS`
 - Create: `docs/team/work-board.md`
+- Create: `docs/team/traceability.yaml`
+- Create: `docs/team/reviewer-roster.yaml`
+- Create: `docs/operations/github-ruleset.md`
+- Create: `services/api/pyproject.toml`
+- Create: `services/api/uv.lock`
 - Modify: `docs/team/README.md`
+- Test: `tests/documentation/test_repository_governance.py`
+- Test: `tests/documentation/test_plan_commands.py`
 
 **Interfaces:**
 - Consumes: the five lane plans and collaboration protocol.
 - Produces: a uniform issue shape and dependency-aware issue catalog.
 
-- [ ] **Step 1: Add the failing documentation assertion**
+- [ ] **Step 1: Bootstrap the locked validation runtime**
+
+Create the API project manifest exactly as specified in Member 2 Task M2-1 and generate `services/api/uv.lock`. Include pytest and PyYAML so repository-root documentation/security validators run with `uv run --project services/api`. Member 2 owns this shared manifest and Member 5 reviews runtime/deployment additions.
+
+- [ ] **Step 2: Add the failing documentation assertion**
 
 Create `tests/documentation/test_work_board.py` with:
 
@@ -189,35 +202,41 @@ def test_work_board_lists_every_lane_and_gate() -> None:
         assert marker in text
 ```
 
-- [ ] **Step 2: Run the documentation assertion and confirm failure**
+- [ ] **Step 3: Run the documentation assertion and confirm failure**
 
-Run: `python -m pytest tests/documentation/test_work_board.py -q`
+Run: `uv run --project services/api pytest tests/documentation/test_work_board.py -q`
 
 Expected: FAIL because `docs/team/work-board.md` does not exist.
 
-- [ ] **Step 3: Create the issue form**
+- [ ] **Step 4: Create the issue form**
 
 Create `.github/ISSUE_TEMPLATE/work-item.yml` with required fields for owner, lane, outcome, acceptance criteria, paths, contracts, dependencies, tests, security/privacy impact, zero-cost impact, and reviewers. Configure lane options exactly as `Member 1` through `Member 5` plus `Cross-lane gate`.
 
-- [ ] **Step 4: Create the work-board catalog**
+- [ ] **Step 5: Create the work-board catalog**
 
-Create `docs/team/work-board.md` listing every task heading from all five member plans with stable IDs, owner, dependency IDs, required reviewer, and initial state `Backlog`. Add the three gate IDs required by the test.
+Create `docs/team/work-board.md` listing every task heading from all five member plans with stable IDs, owner, dependency IDs, required reviewer, and initial state `Backlog`. Add the three gate IDs required by the test. Create `docs/team/traceability.yaml` mapping each platform success criterion to its owner, plan task ID, automated test path, preview check, and release-evidence path; the governance test rejects an unmapped criterion or nonexistent owner/task ID.
 
-- [ ] **Step 5: Link the catalog from the team index**
+- [ ] **Step 6: Link the catalog from the team index**
 
 Add a `Work tracking` section to `docs/team/README.md` linking the issue form, work-board catalog, and pull-request protocol.
 
-- [ ] **Step 6: Verify the documentation assertion**
+- [ ] **Step 7: Add reviewer enforcement**
 
-Run: `python -m pytest tests/documentation/test_work_board.py -q`
+Record all five verified GitHub usernames and independent backup roles in `docs/team/reviewer-roster.yaml`. Generate `.github/CODEOWNERS` for lane-owned paths from that roster. Document the `main` repository ruleset: pull request required, approval counts from the review matrix, stale approvals dismissed, required CI/contract/security checks, conversation resolution, no force pushes, no deletions, and no self-merge. `test_repository_governance.py` asserts every owned path has a CODEOWNERS entry and every role has a non-self backup.
+
+Add `test_plan_commands.py` to parse shell code blocks in every implementation plan, track explicit `cd` changes within each block, and assert referenced repository paths resolve from that working directory. Maintain an allowlist only for files explicitly declared as future `Create`/`Test` outputs in the same task. This prevents incorrect `../` paths and commands that stage from the wrong directory.
+
+- [ ] **Step 8: Verify the governance and documentation assertions**
+
+Run: `uv run --project services/api pytest tests/documentation -q`
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add .github/ISSUE_TEMPLATE/work-item.yml docs/team/work-board.md docs/team/README.md tests/documentation/test_work_board.py
-git commit -m "docs: add implementation work board"
+git add .github/ISSUE_TEMPLATE/work-item.yml .github/CODEOWNERS docs/team docs/operations/github-ruleset.md tests/documentation services/api/pyproject.toml services/api/uv.lock
+git commit -m "build: establish governed implementation baseline"
 ```
 
 ## Task 2: Merge the Contract Baseline
@@ -243,21 +262,31 @@ git commit -m "docs: add implementation work board"
 - Create: `contracts/fixtures/submission-duplicate.json`
 - Create: `contracts/fixtures/skills-profile.json`
 - Create: `contracts/fixtures/application-error.json`
+- Delete after replacement is verified: `agents/__init__.py`
+- Delete after replacement is verified: `bot/__init__.py`
+- Delete after replacement is verified: `core/__init__.py`
+- Delete after replacement is verified: `evaluators/__init__.py`
+- Delete after `services/api/pyproject.toml` and `uv.lock` exist: `requirements.txt`
 - Test: `services/api/tests/contract/test_contract_snapshots.py`
+- Test: `tests/documentation/test_repository_layout.py`
 
 **Interfaces:**
 - Consumes: canonical signatures in this plan and the platform design.
 - Produces: versioned Pydantic models, ports, schemas, and fixtures used by Members 3–5.
 
-- [ ] **Step 1: Execute Member 2 Tasks 1–2**
+- [ ] **Step 1: Execute Member 2 Tasks M2-1 through M2-3**
 
-Follow `docs/superpowers/plans/2026-09-20-member-2-domain-persistence.md` through the contract fixture task, including its failing and passing tests.
+Follow `docs/superpowers/plans/2026-09-20-member-2-domain-persistence.md` through canonical contracts, domain types, exact port protocols, in-memory reference adapters, and their failing/passing tests. Parallel lanes do not start until evaluator, feedback, artifact, repository, and unit-of-work signatures are importable and frozen.
 
 - [ ] **Step 2: Request consumer reviews**
 
 Request Members 3, 4, and 5. Each reviewer loads their consumed fixture in a focused contract test before approval.
 
-- [ ] **Step 3: Run the contract gate**
+- [ ] **Step 3: Remove the retired scaffold after replacement exists**
+
+After the locked `services/api` project and canonical packages exist, delete the four empty top-level Python packages and the root `requirements.txt`. `test_repository_layout.py` fails if retired imports, retired run commands, or the unpinned root manifest return. Do not delete any non-empty user implementation; migrate it through a separately reviewed change if these files stop being empty before execution.
+
+- [ ] **Step 4: Run the contract gate**
 
 Run:
 
@@ -265,16 +294,18 @@ Run:
 cd services/api
 uv run pytest tests/contract -q
 uv run mypy src
+cd ../.. && uv run --project services/api pytest tests/documentation/test_repository_layout.py -q
 ```
 
 Expected: all tests pass and mypy reports no errors.
 
-- [ ] **Step 4: Merge and tag the baseline**
+- [ ] **Step 5: Merge and tag the baseline**
 
 After required reviews and green checks, squash merge the baseline PR and create the annotated tag:
 
 ```bash
 git tag -a contracts-v1 -m "Yom Awel canonical contracts v1"
+git push origin contracts-v1
 ```
 
 ## Task 3: Start Five Parallel Lanes
@@ -333,7 +364,7 @@ Replace only the fake `Evaluator` binding with Member 4's implementation. Run:
 
 ```bash
 cd services/api
-uv run pytest tests/contract tests/evaluation ../tests/integration/test_submission_evaluator.py -q
+uv run pytest tests/contract tests/evaluation ../../tests/integration/test_submission_evaluator.py -q
 ```
 
 Expected: pass/fail outcomes match the canonical fixtures.
@@ -344,7 +375,7 @@ Replace only the fake `FeedbackProvider` binding with Member 3's provider/fallba
 
 ```bash
 cd services/api
-uv run pytest tests/contract tests/feedback ../tests/integration/test_submission_feedback.py -q
+uv run pytest tests/contract tests/feedback ../../tests/integration/test_submission_feedback.py -q
 ```
 
 Expected: provider and fallback outputs match schema and never change evaluation state.
@@ -355,14 +386,14 @@ Replace in-memory repositories with Member 2's SQLite adapter in CI and Supabase
 
 ```bash
 cd services/api
-uv run pytest tests/contract tests/persistence ../tests/integration/test_submission_transaction.py -q
+uv run pytest tests/contract tests/persistence ../../tests/integration/test_submission_transaction.py -q
 ```
 
 Expected: duplicate requests return the original outcome and pass advances once.
 
 - [ ] **Step 4: Run the complete API integration suite**
 
-Run: `cd services/api && uv run pytest tests ../tests/integration -q`
+Run: `cd services/api && uv run pytest tests ../../tests/integration -q`
 
 Expected: all tests pass without a Gemini key or Supabase cloud credentials by using local adapters.
 
@@ -407,14 +438,14 @@ Assert email, Telegram ID, service keys, object paths, and raw workbook values d
 
 - [ ] **Step 5: Write the zero-cost runbook**
 
-Document Vercel Hobby, Supabase Free, Gemini free/fallback, local-only startup, quota symptoms, pause behavior, and the explicit prohibition on enabling paid trials or add-ons.
+Document Vercel Hobby's personal non-commercial demo eligibility, Supabase Free, Gemini free/fallback, local-only startup, quota symptoms, pause behavior, release-time terms revalidation, the explicit prohibition on paid trials/add-ons, and the requirement for a new hosting ADR before commercial or organizational use.
 
 - [ ] **Step 6: Run the release security gate**
 
 Run:
 
 ```bash
-python -m pytest tests/security -q
+uv run --project services/api pytest tests/security -q
 ```
 
 Expected: all tests pass.
@@ -506,26 +537,31 @@ Replay the same API idempotency key and Telegram update fixture. Verify one atte
 
 - [ ] **Step 5: Create the release manifest**
 
-Write `submission/release-manifest.json` with exact commit SHA, web/API preview URLs, schema migration version, task/evaluator/prompt versions, test command results, and artifact hashes.
+Write `submission/release-manifest.json` with `tested_source_sha` for the exact code/configuration commit deployed to preview, web/API preview URLs, schema migration version, task/evaluator/prompt versions, test command results, and evidence artifact hashes. Do not attempt to place the future evidence-commit SHA inside a file contained by that same commit.
 
-- [ ] **Step 6: Tag the verified commit**
-
-```bash
-git tag -a demo-v1 -m "Verified Yom Awel demo release"
-```
-
-- [ ] **Step 7: Commit release documentation**
+- [ ] **Step 6: Commit and review release evidence**
 
 ```bash
 git add submission
 git commit -m "docs: record verified release candidate"
 ```
 
+- [ ] **Step 7: Revalidate and tag the evidence commit**
+
+Re-run manifest validation and CI on the evidence commit. Confirm `tested_source_sha` still identifies the deployed application tree, then create and push the tag on the reviewed evidence commit:
+
+```bash
+git tag -a demo-v1 -m "Verified Yom Awel demo evidence"
+git push origin demo-v1
+```
+
+Record both the tag commit and `tested_source_sha` in GitHub Release metadata, which is external to the tagged tree and therefore has no self-reference problem.
+
 ## Completion Gate
 
 The implementation program is complete only when:
 
-- every checkbox in all five lane plans is complete;
+- every initial-release checkbox is complete; Member 4's explicitly later SQL and communication milestone is excluded until separately approved;
 - all required pull-request approvals are recorded;
 - contract, unit, integration, security, and end-to-end suites pass;
 - two Vercel Hobby previews are verified;
@@ -533,5 +569,5 @@ The implementation program is complete only when:
 - Supabase RLS allow/deny tests pass;
 - duplicate submission and Telegram replay tests pass;
 - Member 1's claim-to-evidence audit contains no unsupported current-state claim;
-- `submission/release-manifest.json` identifies the exact verified commit;
-- the release tag points to that commit.
+- `submission/release-manifest.json` identifies the exact tested source commit;
+- the release tag points to the reviewed evidence commit and GitHub Release metadata links both commits.

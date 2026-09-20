@@ -6,7 +6,7 @@ This protocol is mandatory for all five contributors. Its purpose is to keep par
 
 Use these sources in order:
 
-1. approved platform design;
+1. merged platform design;
 2. canonical contracts and shared fixtures;
 3. approved implementation plan;
 4. accepted Architecture Decision Records;
@@ -164,21 +164,23 @@ Every pull request must include:
 
 ## 7. Review matrix
 
-The author cannot approve their own pull request.
+The author cannot approve or merge their own pull request. A required role occupied by the author is replaced by a designated backup reviewer from a different lane, recorded in the linked issue before review starts. The backup must own or consume the affected contract; authors cannot choose an uninvolved reviewer merely to satisfy the count.
 
-| Change area | Required reviewers |
-|---|---|
-| Product behavior, Arabic copy, task instructions, submission claims | Member 1 plus the code owner |
-| Domain contracts, state machine, application services | Member 2 plus one consumer owner |
-| Schema, migrations, RLS, storage policy | Member 2 plus Member 5; security tests required |
-| AI prompts, provider behavior, fallback | Member 3 plus Member 1 |
-| Evaluator or scoring policy | Member 4 plus Member 1 |
-| Web, Telegram, FastAPI transport | Member 5 plus affected service owner |
-| Vercel, dependencies, CI, runtime configuration | Member 5 plus Member 2 |
-| Shared contract change | Member 2 and every affected consumer owner |
-| Cross-cutting architecture | At least three members, including Members 2 and 5 |
+| Change area | Required approving roles | Minimum approvals |
+|---|---|---:|
+| Product behavior, Arabic copy, task instructions, submission claims | Member 1; for code, the affected implementation owner | 1 for docs-only, 2 for code |
+| Domain contracts, state machine, application services | Member 2 and one consumer owner | 2 |
+| Schema, migrations, RLS, storage policy | Member 2 and Member 5; security tests required | 2 |
+| AI prompts, provider behavior, fallback | Member 3 and Member 1 | 2 |
+| Evaluator or scoring policy | Member 4 and Member 1 | 2 |
+| Web, Telegram, FastAPI transport | Member 5 and each directly affected service owner | 2 minimum |
+| Vercel, dependencies, CI, runtime configuration | Member 5 and Member 2 | 2 |
+| Shared contract change | Member 2 and every affected consumer owner | All listed roles |
+| Cross-cutting architecture | Members 2 and 5 plus one other unaffected member | 3 |
 
-A normal lane-local pull request requires one approval from the required reviewer. Cross-lane, contract, security, migration, or architecture pull requests require at least two approvals.
+When the author occupies a required role, the predesignated backup fills that seat and the minimum count does not decrease. A normal lane-local pull request not covered by a stricter row requires one approval from another member.
+
+Repository branch rules and `.github/CODEOWNERS` enforce required pull requests, required status checks, conversation resolution, stale-review dismissal after new commits, no force pushes, no branch deletion, and no self-merge. `docs/team/reviewer-roster.yaml` maps each member role and backup role to verified GitHub usernames; the roster is the source used to generate CODEOWNERS and must contain no unverified handle.
 
 ## 8. Merge gates
 
@@ -194,6 +196,7 @@ Merging is prohibited unless:
 - no paid dependency or billing requirement was introduced;
 - documentation reflects changed behavior;
 - the pull request remains within its accepted scope.
+- the author is not the merger and every required reviewer is independent of the author.
 
 Use squash merge for ordinary work so each pull request becomes one coherent `main` commit. Preserve separate commits only when repository maintainers explicitly need them for migration sequencing.
 

@@ -54,12 +54,12 @@
 - Test: `services/api/tests/contract/test_contract_fixtures.py`
 
 **Interfaces:**
-- Consumes: field definitions from the approved platform design.
+- Consumes: field definitions from the merged platform design.
 - Produces: importable Pydantic models and stable fixture JSON used by Members 3–5.
 
 - [ ] **Step 1: Add the Python project manifest**
 
-Create `services/api/pyproject.toml` with Python `>=3.12,<3.13`, runtime dependencies `pydantic>=2,<3`, and development dependencies `pytest`, `pytest-asyncio`, `mypy`, and `ruff`. Configure package discovery under `src`, pytest under `tests`, strict mypy for `src/yom_awel`, and Ruff line length 100. Generate and commit `uv.lock` during execution.
+Create or verify `services/api/pyproject.toml` with Python `>=3.12,<3.13`, runtime dependencies `pydantic>=2,<3`, and development dependencies `pytest`, `pytest-asyncio`, `PyYAML`, `mypy`, and `ruff`. Configure package discovery under `src`, include root `tools/quality` and `tests` in pytest discovery when invoked with `uv run --project services/api`, enable strict mypy for `src/yom_awel`, and set Ruff line length 100. Generate and commit `uv.lock` during execution; if the governance baseline already created these files, change them only through the shared-manifest review rule.
 
 - [ ] **Step 2: Write the failing fixture test**
 
@@ -125,6 +125,12 @@ class SubmissionStatus(StrEnum):
     EVALUATING = "EVALUATING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+
+
+class TaskStatus(StrEnum):
+    AVAILABLE = "AVAILABLE"
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
 ```
 
 Also define `Language` with `ar-EG` and `en`, `Channel` with `web` and `telegram`, and stable application error categories.
@@ -135,7 +141,7 @@ Implement constrained models for `ArtifactRef`, `TaskVersion`, `EvaluationCheck`
 
 - [ ] **Step 6: Create deterministic fixtures**
 
-Use fixed UUIDs, timestamps, hashes, task version `clean-sales@1`, evaluator version `sales-cleaning@1`, prompt version `tarek-feedback@1`, and score combinations that exercise pass, fail, fallback, and duplicate outcomes. The duplicate fixture must be byte-for-byte equal to the original successful outcome except for no fields.
+Use fixed UUIDs, timestamps, hashes, task version `clean-sales@1`, evaluator fields `evaluator_id="sales-cleaning"` and `evaluator_version="1"`, prompt fields `persona_id="tarek"` and `prompt_version="tarek-feedback@1"`, and score combinations that exercise pass, fail, fallback, and duplicate outcomes. The duplicate fixture must be byte-for-byte equal to the original successful outcome with no changed fields.
 
 - [ ] **Step 7: Run contract tests**
 
@@ -280,11 +286,15 @@ class LearnerRepository(Protocol):
 
 
 class SubmissionRepository(Protocol):
-    async def get_by_idempotency_key(
+    async def reserve(
+        self, learner_id: UUID, key: str, request_fingerprint: str, lease_seconds: int
+    ) -> SubmissionReservation: ...
+    async def get_reservation(
         self, learner_id: UUID, key: str
-    ) -> Submission | None: ...
-    async def add(self, submission: Submission) -> None: ...
-    async def save_outcome(self, outcome: SubmissionOutcome) -> None: ...
+    ) -> SubmissionReservation | None: ...
+    async def finalize(
+        self, reservation_id: UUID, expected_version: int, outcome: SubmissionOutcome
+    ) -> None: ...
 ```
 
 Define corresponding task, attempt, skill, outbox, artifact, evaluator, and feedback protocols.
@@ -329,7 +339,7 @@ git commit -m "feat: define application ports and memory adapters"
 
 - [ ] **Step 1: Write the duplicate-submission tests**
 
-Test the same learner/key/hash twice returns one outcome and one attempt. Test the same learner/key with a different hash raises `IdempotencyConflict`. Test two concurrent passed submissions advance once.
+Test the same learner/key/hash twice after completion returns one outcome and one attempt. Test the same learner/key with a different fingerprint raises `IdempotencyConflict`. Test a duplicate while the first committed lease is active returns the same submission ID and processing state. Test an expired lease can be reclaimed once. Test two concurrent passed submissions advance once.
 
 - [ ] **Step 2: Write provider-fallback authority tests**
 
@@ -347,19 +357,18 @@ Define `OnboardLearnerCommand`, `CreateUploadCommand`, `ProcessSubmissionCommand
 
 - [ ] **Step 5: Implement submission orchestration**
 
-Order operations exactly:
+Order operations exactly, using no database transaction across evaluation or provider I/O:
 
-1. retrieve learner and active task;
-2. validate artifact ownership and task version;
-3. resolve existing idempotency key;
-4. create received submission;
-5. evaluate artifact;
-6. persist immutable evaluation;
-7. generate or fall back feedback;
-8. create attempt and skill evidence;
-9. advance from evaluation result;
-10. record outbox events;
-11. commit and return `SubmissionOutcome`.
+1. derive a stable request fingerprint from learner, task version, artifact ID/hash, channel, and channel event;
+2. open a short unit of work, retrieve learner/task, validate artifact ownership, reserve the idempotency key with `PROCESSING` status and lease, then commit;
+3. if the key has a different fingerprint, return conflict; if its active lease is owned elsewhere, return the same submission ID with processing/retry information; if completed, return the stored outcome;
+4. evaluate the artifact outside a database transaction;
+5. generate or fall back feedback outside a database transaction;
+6. open a second short unit of work and compare-and-swap the reservation version/lease owner;
+7. atomically persist immutable evaluation and feedback, create attempt and skill evidence, advance only from `evaluation.passed`, record outbox events, mark the reservation completed, and commit;
+8. on retryable external failure, preserve or expire the reservation predictably so the same key can resume without duplicate progression.
+
+SQLite implements both phases with explicit transactions. Supabase exposes reviewed `reserve_submission` and `finalize_submission` database RPC functions; calling several Data API mutations from the client does not count as an atomic transaction.
 
 - [ ] **Step 6: Implement onboarding, task, profile, and reset use cases**
 
@@ -438,6 +447,10 @@ git commit -m "feat: add zero-cloud persistence adapters"
 - Create via `supabase migration new platform_schema`: the CLI-generated `platform_schema` migration in `supabase/migrations/`
 - Create: `supabase/tests/database/rls.sql`
 - Create: `docs/operations/data-retention.md`
+- Create: `services/api/src/yom_awel/persistence/retention.py`
+- Create: `services/api/scripts/purge_expired_artifacts.py`
+- Create: `services/api/tests/persistence/test_retention.py`
+- Create: `.github/workflows/retention.yml`
 
 **Interfaces:**
 - Consumes: canonical entities and repository contract.
@@ -467,7 +480,7 @@ Create tables for learners, external identities, tasks, task versions, artifacts
 
 - [ ] **Step 4: Enable RLS and grants**
 
-Enable RLS on every exposed table. Add learner ownership policies using `(select auth.uid())`, and include both `USING` and `WITH CHECK` for updates. Revoke unnecessary public function/table privileges. Keep administrative operations in server-only paths.
+Enable RLS on every exposed table. Map the verified Supabase Auth `sub` to `external_identities.provider_subject`, add learner ownership policies using `(select auth.uid())`, and include both `USING` and `WITH CHECK` for updates. Revoke unnecessary public function/table privileges. Keep service-role administrative operations in server-only paths and repeat domain authorization before every learner-scoped service operation.
 
 - [ ] **Step 5: Configure private storage policies**
 
@@ -477,19 +490,25 @@ Create a private `submissions` bucket. Restrict object paths to generated learne
 
 Test learner A own read, learner B denial, anonymous denial, cross-user update denial, signed artifact ownership, and service operation boundaries.
 
-- [ ] **Step 7: Write retention documentation**
+- [ ] **Step 7: Implement and test durable retention cleanup**
 
-Set artifact retention to 30 days for the prototype, attempts/evaluations retained for audit, and deletion behavior for learner requests. Explain that retention is configurable but not silently extended.
+Set artifact retention to 30 days for the prototype and retain attempts/evaluations without raw files for audit. Implement an RPC that claims an expired artifact row using a lease, then let `purge_expired_artifacts.py` delete the private storage object and finalize an audited tombstone. A failed object deletion records `PURGE_FAILED` and becomes retryable; a missing object is treated as idempotently deleted. The same workflow removes expired anonymous Supabase Auth users only after their application data is reconciled. Tests cover object/row reconciliation, anonymous-identity cleanup, concurrent claims, retry, learner deletion requests, audit records, and no deletion of unexpired artifacts.
 
-- [ ] **Step 8: Run migration and advisor verification**
+Run a bounded cleanup batch opportunistically after successful cloud submissions and through `.github/workflows/retention.yml` once daily plus `workflow_dispatch`, using only standard public-repository GitHub Actions and encrypted repository secrets. The workflow must be disabled if it would require a paid runner. Document manual execution as the recovery path and alert on repeated failures through the workflow result.
 
-Run the local migration from an empty database, execute SQL tests, and run Supabase security/performance advisors when a project is connected. Attach outputs to the PR.
+- [ ] **Step 8: Write retention and deletion documentation**
 
-- [ ] **Step 9: Commit**
+Document the 30-day rule, learner-request deletion, what audit metadata remains, workflow ownership, retry behavior, manual recovery, and evidence required to prove the policy executed. Retention is configurable only through a reviewed environment/config change and is never silently extended.
+
+- [ ] **Step 9: Run migration, retention, and advisor verification**
+
+Run the local migration from an empty database, execute SQL and retention tests, run the cleanup twice to prove idempotency, and run Supabase security/performance advisors when a project is connected. Attach outputs to the PR.
+
+- [ ] **Step 10: Commit**
 
 ```bash
-git add supabase docs/operations/data-retention.md
-git commit -m "feat: add secure Supabase persistence schema"
+git add supabase services/api/src/yom_awel/persistence/retention.py services/api/scripts/purge_expired_artifacts.py services/api/tests/persistence/test_retention.py .github/workflows/retention.yml docs/operations/data-retention.md
+git commit -m "feat: add secure Supabase schema and retention"
 ```
 
 ### Task M2-7: Implement Supabase Repository and Artifact Adapters
@@ -524,7 +543,7 @@ Map database rows to domain/contracts in focused functions. Reject unexpected nu
 
 - [ ] **Step 5: Implement transactional repository behavior**
 
-Use one application transaction for attempt, skill evidence, progress, and outbox mutations. Enforce idempotency and optimistic versions at the database level.
+Call the schema's short `reserve_submission` RPC before external work and `finalize_submission` RPC afterward. Finalization atomically writes attempt, skill evidence, progress, results, and outbox state with compare-and-swap reservation ownership. Enforce fingerprints, leases, idempotency, and optimistic versions at the database level.
 
 - [ ] **Step 6: Implement private artifact operations**
 
@@ -555,6 +574,8 @@ git commit -m "feat: add Supabase repository adapters"
 - Idempotency and concurrency tests pass.
 - Memory, SQLite, and Supabase adapters pass the same contract suite.
 - Migrations apply from empty state and RLS allow/deny tests pass.
+- Reservation and finalization RPCs pass concurrent-processing, lease recovery, and exactly-once progression tests.
+- Artifact retention cleanup reconciles storage and rows, is retryable/idempotent, and runs through a zero-cost workflow.
 - Security/performance advisor results contain no unaccepted error.
 - Member 5 approves transport-facing contracts.
 - Member 1 approves progression/profile semantics.

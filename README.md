@@ -4,7 +4,7 @@ Arabic-first workplace simulation for task-based digital skills training.
 
 ## Project status
 
-The repository is in the **approved architecture and delivery-planning stage**. It does not yet contain a working application. Runtime code, datasets, migrations, tests, and deployment configuration will be added through the reviewed implementation plan.
+The repository is in the **proposed architecture and delivery-planning stage**. It does not yet contain a working application. Runtime code, datasets, migrations, tests, and deployment configuration will be added only after the design pull request receives the required reviews and merges.
 
 This status statement is intentional: documentation must not describe planned capabilities as already implemented.
 
@@ -17,7 +17,7 @@ Learners join a simulated Egyptian workplace through a web experience or Telegra
 
 Only deterministic results control task completion and progression. Generative feedback cannot override grades.
 
-## Approved architecture
+## Proposed architecture
 
 The target is a modular Python monolith with ports and adapters:
 
@@ -85,4 +85,4 @@ Every pull request must use the repository template and provide:
 6. Verify pull-request previews and the complete release candidate.
 7. Promote the exact verified artifact and tag its commit.
 
-Implementation must not begin from the older standalone prompts. The approved design, implementation plan, member assignments, and collaboration protocol are the authoritative sources.
+Implementation must not begin from the older standalone prompts. After this design pull request receives its required approvals and merges, the platform design, implementation plans, member assignments, and collaboration protocol become the authoritative sources.

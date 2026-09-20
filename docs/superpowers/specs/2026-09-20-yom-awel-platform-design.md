@@ -1,6 +1,6 @@
 # Yom Awel Platform Design
 
-- **Status:** Approved design baseline
+- **Status:** Proposed design baseline; becomes approved when this pull request receives the required architecture approvals and merges
 - **Date:** 2026-09-20
 - **Scope:** Architecture and delivery design only; no product implementation is included in this change.
 - **Canonical source:** This document overrides conflicting architecture or ownership guidance in older repository documents.
@@ -25,7 +25,7 @@ The product must combine:
 - **Arabic is a first-class interface:** Egyptian Arabic copy, RTL rendering, and culturally authentic workplace scenarios are product requirements.
 - **One domain, many interfaces:** Telegram, web, and future channels call the same application use cases.
 - **Secure by default:** Learner data, artifacts, secrets, and provider credentials are private unless explicitly published.
-- **Graceful degradation:** The learner can finish the deterministic flow when Gemini, Telegram, Supabase, or Vercel is degraded.
+- **Graceful degradation:** Gemini failure uses deterministic feedback and Telegram failure can use the web channel. Supabase or Vercel failure must preserve consistency and return a safe retry response; remote completion resumes after infrastructure recovery.
 - **Zero mandatory cost:** No accepted design decision requires a paid plan, card-backed service, paid add-on, or metered overage.
 - **Portability:** Domain and evaluation code must not import Vercel, Supabase, Telegram, Gemini, or Next.js APIs.
 
@@ -194,10 +194,12 @@ Owns the Next.js learner interface, Arabic RTL presentation, upload flow, access
 yom-awel/
 ├── apps/
 │   └── web/                         # Next.js, owned by Member 5
+│       └── vercel.json              # Web project configuration
 ├── services/
 │   └── api/
 │       ├── api/index.py             # FastAPI/Vercel entry point, Member 5
 │       ├── pyproject.toml
+│       ├── vercel.json              # API project configuration
 │       └── src/yom_awel/
 │           ├── domain/              # Member 2
 │           ├── application/         # Member 2
@@ -223,7 +225,6 @@ yom-awel/
 │   ├── superpowers/specs/
 │   ├── superpowers/plans/
 │   └── team/
-└── vercel.json                      # Member 5
 ```
 
 Existing top-level Python packages are transitional scaffolding. The implementation plan will specify their removal or migration so two competing architectures do not remain.
@@ -231,6 +232,23 @@ Existing top-level Python packages are transitional scaffolding. The implementat
 ## 10. Canonical contracts
 
 All cross-module types are versioned. Field names may not be changed through an implementation pull request without the contract-change procedure.
+
+Canonical status enums are serialized exactly as follows:
+
+```python
+class TaskStatus(StrEnum):
+    AVAILABLE = "AVAILABLE"
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+
+class SubmissionStatus(StrEnum):
+    RECEIVED = "RECEIVED"
+    EVALUATING = "EVALUATING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+```
+
+Evaluator identity is always carried as separate fields: `evaluator_id="sales-cleaning"` and `evaluator_version="1"`. The combined display form `sales-cleaning@1` is never serialized into either field.
 
 ### EvaluationResult
 
@@ -364,18 +382,20 @@ sequenceDiagram
     A-->>C: Private signed upload
     C->>S: Upload artifact
     C->>A: Submit artifact ID + idempotency key
-    A->>D: Create or retrieve submission
+    A->>D: Reserve key + submission in short transaction
+    D-->>A: Committed PROCESSING reservation
     A->>E: Evaluate versioned task artifact
     E-->>A: EvaluationResult
-    A->>D: Persist immutable evaluation
     A->>F: Generate feedback from safe structured data
     F-->>A: FeedbackResult or fallback
-    A->>D: Atomic attempt, skills, progress, outbox update
+    A->>D: CAS finalize evaluation, feedback, attempt, skills, progress, outbox
     A-->>C: SubmissionOutcome
     C-->>U: Result, guidance, and next action
 ```
 
 Telegram downloads are limited, validated, stored under generated IDs, and mapped into the same artifact workflow. The webhook is idempotent because Telegram may retry updates.
+
+Idempotency uses two short transactions, never a database transaction held open during file parsing, evaluation, or provider calls. The reservation transaction inserts the key, request fingerprint, submission ID, `PROCESSING` status, lease expiry, and timestamps, then commits. A duplicate with a different fingerprint returns `409`; a duplicate while the committed reservation is active returns `202` with the same submission ID and `Retry-After`; a completed duplicate returns the original outcome. After external work, a compare-and-swap finalization transaction atomically persists the immutable results and progression only when the reservation owner and version still match. Expired leases may be reclaimed safely. Supabase implements reservation/finalization through reviewed database RPC functions so each phase is atomic; SQLite uses explicit short transactions with equivalent contract tests.
 
 ## 14. Error model and resilience
 
@@ -402,6 +422,17 @@ Retry rules:
 
 ## 15. Security and privacy
 
+### Web identity and authorization
+
+- Use Supabase Auth anonymous sign-in for the zero-cost web demo. It issues a real authenticated user/JWT without email, SMTP, OAuth, or other PII, and is included in the Free plan. The UI clearly warns that clearing browser data or logging out makes the anonymous demo profile unrecoverable; linking a permanent identity is later scope.
+- The browser may receive only `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `NEXT_PUBLIC_API_BASE_URL`. Publishable credentials are not authorization by themselves.
+- The browser sends the Supabase access token as an `Authorization: Bearer` header. FastAPI verifies issuer, audience, expiry, signature, and key ID against the project's HTTPS JWKS and maps the verified `sub` to the learner's `external_identities` row.
+- The Supabase client owns token refresh and explicit logout. Tokens are not placed in URLs or application logs. Because mutation authentication uses an authorization header rather than cookies, cross-site requests cannot authenticate implicitly; CORS is restricted to the exact configured web preview/production origins and credentials are disabled.
+- Anonymous users use the `authenticated` database role; RLS policies explicitly inspect the `is_anonymous` claim where permanent identities would require stronger privileges. Built-in Auth rate limits are enabled, anonymous-account creation is monitored, and expired demo identities are removed with the learner-retention workflow.
+- Learner-scoped Data API access, when used, relies on the verified Supabase JWT and RLS `auth.uid()` ownership policies. Server workflows use the service role only inside FastAPI after domain authorization and never accept a learner ID as authority.
+- Direct uploads use a backend-created, short-lived one-object upload token after learner/task authorization. The browser receives no service-role key, cannot choose the storage path, and the backend revalidates object ownership and metadata before evaluation.
+- Telegram identity is verified by the webhook secret and Telegram update payload, then mapped to a provider-specific external identity. It never accepts a web learner ID supplied by a Telegram user.
+
 - Enable RLS on every exposed Supabase table.
 - Keep internal operational data in non-public schemas where supported.
 - Revoke unnecessary `anon` and `authenticated` grants.
@@ -427,11 +458,15 @@ Use two projects sourced from the same personal GitHub repository:
 - `apps/web` deploys the Next.js application;
 - `services/api` deploys FastAPI through the Vercel Python runtime.
 
-This avoids dependence on Vercel Services beta. Preview deployments are created for pull requests. Hobby overages must pause or throttle service rather than trigger charges. Do not enable Pro trials, paid marketplace integrations, on-demand resources, or paid custom domains.
+This avoids dependence on Vercel Services beta. Preview deployments are created for pull requests. Vercel Hobby is approved only for this personal, non-commercial hackathon/demo deployment; commercial or organizational use requires a new hosting ADR. Revalidate current Hobby eligibility and limits at release time. Hobby limits must pause or throttle service rather than trigger charges. Do not enable Pro trials, paid marketplace integrations, on-demand resources, or paid custom domains.
+
+Constraint source checked 2026-09-20: [Vercel Hobby Plan](https://vercel.com/docs/plans/hobby).
 
 ### Supabase Free
 
 Use one free project for shared development/demo and keep a second free-project allowance available for recovery if possible. Database and storage usage must be monitored against free limits. No paid add-ons, image transformations, read replicas, point-in-time recovery, or custom domains are required.
+
+Authentication sources checked 2026-09-20: [Supabase Anonymous Sign-Ins](https://supabase.com/docs/guides/auth/auth-anonymous) and [Supabase pricing](https://supabase.com/pricing). Anonymous sign-in is selected because default email delivery is restricted and unsuitable as an open learner path without additional SMTP configuration.
 
 ### Gemini Free
 
@@ -463,6 +498,7 @@ This mode must not need a cloud account or billing method.
 - Telegram uses a webhook route; polling is local-development-only.
 - Frontend/API URLs are environment-specific and never hard-coded.
 - Pull requests deploy previews; production is promoted only from a verified preview artifact.
+- Each Vercel project reads configuration from its own project root: `apps/web/vercel.json` and `services/api/vercel.json`.
 - The architecture does not rely on WebSockets, paid cron, paid observability, or a proprietary queue.
 
 ## 18. Non-functional requirements
@@ -572,7 +608,7 @@ All communication, contract changes, review requirements, and merge gates follow
 
 ## 22. Integration order
 
-1. Merge the approved architecture, collaboration protocol, and contract definitions.
+1. Review and merge the proposed architecture and collaboration protocol, then merge the contract definitions.
 2. Create five short-lived member branches from the same baseline.
 3. Members implement concurrently against canonical fixtures and fakes.
 4. Merge contract-compatible domain, evaluation, and feedback lanes independently.
@@ -601,7 +637,7 @@ These features require separate approved designs. They must not be implied as cu
 
 | Risk | Mitigation |
 |---|---|
-| Free-tier quota exhaustion | Usage limits, fallback providers, local mode, and no-paid-service gate |
+| Free-tier quota exhaustion | Usage limits, safe retry, provider fallback where possible, local development mode, and no-paid-service gate |
 | LLM latency or outage | Strict timeout and deterministic Arabic fallback |
 | Parallel implementation drift | Frozen contracts, fixtures, CODEOWNERS, and contract tests |
 | Upload abuse | Private storage, signed URLs, limits, validation, and retention cleanup |
@@ -609,7 +645,7 @@ These features require separate approved designs. They must not be implied as cu
 | Unreproducible grading | Immutable task/evaluator versions and stored structured results |
 | Product overclaiming | Member 1 claim-to-evidence matrix and release sign-off |
 | Serverless filesystem assumptions | Supabase durability and disposable local files only |
-| Vercel Hobby restrictions | Personal-repository deployment, bounded functions, and local fallback |
+| Vercel Hobby restrictions | Personal non-commercial demo only, bounded functions, release-time eligibility check, and a new ADR before commercial use |
 | Gemini free-tier privacy | Anonymized structured inputs and no raw learner data |
 
 ## 25. Architecture governance

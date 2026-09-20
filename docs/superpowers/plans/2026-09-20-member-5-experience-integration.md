@@ -16,6 +16,7 @@
 - Durable data and artifacts never rely on Vercel local filesystem.
 - Web and Telegram invoke the same application use cases.
 - Browser bundles contain no service-role, Gemini, Telegram, or database credentials.
+- Web identity uses Supabase Auth anonymous sign-in on the Free plan; FastAPI verifies bearer JWTs and maps their `sub` claim to a learner external identity without requiring email delivery, SMTP, or another paid provider.
 - Uploads go directly to private Supabase Storage through short-lived authorization and are capped at 5 MB.
 - Production Telegram uses webhooks; polling is local-development-only.
 - Arabic RTL, keyboard navigation, accessible names, focus management, and non-color state indicators are mandatory.
@@ -41,6 +42,7 @@
 - Create: `apps/web/next.config.ts`
 - Create: `apps/web/src/app/layout.tsx`
 - Create: `apps/web/src/app/page.tsx`
+- Create: `apps/web/src/lib/auth/supabase.ts`
 - Create: `services/api/api/index.py`
 - Create: `services/api/src/yom_awel/transport/app.py`
 - Create: `.github/workflows/ci.yml`
@@ -96,6 +98,8 @@ List variable names and server/client scope in `.env.example` without values:
 APP_ENV
 API_BASE_URL
 NEXT_PUBLIC_API_BASE_URL
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 SUPABASE_URL
 SUPABASE_PUBLISHABLE_KEY
 SUPABASE_SERVICE_ROLE_KEY
@@ -107,7 +111,7 @@ LOCAL_DATABASE_PATH
 LOCAL_ARTIFACT_ROOT
 ```
 
-Only `NEXT_PUBLIC_API_BASE_URL` may be browser-exposed.
+Only `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` may be browser-exposed. The publishable key identifies the project but grants no learner ownership by itself; RLS and the verified JWT remain mandatory.
 
 - [ ] **Step 6: Add CI jobs**
 
@@ -132,7 +136,10 @@ git commit -m "build: establish web and API workspace"
 ### Task M5-2: Build Contract-Compatible Fakes and API Routes
 
 **Files:**
+- Modify: `services/api/pyproject.toml`
+- Modify: `services/api/uv.lock`
 - Create: `services/api/src/yom_awel/transport/dependencies.py`
+- Create: `services/api/src/yom_awel/transport/auth.py`
 - Create: `services/api/src/yom_awel/transport/fakes.py`
 - Create: `services/api/src/yom_awel/transport/routes/learners.py`
 - Create: `services/api/src/yom_awel/transport/routes/tasks.py`
@@ -140,26 +147,31 @@ git commit -m "build: establish web and API workspace"
 - Create: `services/api/src/yom_awel/transport/routes/profiles.py`
 - Create: `services/api/src/yom_awel/transport/errors.py`
 - Test: `services/api/tests/transport/test_routes_with_fakes.py`
+- Test: `services/api/tests/transport/test_auth.py`
 
 **Interfaces:**
 - Consumes: Member 2 canonical schemas/fixtures.
 - Produces: stable OpenAPI routes used by web and Telegram before real modules merge.
 
-- [ ] **Step 1: Write route contract tests from fixtures**
+- [ ] **Step 1: Write authentication and route contract tests**
 
-Test exact response payloads for onboarding, current task, upload authorization, failed submission, passed submission, duplicate submission, and skills profile. Test validation and authorization errors use canonical `ApplicationError`.
+Test JWT signature, issuer, audience, expiry, key rotation by `kid`, missing/malformed bearer header, and mapping verified `sub` to the Supabase external identity. Reject any client learner ID that differs from the authenticated learner. Test exact response payloads for onboarding, current task, upload authorization, failed submission, passed submission, processing duplicate, completed duplicate, and skills profile. Test validation and authorization errors use canonical `ApplicationError`.
 
 - [ ] **Step 2: Run tests and confirm failure**
 
-Run: `cd services/api && uv run pytest tests/transport/test_routes_with_fakes.py -q`
+Run: `cd services/api && uv run pytest tests/transport/test_auth.py tests/transport/test_routes_with_fakes.py -q`
 
 Expected: FAIL because routes/fakes do not exist.
 
-- [ ] **Step 3: Implement fixture-backed use-case fakes**
+- [ ] **Step 3: Implement JWT authentication and CORS**
+
+Add and lock the minimal JWT/JWKS dependency in the API project. Verify Supabase access tokens against the configured HTTPS JWKS with cached keys and bounded refresh. Validate issuer, audience, expiry, signature algorithm, and `sub`; map `sub` to `external_identities` through the onboarding/application port. Configure CORS from an exact comma-separated allowlist of web preview/production origins, allow only required methods/headers including `Authorization` and `Idempotency-Key`, and set credentials false. Bearer-header authentication means cross-site requests cannot authenticate implicitly; do not add cookie authentication without a separate CSRF design.
+
+- [ ] **Step 4: Implement fixture-backed use-case fakes**
 
 Load canonical JSON through Pydantic models at startup. Select pass/fail/fallback behavior with explicit test-only dependency overrides, never request query flags enabled in production.
 
-- [ ] **Step 4: Implement versioned routes**
+- [ ] **Step 5: Implement versioned routes**
 
 Expose:
 
@@ -172,23 +184,23 @@ GET  /api/v1/submissions/{submission_id}
 GET  /api/v1/skills
 ```
 
-Require authentication context and `Idempotency-Key` for submission mutation.
+Require the verified authentication context on every learner route and `Idempotency-Key` for submission mutation. Onboarding creates or retrieves a learner only from the verified `sub`; no route accepts provider subject or learner ID as authority. Return `202` plus the same submission ID and `Retry-After` for an active duplicate reservation, `409` for a reused key with a different request fingerprint, and the original outcome after completion.
 
-- [ ] **Step 5: Map application errors**
+- [ ] **Step 6: Map application errors**
 
 Map stable codes to 400, 401, 403, 404, 409, 413, 422, 429, and 503 without exposing stack traces or provider payloads.
 
-- [ ] **Step 6: Export and snapshot OpenAPI**
+- [ ] **Step 7: Export and snapshot OpenAPI**
 
 Create `services/api/scripts/export_openapi.py` and commit `contracts/openapi.json`. Test rerunning creates no diff.
 
-- [ ] **Step 7: Run and commit**
+- [ ] **Step 8: Run and commit**
 
 ```bash
 cd services/api
 uv run pytest tests/transport tests/contract -q
 uv run python scripts/export_openapi.py
-git add src/yom_awel/transport tests/transport scripts/export_openapi.py ../../../contracts/openapi.json
+git add pyproject.toml uv.lock src/yom_awel/transport tests/transport scripts/export_openapi.py ../../contracts/openapi.json
 git commit -m "feat: add contract-first API transport"
 ```
 
@@ -197,6 +209,7 @@ git commit -m "feat: add contract-first API transport"
 **Files:**
 - Create: `apps/web/src/lib/api/generated.ts`
 - Create: `apps/web/src/lib/api/client.ts`
+- Create: `apps/web/src/lib/auth/session.ts`
 - Create: `apps/web/src/app/onboarding/page.tsx`
 - Create: `apps/web/src/app/workplace/page.tsx`
 - Create: `apps/web/src/app/skills/page.tsx`
@@ -217,7 +230,7 @@ Add `npm run api:generate` and `npm run api:check`; the check regenerates into a
 
 - [ ] **Step 2: Write component state tests**
 
-Test idle, selected file, uploading, evaluating, failed result, fallback feedback, passed result, duplicate response, retry, and service unavailable states. Assert focus moves to the result heading and status is announced through an ARIA live region.
+Test no-session, anonymous-session-created, restored session, refresh, destructive-logout warning, logout, idle, selected file, uploading, evaluating, processing duplicate, failed result, fallback feedback, passed result, completed duplicate, retry, and service unavailable states. Assert focus moves to the result heading and status is announced through an ARIA live region.
 
 - [ ] **Step 3: Write RTL flow test**
 
@@ -229,19 +242,23 @@ Run: `cd apps/web && npm test && npx playwright test tests/e2e/fake-flow.spec.ts
 
 Expected: FAIL because pages/components/client do not exist.
 
-- [ ] **Step 5: Generate the typed client**
+- [ ] **Step 5: Implement the web authentication lifecycle**
+
+Use the Supabase browser client `signInAnonymously()` for first entry, session restoration, automatic refresh, and explicit logout. Warn that logout or clearing browser data makes this demo profile unrecoverable. Attach the current access token only as an `Authorization: Bearer` header to the API client. Never put tokens in URLs, analytics, error reports, or application logs. Dynamically render learner pages so one anonymous user's cached metadata cannot leak to another. Enable provider rate limits, test the `is_anonymous` RLS claim, and clear learner state on logout or unrecoverable refresh failure.
+
+- [ ] **Step 6: Generate the typed client**
 
 Generate TypeScript types from committed OpenAPI. Wrap fetch with correlation ID, learner-safe error parsing, timeout, and idempotency header support. Do not re-declare backend response interfaces manually.
 
-- [ ] **Step 6: Implement the web journey**
+- [ ] **Step 7: Implement the web journey**
 
 Build Arabic-first pages with consistent workplace conversation, task requirements, download/upload actions, deterministic result separation from AI coaching, retry guidance, and skills evidence. Use logical CSS properties for RTL/LTR mixtures.
 
-- [ ] **Step 7: Add accessibility behavior**
+- [ ] **Step 8: Add accessibility behavior**
 
 Provide labelled controls, keyboard-only operation, visible focus, live status, text status icons, error summaries, and correct direction wrappers for filenames/code/numbers.
 
-- [ ] **Step 8: Run and commit**
+- [ ] **Step 9: Run and commit**
 
 ```bash
 cd apps/web
@@ -298,7 +315,7 @@ Before evaluation, verify artifact record ownership, content type, size, hash, b
 ```bash
 cd services/api && uv run pytest tests/transport/test_upload_authorization.py -q
 cd ../../apps/web && npm test -- uploads
-git add apps/web services/api/tests/transport
+cd ../.. && git add apps/web services/api/tests/transport
 git commit -m "feat: add private direct artifact uploads"
 ```
 
@@ -366,7 +383,7 @@ git commit -m "feat: add idempotent Telegram webhook"
 
 - [ ] **Step 1: Add settings validation tests**
 
-Test local mode requires no cloud key, cloud mode validates Supabase server variables, missing Gemini key selects fallback, and no `NEXT_PUBLIC_` server secret exists.
+Test local mode requires no cloud key, cloud mode validates Supabase server variables and exact CORS origins, missing Gemini key selects fallback, the three approved `NEXT_PUBLIC_` variables are present, and no service-role/Gemini/Telegram secret uses a public prefix.
 
 - [ ] **Step 2: Integrate evaluator only**
 
@@ -405,7 +422,7 @@ git commit -m "feat: integrate persistent learning workflow"
 
 ```bash
 cd services/api
-uv run pytest tests ../../../tests/integration -q
+uv run pytest tests ../../tests/integration -q
 uv run mypy src
 uv run ruff check .
 ```
@@ -415,7 +432,8 @@ Expected: all pass with cloud credentials absent.
 ### Task M5-7: Configure Zero-Cost Vercel Deployments and Previews
 
 **Files:**
-- Create: `vercel.json`
+- Create: `apps/web/vercel.json`
+- Create: `services/api/vercel.json`
 - Create: `.github/workflows/preview.yml`
 - Create: `docs/operations/vercel-deployment.md`
 - Create: `docs/operations/vercel-preview-checklist.md`
@@ -427,7 +445,7 @@ Expected: all pass with cloud credentials absent.
 
 - [ ] **Step 1: Write zero-cost configuration test**
 
-Assert config does not request Pro-only memory/duration, paid analytics, paid marketplace integration, Vercel Services beta, custom paid domain, or organization-only Hobby-incompatible Git ownership.
+Assert both project-root configs exist and do not request Pro-only memory/duration, paid analytics, paid marketplace integration, Vercel Services beta, custom paid domain, or organization-only Hobby-incompatible Git ownership. Require a recorded release-time check that the personal non-commercial hackathon/demo remains eligible for Hobby; commercial operation is blocked pending a hosting ADR.
 
 - [ ] **Step 2: Write build/bundle checks**
 
@@ -435,13 +453,13 @@ Build API and report Python uncompressed bundle below 500 MB after excluding tes
 
 - [ ] **Step 3: Run checks and confirm failure**
 
-Run: `python -m pytest tests/security/test_zero_cost_config.py -q`
+Run: `uv run --project services/api pytest tests/security/test_zero_cost_config.py -q`
 
 Expected: FAIL because deployment configuration does not exist.
 
 - [ ] **Step 4: Configure two Vercel project roots**
 
-Document API root `services/api` and web root `apps/web`. Pin Python 3.12, Node 24, package manager, build commands, function inclusion/exclusion, regions, and a maximum duration within Hobby limits. Do not rely on durable `/tmp` content after invocation.
+Document API root `services/api` with `services/api/vercel.json` and web root `apps/web` with `apps/web/vercel.json`. Pin Python 3.12, Node 24, package manager, build commands, function inclusion/exclusion, regions, and a maximum duration within Hobby limits. Do not rely on durable `/tmp` content after invocation.
 
 - [ ] **Step 5: Configure preview workflow**
 
@@ -449,13 +467,13 @@ Use pinned Vercel CLI. Build/test before deployment. Deploy API preview first, p
 
 - [ ] **Step 6: Document setup and rollback**
 
-Explain personal repository connection, environment separation, Telegram webhook switching, preview promotion, production rollback, free-limit symptoms, and how to disable cloud mode and run locally.
+Explain personal repository connection, non-commercial Hobby eligibility, environment separation, Telegram webhook switching, preview promotion, production rollback, free-limit symptoms, Supabase Auth redirect URLs, exact CORS origins, and how to disable cloud mode and run locally. Require a new hosting decision before organizational or commercial use.
 
 - [ ] **Step 7: Run and commit**
 
 ```bash
-python -m pytest tests/security/test_zero_cost_config.py -q
-git add vercel.json .github/workflows/preview.yml docs/operations tests/security/test_zero_cost_config.py
+uv run --project services/api pytest tests/security/test_zero_cost_config.py -q
+git add apps/web/vercel.json services/api/vercel.json .github/workflows/preview.yml docs/operations tests/security/test_zero_cost_config.py
 git commit -m "ci: add zero-cost Vercel preview workflow"
 ```
 
@@ -488,7 +506,7 @@ Use recorded Telegram updates and mocked outbound API to verify start, task, dir
 
 ```bash
 cd apps/web && npx playwright test
-cd ../.. && python -m pytest tests/e2e -q
+cd ../.. && uv run --project services/api pytest tests/e2e -q
 ```
 
 Expected: all pass in local fallback mode.
@@ -515,4 +533,5 @@ git commit -m "test: verify complete learner experiences"
 - Vercel configuration passes zero-cost and bundle checks.
 - Immutable API and web preview URLs pass full smoke tests.
 - Member 2 approves contract/auth/persistence integration.
+- Supabase anonymous sign-in, session restore/refresh, destructive-logout warning, logout, JWT verification, learner mapping, `is_anonymous` RLS, rate-limit behavior, and exact-origin CORS tests pass.
 - No paid Vercel or third-party feature is required.

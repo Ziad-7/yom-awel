@@ -88,7 +88,7 @@ Transactions belong at the application boundary. Transport adapters map into the
 
 ### 4. Idempotency and concurrency
 
-Use channel event IDs and client idempotency keys. Store the key before expensive processing and return the original outcome for repeats. Protect progress with a database uniqueness constraint and optimistic version or row lock. Test simultaneous submissions and retry after partial failure.
+Use channel event IDs and client idempotency keys. Reserve and commit the key, request fingerprint, submission ID, and processing lease in a short transaction before expensive work. Run evaluation/feedback outside a database transaction, then compare-and-swap finalize attempt/progress/outbox state in a second short transaction. Active duplicates receive the same submission ID and retry guidance; completed duplicates receive the original outcome; fingerprint mismatch is a conflict. Supabase uses atomic reservation/finalization RPCs and SQLite implements the same contract. Protect progress with database uniqueness and optimistic versioning. Test simultaneous submissions, lease recovery, and retry after partial failure.
 
 ### 5. Persistence model
 
@@ -104,7 +104,11 @@ Create migrations for all approved tables, indexes, constraints, grants, policie
 - Keep service-role credentials server-side.
 - Test ownership, cross-user denial, anonymous denial, and administrative paths.
 
-### 7. Local adapters
+### 7. Retention execution
+
+Own the 30-day artifact purge implementation, not only its documentation. Claim expired rows with a lease, delete private storage objects, finalize audited tombstones, retry failed reconciliation, and remove expired anonymous Auth users only after application data is reconciled. Run bounded cleanup after cloud submissions and from a daily/manual zero-cost GitHub Actions workflow reviewed by Member 5.
+
+### 8. Local adapters
 
 Provide SQLite and local artifact adapters that implement the same ports. Local mode supports development, deterministic tests, and zero-cloud fallback without changing domain code.
 
@@ -119,6 +123,7 @@ Provide SQLite and local artifact adapters that implement the same ports. Local 
 - SQLite and Supabase repositories pass the same contract suite.
 - Migrations apply from an empty database and preserve existing shared environments.
 - RLS tests prove allowed and denied behavior.
+- Retention tests prove idempotent storage/row reconciliation and anonymous-identity cleanup without a paid scheduler.
 - Domain and application packages contain no framework/provider imports.
 
 ## Required tests and reviews

@@ -43,7 +43,7 @@
 - Test: `tools/quality/tests/test_capability_ledger.py`
 
 **Interfaces:**
-- Consumes: state machine, submission sequence, and channel behavior from the approved platform design.
+- Consumes: state machine, submission sequence, and channel behavior from the merged platform design.
 - Produces: the product behavior contract used by Members 2–5 and the authoritative current/experimental/roadmap classification.
 
 - [ ] **Step 1: Write the failing ledger validation tests**
@@ -81,7 +81,7 @@ def test_current_capabilities_name_test_and_preview_evidence() -> None:
 
 - [ ] **Step 2: Run the tests and confirm failure**
 
-Run: `uv run pytest tools/quality/tests/test_capability_ledger.py -q`
+Run: `uv run --project services/api pytest tools/quality/tests/test_capability_ledger.py -q`
 
 Expected: FAIL because the ledger and validator do not exist.
 
@@ -102,8 +102,8 @@ Return human-readable errors for duplicate IDs, invalid status, missing owner, m
 Run:
 
 ```bash
-uv run pytest tools/quality/tests/test_capability_ledger.py -q
-uv run python tools/quality/validate_capability_ledger.py
+uv run --project services/api pytest tools/quality/tests/test_capability_ledger.py -q
+uv run --project services/api python tools/quality/validate_capability_ledger.py
 git add docs/product/journeys docs/product/capability-ledger.yaml tools/quality
 git commit -m "docs: define learner journeys and capability ledger"
 ```
@@ -133,7 +133,7 @@ Require task ID `clean-sales`, version `1`, intended learner level, workplace co
 
 - [ ] **Step 2: Run the tests and confirm failure**
 
-Run: `uv run pytest tools/quality/tests/test_learning_objectives.py -q`
+Run: `uv run --project services/api pytest tools/quality/tests/test_learning_objectives.py -q`
 
 Expected: FAIL because the learning documents and validator do not exist.
 
@@ -158,8 +158,8 @@ Open the pull request as draft. Request Member 4 review on objectives, permitted
 Run:
 
 ```bash
-uv run pytest tools/quality/tests/test_learning_objectives.py -q
-uv run python tools/quality/validate_learning_objectives.py
+uv run --project services/api pytest tools/quality/tests/test_learning_objectives.py -q
+uv run --project services/api python tools/quality/validate_learning_objectives.py
 git add docs/product/learning task_packages/clean-sales/1/content task_packages/clean-sales/1/learning-objectives.yaml tools/quality
 git commit -m "docs: define first task learning contract"
 ```
@@ -186,7 +186,7 @@ Test unique message IDs, required `ar-EG` and `en` values, non-empty accessible 
 
 - [ ] **Step 2: Run the tests and confirm failure**
 
-Run: `uv run pytest tools/quality/tests/test_content_catalog.py -q`
+Run: `uv run --project services/api pytest tools/quality/tests/test_content_catalog.py -q`
 
 Expected: FAIL because the content catalog and validator do not exist.
 
@@ -207,8 +207,8 @@ Require logical reading order in RTL, keyboard-operable retry actions, error ass
 Run:
 
 ```bash
-uv run pytest tools/quality/tests/test_content_catalog.py -q
-uv run python tools/quality/validate_content_catalog.py
+uv run --project services/api pytest tools/quality/tests/test_content_catalog.py -q
+uv run --project services/api python tools/quality/validate_content_catalog.py
 git add docs/product/content tools/quality
 git commit -m "docs: establish bilingual content system"
 ```
@@ -234,7 +234,7 @@ Require every claim to have a stable ID, exact wording, usage locations, status,
 
 - [ ] **Step 2: Run the tests and confirm failure**
 
-Run: `uv run pytest tools/quality/tests/test_release_evidence.py -q`
+Run: `uv run --project services/api pytest tools/quality/tests/test_release_evidence.py -q`
 
 Expected: FAIL because the evidence files and validator do not exist.
 
@@ -255,8 +255,8 @@ Map every README, application, deck, and demo claim to test paths, evidence arti
 Run:
 
 ```bash
-uv run pytest tools/quality/tests/test_release_evidence.py -q
-uv run python tools/quality/validate_release_evidence.py
+uv run --project services/api pytest tools/quality/tests/test_release_evidence.py -q
+uv run --project services/api python tools/quality/validate_release_evidence.py
 git add docs/product/evidence tools/quality
 git commit -m "docs: add release claim evidence controls"
 ```
@@ -284,7 +284,7 @@ Test that all required source files exist, every claim ID used in the applicatio
 
 - [ ] **Step 2: Run the tests and confirm failure**
 
-Run: `uv run pytest tools/quality/tests/test_submission_package.py -q`
+Run: `uv run --project services/api pytest tools/quality/tests/test_submission_package.py -q`
 
 Expected: FAIL because the submission package and validator do not exist.
 
@@ -309,8 +309,8 @@ Record source path, export path, MIME type, maximum accepted size verified from 
 Run:
 
 ```bash
-uv run pytest tools/quality/tests/test_submission_package.py -q
-uv run python tools/quality/validate_submission_package.py
+uv run --project services/api pytest tools/quality/tests/test_submission_package.py -q
+uv run --project services/api python tools/quality/validate_submission_package.py
 git add submission tools/quality
 git commit -m "docs: assemble application pitch and demo sources"
 ```
@@ -333,11 +333,11 @@ git commit -m "docs: assemble application pitch and demo sources"
 
 - [ ] **Step 1: Write the failing sign-off tests**
 
-Require a full 40-character commit SHA, immutable evidence artifact digests, preview URL, production URL when promoted, reviewer approvals for all five lanes, zero-cost review outcome, secret-scan result, automated test result, browser acceptance result, Gemini-disabled demo result, known limitations, and an explicit `go` or `no-go` decision. Reject `go` when any required gate is missing or failed.
+Require a full 40-character `tested_source_sha` matching the code/configuration deployed to preview, immutable evidence artifact digests, preview URL, demo-production URL when promoted, reviewer approvals for all five lanes, zero-cost review outcome, Hobby non-commercial eligibility check, secret-scan result, automated test result, browser acceptance result, Gemini-disabled demo result, known limitations, and an explicit `go` or `no-go` decision. Reject `go` when any required gate is missing or failed. Do not require the sign-off file to contain the SHA of the future commit that will contain that same file.
 
 - [ ] **Step 2: Run the tests and confirm failure**
 
-Run: `uv run pytest tools/quality/tests/test_release_signoff.py -q`
+Run: `uv run --project services/api pytest tools/quality/tests/test_release_signoff.py -q`
 
 Expected: FAIL because the release artifacts and validator do not exist.
 
@@ -357,18 +357,18 @@ Confirm both Vercel projects and Supabase remain on free plans, no paid integrat
 
 Require Member 2 approval for data/state integrity, Member 3 for feedback and fallback, Member 4 for evaluation determinism, Member 5 for delivery/accessibility, and Member 1 for product truth. Record approvals as linked pull-request reviews, not names typed by one person.
 
-- [ ] **Step 7: Validate, tag the evidence commit, and commit the sign-off**
+- [ ] **Step 7: Validate and commit the sign-off**
 
 Run:
 
 ```bash
-uv run pytest tools/quality/tests/test_release_signoff.py -q
-uv run python tools/quality/validate_release_signoff.py
+uv run --project services/api pytest tools/quality/tests/test_release_signoff.py -q
+uv run --project services/api python tools/quality/validate_release_signoff.py
 git add docs/product/release tools/quality
 git commit -m "docs: record product release acceptance"
 ```
 
-Create the release tag only after this commit is reviewed, CI is green, the production promotion references the same tree, and the repository has no uncommitted changes.
+After this sign-off commit is reviewed and CI is green, rerun the validator on the committed tree, tag the evidence commit, and push the tag. Store the evidence-commit SHA and the manifest's `tested_source_sha` together in GitHub Release metadata; the tracked sign-off remains free of impossible self-referential commit hashes. The demo deployment must still reference `tested_source_sha`, not a later documentation-only tree.
 
 ---
 

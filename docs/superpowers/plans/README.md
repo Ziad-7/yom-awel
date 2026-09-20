@@ -1,6 +1,6 @@
 # Implementation Plans
 
-These plans turn the approved platform design into parallel, test-first work for the five-member team.
+These plans turn the proposed platform design into parallel, test-first work for the five-member team. They become executable after the design pull request receives the required approvals and merges.
 
 Start with the [parallel delivery plan](2026-09-20-yom-awel-parallel-delivery.md). It defines the contract baseline, sequencing, integration gates, review requirements, zero-cost checks, and Vercel preview flow.
 

@@ -13,7 +13,8 @@ Execution checklist: [Member 5 implementation plan](../superpowers/plans/2026-09
 - `services/api/src/yom_awel/transport/**`
 - `tests/integration/**`
 - `tests/e2e/**`
-- `vercel.json`
+- `apps/web/vercel.json`
+- `services/api/vercel.json`
 - frontend and deployment lockfiles/configuration
 - `.env.example` and operational runbooks
 
@@ -71,9 +72,13 @@ Implement:
 
 The browser never receives Supabase service-role or Gemini credentials.
 
+Use Supabase Auth anonymous sign-in on the Free plan so the demo needs no email, SMTP, OAuth, or paid identity provider. The browser sends a bearer access token, restores and refreshes the session, warns that logout/browser clearing makes the demo profile unrecoverable, and never uses a client learner ID as authority.
+
 ### 3. FastAPI transport
 
 Expose versioned routes that map HTTP requests to application use cases. Validate size, content type, IDs, idempotency, authentication, and authorization at the boundary. Map stable domain errors to documented HTTP responses. Keep scoring and progression logic out of route handlers.
+
+FastAPI verifies token issuer, audience, expiry, signature, and key ID against Supabase JWKS, then maps the verified subject to the learner external identity. CORS uses exact configured origins with credentials disabled. The browser may receive the project URL and publishable key, but never the service role or provider secrets.
 
 ### 4. Telegram adapter
 
@@ -96,6 +101,8 @@ Configure two Hobby projects from the personal GitHub repository:
 
 - web root: `apps/web`;
 - API root: `services/api`.
+
+Keep `vercel.json` inside each project root. Hobby is for the personal, non-commercial hackathon/demo only; revalidate eligibility at release and require a new hosting decision before commercial use.
 
 Pin Node, Python, package manager, dependencies, and Vercel CLI versions. Exclude tests and fixtures from Python bundles. Configure preview/production environment variables separately. Do not enable Pro trials, paid marketplace services, or custom paid resources.
 
@@ -131,6 +138,7 @@ Document:
 - Telegram update replay creates one submission and attempt.
 - Uploads are private, bounded to 5 MB, and referenced by generated IDs.
 - All secrets remain server-side and absent from bundles/logs.
+- Web anonymous sign-in, restore/refresh, logout warning, JWT verification, learner mapping, `is_anonymous` RLS, rate-limit, and CORS negative tests pass.
 - The experience completes with Gemini unavailable.
 - Every user-facing pull request has a verified preview.
 - Both Vercel projects run within Hobby limits and require no paid feature.

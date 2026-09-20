@@ -35,8 +35,9 @@
 **Files:**
 - Create: `services/api/src/yom_awel/evaluation/task_package.py`
 - Create: `task_packages/clean-sales/1/task.json`
-- Create: `task_packages/clean-sales/1/content/instructions.ar.md`
-- Create: `task_packages/clean-sales/1/content/instructions.en.md`
+- Consume without editing: `task_packages/clean-sales/1/content/brief.ar-EG.md`
+- Consume without editing: `task_packages/clean-sales/1/content/brief.en.md`
+- Consume without editing: `task_packages/clean-sales/1/learning-objectives.yaml`
 - Create: `services/api/tests/evaluation/test_task_package.py`
 
 **Interfaces:**
@@ -88,9 +89,9 @@ For `clean-sales@1` define:
 - duplicate order IDs: keep one valid record and reject conflicting duplicates;
 - pass threshold: 75 with each of four checks worth 25.
 
-- [ ] **Step 5: Write learner instructions with Member 1**
+- [ ] **Step 5: Validate Member 1's learner content**
 
-Arabic and English instructions must state the business objective and permitted actions without revealing check implementation or clean reference rows.
+Member 1 owns and authors both briefs and the learning-objectives manifest. Member 4 validates that the task package content hashes reference those exact files and that evaluator checks map to the approved objective/check IDs. Any content change occurs in a Member 1 pull request with Member 4 review; this lane does not create a competing instruction file.
 
 - [ ] **Step 6: Implement loader and content hashing**
 
@@ -101,7 +102,7 @@ Load JSON and Markdown, validate with Pydantic, calculate stable content hash, a
 ```bash
 cd services/api
 uv run pytest tests/evaluation/test_task_package.py -q
-git add src/yom_awel/evaluation/task_package.py tests/evaluation ../../task_packages/clean-sales/1
+git add src/yom_awel/evaluation/task_package.py tests/evaluation/test_task_package.py ../../task_packages/clean-sales/1/task.json
 git commit -m "feat: define clean-sales task package v1"
 ```
 
@@ -109,18 +110,18 @@ git commit -m "feat: define clean-sales task package v1"
 
 **Files:**
 - Create: `task_packages/clean-sales/1/data/generate.py`
-- Create: `task_packages/clean-sales/1/data/defects.json`
 - Create: `task_packages/clean-sales/1/data/sales_dirty.csv`
-- Create: `task_packages/clean-sales/1/data/sales_clean_reference.csv`
+- Create: `services/api/tests/evaluation/fixtures/clean_sales_reference.csv`
+- Create: `services/api/tests/evaluation/fixtures/clean_sales_defects.json`
 - Create: `services/api/tests/evaluation/test_dataset_generation.py`
 
 **Interfaces:**
 - Consumes: task package schema and fixed seed `20260920`.
-- Produces: learner artifact, private reference, and planted-defect manifest.
+- Produces: public learner artifact plus clearly labelled synthetic test-only reference/defect fixtures that differ from release learner rows.
 
 - [ ] **Step 1: Write reproducibility test**
 
-Generate twice into two temporary directories and assert matching SHA-256 hashes for dirty file, clean reference, and defect manifest.
+Generate twice into two temporary directories and assert matching SHA-256 hashes for the learner artifact and synthetic test-only reference/defect fixtures.
 
 - [ ] **Step 2: Write defect-count tests**
 
@@ -136,9 +137,9 @@ Expected: FAIL because generator and fixtures do not exist.
 
 Use an injected `random.Random(20260920)`, fixed names/domains/products, fixed decimal quantization, and fixed dates. Never use current time or unordered set iteration.
 
-- [ ] **Step 5: Generate public and private data**
+- [ ] **Step 5: Separate learner data from public test fixtures**
 
-Commit the dirty learner artifact. Keep the clean reference and defect manifest available to tests and evaluator packaging but never expose them through learner download routes.
+Commit the dirty learner artifact as the instructional demo input. Generate a different synthetic dataset for the public clean-reference and defect tests; label it non-release and exclude the entire test fixture directory from the Vercel bundle. The production evaluator checks declared rules rather than matching learner rows to a committed answer key. This first milestone makes no anti-cheating or secure-assessment claim; a private item bank requires a later design.
 
 - [ ] **Step 6: Verify hashes and commit**
 
@@ -146,7 +147,7 @@ Commit the dirty learner artifact. Keep the clean reference and defect manifest 
 python task_packages/clean-sales/1/data/generate.py
 cd services/api
 uv run pytest tests/evaluation/test_dataset_generation.py -q
-git add ../../task_packages/clean-sales/1/data tests/evaluation/test_dataset_generation.py
+git add ../../task_packages/clean-sales/1/data tests/evaluation/fixtures tests/evaluation/test_dataset_generation.py
 git commit -m "test: add reproducible clean-sales fixtures"
 ```
 
@@ -302,7 +303,11 @@ git add services/api/tests/evaluation/test_reproducibility.py services/api/bench
 git commit -m "test: verify evaluator reproducibility and budget"
 ```
 
-### Task M4-6: Add Isolated SQL Evaluation After Spreadsheet Integration
+## Later Milestone — Requires Separate Product Approval
+
+Tasks M4-6 and M4-7 are not part of the initial spreadsheet release completion gate. Start them only after the spreadsheet vertical slice is released and Members 1, 2, and 5 approve matching product journeys, contracts, interface work, and end-to-end acceptance scope.
+
+### Task M4-6: Add Isolated SQL Evaluation
 
 **Files:**
 - Create: `task_packages/customer-sql/1/task.json`
@@ -388,7 +393,6 @@ git commit -m "feat: add deterministic client email requirements"
 - Spreadsheet validation resists malformed and resource-abusive artifacts.
 - Spreadsheet score and check semantics are deterministic and versioned.
 - Performance report addresses the 5-second p95 target.
-- SQL sandbox cannot reach or mutate application data.
-- Communication pass criteria remain deterministic.
+- SQL and communication evaluators remain out of the initial completion gate; when their later milestone is approved, its SQL sandbox must not reach application data and communication criteria must remain deterministic.
 - Member 2 approves port/contract compatibility.
 - Member 3 confirms feedback receives sufficient safe structured detail.
