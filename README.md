@@ -1,47 +1,27 @@
-# 🏢 Yom Awel (يوم أول)
-### *Workplace Simulation Engine for Active Digital Skills Learning*
+# Yom Awel (يوم أول)
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Platform](https://img.shields.io/badge/Platform-Telegram%20%7C%20Web-2CA5E0.svg)](https://telegram.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
-> **"Don't take a course. Get hired."**  
-> Yom Awel inverts online education: instead of watching videos and answering multiple-choice quizzes, learners are placed inside a simulated Egyptian corporate office where they complete real-world tasks under realistic workplace pressure.
+Workplace simulation engine for task-based digital skills training.
 
 ---
 
-## 💡 The Problem
+## Overview
 
-Every year, over **1.3 million youth** enter the Egyptian job market, yet **78% of employers** report struggling to find candidates with job-ready practical skills. Traditional online courses fail because:
-* They teach theoretical syntax in isolation without workplace context.
-* Multiple-choice questions (MCQs) cannot assess messy problem-solving.
-* Beginners freeze on day one when given dirty corporate data, ambiguous requirements, or demanding client feedback.
+Yom Awel trains entry-level digital and technical skills through workplace simulations rather than passive video lectures or multiple-choice quizzes. The learner interacts with an automated organization via Telegram, receiving practical tasks (spreadsheet cleaning, SQL query development, business communication) from simulated colleagues and managers.
 
----
+Submissions are evaluated through a two-stage pipeline:
+1. **Deterministic Verification:** Automated unit checks (via `pandas`, `openpyxl`, or `sqlite3`) inspect submitted artifacts for correctness, schema adherence, and data integrity.
+2. **Pedagogical Feedback:** An LLM agent generates constructive, contextual feedback in Egyptian workplace Arabic based on the deterministic test results.
 
-## 🚀 The Solution
-
-**Yom Awel** simulates the first 30 days of an entry-level tech job (Data Analyst, Junior Developer, or IT Specialist) directly inside **Telegram**:
-
-1. **You Get Hired:** You join a simulated company ("Horizon Tech Egypt") and are placed in a team group chat.
-2. **Real Tasks, Not Quizzes:** At 9:00 AM, your AI Manager (**Eng. Tarek**) messages you in authentic Egyptian workplace Arabic with real messy files:
-   * *"Clean this corrupted regional sales spreadsheet before 2 PM."*
-   * *"Write the SQL query for this inventory anomaly report."*
-   * *"Reply to this angry corporate client professionally."*
-3. **Dynamic Workplace Drama:** AI colleagues (**Hazem**) and AI clients (**Mona**) message the group, alter requirements, ask for status updates, or give helpful tips.
-4. **Dual-Layer Evaluation:** When you submit your file (`.xlsx`, `.csv`, `.sql`):
-   * **Deterministic Layer:** Python scripts (`pandas`, `openpyxl`, `sqlite3`) test whether you actually fixed the data or query with 100% mathematical accuracy.
-   * **LLM Pedagogical Layer:** Eng. Tarek reviews your communication and reasoning, explaining *why* your errors matter to the business and how to improve.
-5. **Verified Skills Record:** Every approved submission updates your verifiable, employer-facing skills graph.
+User progress is persisted in a local state store that tracks completed tasks and generates a competency profile.
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```
                                ┌───────────────────────────┐
                                │     bot/telegram_app.py   │
-                               │  (Telegram Chat Interface)│
+                               │  (Telegram Client Layer)  │
                                └─────────────┬─────────────┘
                                              │
                        ┌─────────────────────┼─────────────────────┐
@@ -50,7 +30,7 @@ Every year, over **1.3 million youth** enter the Egyptian job market, yet **78% 
              ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
              │ core/            │  │ evaluators/      │  │ agents/          │
              │ state_manager.py │  │ excel_evaluator  │  │ feedback_coach.py│
-             │ (User Day & DB)  │  │ (Code Checks)    │  │ (LLM Personas)   │
+             │ (State & DB)     │  │ (Unit Checks)    │  │ (LLM Feedback)   │
              └──────────────────┘  └──────────────────┘  └──────────────────┘
                                              ▲
                                              │
@@ -60,46 +40,50 @@ Every year, over **1.3 million youth** enter the Egyptian job market, yet **78% 
                                    └───────────────────┘
 ```
 
-### Module Breakdown:
-* **`core/`**: SQLite-backed state machine tracking the user's current day, active tasks, attempt history, and dynamic skills record.
-* **`evaluators/`**: Deterministic unit-test checkers that validate student artifacts (`.csv`, `.xlsx`, `.sql`) without LLM hallucination risk.
-* **`agents/`**: Conversational multi-agent personas engineered in natural Egyptian workplace dialect (Manager, Colleague, Client) + pedagogical coaching rubric.
-* **`bot/`**: Telegram Bot polling and webhook handlers + document upload/download management.
-* **`data/`**: Planted workplace artifacts (corrupted spreadsheets, raw database dumps, customer support tickets).
+### Module Responsibilities
+- `core/`: State management, user tracking, task progression, and skill scoring.
+- `evaluators/`: Deterministic artifact evaluation scripts for tabular data, spreadsheets, and database queries.
+- `agents/`: LLM persona definitions and feedback generation prompts.
+- `bot/`: Telegram bot service handling incoming messages, file transfers, and user state routing.
+- `data/`: Sample datasets, evaluation benchmarks, and task seed files.
 
 ---
 
-## ⚙️ Shared Interface Contract
+## Module Interfaces
 
-To keep all components decoupled and modular, modules interact through these exact function signatures:
+Components communicate using the following interfaces:
 
 ### 1. `core.state_manager`
 ```python
 def get_or_create_user(user_id: str, name: str) -> dict:
-    """Returns: {'user_id': str, 'name': str, 'current_day': int, 'active_task': str, 'status': str}"""
+    """Retrieve or initialize a user record.
+    Returns: {'user_id': str, 'name': str, 'current_day': int, 'active_task': str, 'status': str}
+    """
 
 def get_current_task(user_id: str) -> dict:
-    """Returns: {'task_id': str, 'title': str, 'description_ar': str, 'file_path': str}"""
+    """Retrieve details and files for the user's active task.
+    Returns: {'task_id': str, 'title': str, 'description_ar': str, 'file_path': str}
+    """
 
 def record_submission(user_id: str, task_id: str, passed: bool, code_score: int, soft_score: int, feedback: str) -> dict:
-    """Records attempt, updates running skills, advances day if passed."""
+    """Record an evaluation attempt, update competency scores, and advance task state if passed."""
 
 def get_user_skills_profile(user_id: str) -> dict:
-    """Returns: {'user_id': str, 'skills': {'data_cleaning': 85, 'sql': 70}, 'badges': list}"""
+    """Retrieve aggregate scores across skill categories."""
 ```
 
 ### 2. `evaluators.excel_evaluator`
 ```python
 def evaluate_sales_cleaning(submitted_file_path: str) -> dict:
-    """
+    """Validate submitted CSV/Excel against benchmark constraints.
     Returns:
     {
         "passed": bool,
-        "score": int,              # 0 - 100
+        "score": int,              # 0 to 100
         "details": dict,           # {duplicates_removed: bool, negatives_fixed: bool, ...}
-        "errors": list[str],
-        "summary_ar": str,
-        "summary_en": str
+        "errors": list[str],       # Specific validation errors
+        "summary_ar": str,         # Brief explanation in Arabic
+        "summary_en": str          # Brief explanation in English
     }
     """
 ```
@@ -107,44 +91,48 @@ def evaluate_sales_cleaning(submitted_file_path: str) -> dict:
 ### 3. `agents.feedback_coach`
 ```python
 def generate_pedagogical_feedback(task_name: str, deterministic_result: dict, student_message: str = "") -> str:
-    """Generates Eng. Tarek's constructive Arabic feedback based on the deterministic evaluation."""
+    """Generate contextual feedback in Egyptian workplace Arabic based on evaluation output."""
 ```
 
 ---
 
-## 🚀 Quickstart & Installation
+## Installation & Setup
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/Ziad-7/yom-awel.git
-cd yom-awel
-```
+### Prerequisites
+- Python 3.10 or higher
+- Telegram Bot Token (from `@BotFather`)
+- Google Gemini or OpenAI API Key
 
-### 2. Install dependencies
-```bash
-pip install -r requirements.txt
-```
+### Steps
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Ziad-7/yom-awel.git
+   cd yom-awel
+   ```
 
-### 3. Configure Environment Variables
-Create a `.env` file in the root directory:
-```env
-TELEGRAM_BOT_TOKEN="your_telegram_bot_token_from_botfather"
-GEMINI_API_KEY="your_gemini_or_openai_api_key"
-```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### 4. Run the Telegram Bot
-```bash
-python bot/telegram_app.py
-```
+3. Configure environment variables:
+   Create a `.env` file in the project root:
+   ```env
+   TELEGRAM_BOT_TOKEN="your_token_here"
+   GEMINI_API_KEY="your_api_key_here"
+   ```
+
+4. Start the bot:
+   ```bash
+   python bot/telegram_app.py
+   ```
 
 ---
 
-## 👥 Team & Contributing
+## Team Responsibilities
 
-* **Member 1:** Pitch & Product Strategy (`submission/`)
-* **Member 2:** State Machine & Database Engine (`core/`)
-* **Member 3:** AI Personas & Feedback Agents (`agents/`)
-* **Member 4:** Deterministic Graders & Datasets (`evaluators/`, `data/`)
-* **Member 5:** Bot Interface & Demo Integration (`bot/`)
-
-For individual agent implementation instructions, refer to [**TEAM_PROMPTS.md**](./TEAM_PROMPTS.md).
+- **Member 1 (`submission/`):** Submission documentation, pitch deck, and application forms.
+- **Member 2 (`core/`):** State machine, user progression, and SQLite persistence.
+- **Member 3 (`agents/`):** Persona prompt engineering and LLM feedback generation.
+- **Member 4 (`evaluators/`, `data/`):** Test datasets and deterministic evaluation scripts.
+- **Member 5 (`bot/`):** Telegram bot routing, file I/O, and integration testing.

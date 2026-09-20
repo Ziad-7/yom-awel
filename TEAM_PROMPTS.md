@@ -1,14 +1,12 @@
-# 🚀 Yom Awel (يوم أول) — Team AI Agent Prompts & Architecture Guide
+# Yom Awel (يوم أول) — Team Task Prompts & Architecture
 
-> **Project:** Yom Awel (يوم أول) — Learn digital skills by getting a simulated job on Telegram / WhatsApp.  
-> **Target:** EUI GenAI for Education Hackathon 2026 (Student Track, AI Tutor Theme, Best Arabic Solution).  
-> **Deadline:** Tonight, September 20, 2026!
+Repository structure and task instructions for team implementation.
 
 ---
 
-## 📂 Proposed Repository Structure
+## Repository Structure
 
-To ensure the 5 of you can work in parallel **without git merge conflicts**, use this directory structure:
+To allow concurrent development across independent modules, use the following directory layout:
 
 ```
 yom-awel/
@@ -41,7 +39,7 @@ yom-awel/
 
 ---
 
-## 📋 Member 1: Team Lead — Pitch Deck & Form Submission
+## Member 1: Team Lead — Pitch Deck & Form Submission
 
 **Copy & Paste this prompt into your AI Agent:**
 
@@ -73,7 +71,7 @@ Provide slide-by-slide text, headlines, bullets, visual suggestions, and a 30-se
 - Slide 2: The Problem (The Employability Paradox in Egypt)
 - Slide 3: The Insight (You don't learn to work from a video; you learn by doing real work)
 - Slide 4: The Solution: "Yom Awel" (Workplace Simulation on Telegram)
-- Slide 5: The Secret Sauce: Dual-Layer Engine (Deterministic Code Checker + LLM Pedagogical Coach)
+- Slide 5: Technical Architecture: Dual-Layer Engine (Deterministic Code Checker + LLM Pedagogical Coach)
 - Slide 6: The User Journey (Day 1 Onboarding -> Task Delivery -> Feedback -> Skills Card)
 - Slide 7: Market Opportunity & Alignment with MCIT / GAINAfrica
 - Slide 8: Business Model (B2C subscriptions, B2B talent pipeline for Egyptian companies)
@@ -85,7 +83,7 @@ Make the tone confident, visionary, professional, and culturally resonant with E
 
 ---
 
-## ⚙️ Member 2: Backend Specialist — Core State Machine & User Progress
+## Member 2: Backend Specialist — Core State Machine & User Progress
 
 **Copy & Paste this prompt into your AI Agent:**
 
@@ -118,7 +116,7 @@ Provide clean, robust, well-typed Python code with a `if __name__ == "__main__":
 
 ---
 
-## 🤖 Member 3: AI Persona & Agent Engineer — Egyptian Personas & Feedback Coach
+## Member 3: AI Persona & Agent Engineer — Egyptian Personas & Feedback Coach
 
 **Copy & Paste this prompt into your AI Agent:**
 
@@ -158,7 +156,7 @@ Provide `personas.py`, `feedback_coach.py`, and a standalone test script that ca
 
 ---
 
-## 🧪 Member 4: Deterministic Grader & Sample Task Creator
+## Member 4: Deterministic Grader & Sample Task Creator
 
 **Copy & Paste this prompt into your AI Agent:**
 
@@ -212,7 +210,7 @@ Provide `create_sample_data.py`, `excel_evaluator.py`, `sql_evaluator.py`, and a
 
 ---
 
-## 📱 Member 5: Bot Integration & Demo Video Creator
+## Member 5: Bot Integration & Demo Video Creator
 
 **Copy & Paste this prompt into your AI Agent:**
 
