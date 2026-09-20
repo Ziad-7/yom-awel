@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deliver the approved Yom Awel platform through five concurrently owned workstreams that integrate through frozen contracts and reviewed pull requests.
+**Goal:** Deliver the proposed Yom Awel platform, after its review and integration into `main`, through five concurrently owned workstreams that integrate through frozen contracts and reviewed pull requests.
 
 **Architecture:** A modular Python monolith exposes application use cases through FastAPI and a Telegram webhook, while a Next.js web application consumes the same API. Supabase Free supplies Postgres and private artifact storage; Gemini free-tier supplies optional coaching behind a deterministic fallback. Two Vercel Hobby projects deploy the web and API without a mandatory paid dependency.
 

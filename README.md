@@ -4,7 +4,7 @@ Arabic-first workplace simulation for task-based digital skills training.
 
 ## Project status
 
-The repository is in the **proposed architecture and delivery-planning stage**. It does not yet contain a working application. Runtime code, datasets, migrations, tests, and deployment configuration will be added only after the design pull request receives the required reviews and merges.
+The repository is in the **proposed architecture and delivery-planning stage**. It does not yet contain a working application. Runtime code, datasets, migrations, tests, and deployment configuration will be added only after the architecture branch receives the required reviews and is integrated into `main`.
 
 This status statement is intentional: documentation must not describe planned capabilities as already implemented.
 
@@ -30,7 +30,7 @@ The target is a modular Python monolith with ports and adapters:
 - Supabase Free for Postgres and private artifact storage;
 - SQLite and local files for development and cloud-free fallback.
 
-No approved capability requires a paid plan, billing account, paid add-on, or metered overage.
+No proposed capability requires a paid plan, billing account, paid add-on, or metered overage.
 
 Read the complete [platform design](docs/superpowers/specs/2026-09-20-yom-awel-platform-design.md).
 
@@ -72,8 +72,8 @@ Every pull request must use the repository template and provide:
 - [Member 4 assignment](docs/team/member-4-evaluation.md)
 - [Member 5 assignment](docs/team/member-5-experience-integration.md)
 - [Parallel delivery and implementation plans](docs/superpowers/plans/README.md)
-- [Hackathon guidelines](HACKATHON_GUIDELINES.md)
-- [Application requirements](APPLICATION_REQUIREMENTS.md)
+
+Copied hackathon rules, application-form snapshots, and early ideation documents are intentionally not kept in the repository because they become stale and previously conflicted with the canonical product scope. Member 1 must verify current official requirements from the live organizer source and record only claims actually used in the versioned source register.
 
 ## Planned delivery sequence
 
@@ -85,4 +85,4 @@ Every pull request must use the repository template and provide:
 6. Verify pull-request previews and the complete release candidate.
 7. Promote the exact verified artifact and tag its commit.
 
-Implementation must not begin from the older standalone prompts. After this design pull request receives its required approvals and merges, the platform design, implementation plans, member assignments, and collaboration protocol become the authoritative sources.
+Implementation must not begin from the older standalone prompts. After this architecture branch receives its required reviews and is integrated into `main`, the platform design, implementation plans, member assignments, and collaboration protocol become the authoritative sources.

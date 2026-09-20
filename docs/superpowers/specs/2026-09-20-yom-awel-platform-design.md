@@ -1,6 +1,6 @@
 # Yom Awel Platform Design
 
-- **Status:** Proposed design baseline; becomes approved when this pull request receives the required architecture approvals and merges
+- **Status:** Proposed design baseline; becomes approved when the architecture branch receives the required reviews and is integrated into `main`
 - **Date:** 2026-09-20
 - **Scope:** Architecture and delivery design only; no product implementation is included in this change.
 - **Canonical source:** This document overrides conflicting architecture or ownership guidance in older repository documents.
