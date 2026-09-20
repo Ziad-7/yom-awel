@@ -1,0 +1,91 @@
+from collections.abc import Callable
+from time import perf_counter
+from typing import Literal, cast
+
+from yom_awel.domain.contracts import EvaluationResult, FeedbackResult
+from yom_awel.domain.enums import Language
+from yom_awel.feedback.policy import ACTIVE_FEEDBACK_POLICY
+from yom_awel.ports.feedback import FeedbackProvider
+
+_Guidance = tuple[str, str]
+
+CHECK_GUIDANCE: dict[str, _Guidance] = {
+    "clean_data": (
+        "بيانات المبيعات غير المكتملة تقلل دقة التقرير وقرار الإدارة",
+        "راجع قواعد تنظيف البيانات ورسالة المقيم ثم صحح الملف قبل إعادة التسليم",
+    ),
+}
+
+_GENERIC_GUIDANCE: _Guidance = (
+    "الخطأ المسجّل يقلل موثوقية النتيجة عند استخدامها في الشغل",
+    "راجع الفحص المذكور ورسالة المقيم ثم صحح الملف قبل إعادة التسليم",
+)
+
+
+class DeterministicFeedbackProvider(FeedbackProvider):
+    def __init__(self, clock: Callable[[], float] = perf_counter) -> None:
+        self._clock = clock
+
+    async def generate(
+        self,
+        evaluation: EvaluationResult,
+        language: Language,
+        learner_note: str | None = None,
+    ) -> FeedbackResult:
+        del learner_note
+        started = self._clock()
+        if language is Language.EN:
+            text = self._english_text(evaluation)
+        elif evaluation.passed:
+            text = (
+                "القرار: التسليم مقبول.\n"
+                "تأثير الشغل: النتيجة بقت موثوقة ويمكن استخدامها في اتخاذ القرار.\n"
+                "الخطوة الجاية: راجع ملخصك النهائي واستعد للمهمة التالية.\n"
+                f"تفسير الدرجة: حصلت على {evaluation.score} من 100 حسب الفحوصات المحددة."
+            )
+        else:
+            failures = [check for check in evaluation.checks if not check.passed]
+            selected = failures[:3]
+            consequences = [
+                CHECK_GUIDANCE.get(check.check_id, _GENERIC_GUIDANCE)[0]
+                for check in selected
+            ]
+            actions = [
+                CHECK_GUIDANCE.get(check.check_id, _GENERIC_GUIDANCE)[1]
+                for check in selected
+            ]
+            remaining = len(failures) - len(selected)
+            remainder = f" وفيه {remaining} فحوصات إضافية محتاجة مراجعة." if remaining else ""
+            text = (
+                "القرار: التسليم محتاج إعادة شغل.\n"
+                f"تأثير الشغل: {'؛ '.join(consequences)}.{remainder}\n"
+                f"الخطوة الجاية: {'؛ '.join(actions)}.\n"
+                f"تفسير الدرجة: حصلت على {evaluation.score} من 100 حسب الفحوصات المحددة."
+            )
+        duration_ms = max(0, round((self._clock() - started) * 1000))
+        return FeedbackResult(
+            feedback_text=text[: ACTIVE_FEEDBACK_POLICY.maximum_characters],
+            language=cast(Literal["ar-EG", "en"], language.value),
+            persona_id=ACTIVE_FEEDBACK_POLICY.persona_id,
+            prompt_version=ACTIVE_FEEDBACK_POLICY.version,
+            provider="deterministic",
+            model=None,
+            used_fallback=True,
+            duration_ms=duration_ms,
+        )
+
+    @staticmethod
+    def _english_text(evaluation: EvaluationResult) -> str:
+        if evaluation.passed:
+            return (
+                "Decision: submission accepted.\n"
+                "Business impact: the result is reliable enough for the next workplace step.\n"
+                "Next action: review the final summary and continue to the next task.\n"
+                f"Score explanation: the deterministic checks awarded {evaluation.score} of 100."
+            )
+        return (
+            "Decision: submission needs rework.\n"
+            "Business impact: the failed checks reduce confidence in the report.\n"
+            "Next action: review the evaluator details and correct the file before resubmitting.\n"
+            f"Score explanation: the deterministic checks awarded {evaluation.score} of 100."
+        )
