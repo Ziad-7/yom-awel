@@ -1,0 +1,131 @@
+{
+  "$defs": {
+    "EvaluationCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "check_id": {
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Details"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "weight": {
+          "minimum": 0,
+          "title": "Weight",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "check_id",
+        "passed",
+        "weight"
+      ],
+      "title": "EvaluationCheck",
+      "type": "object"
+    },
+    "EvaluationError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "EvaluationError",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/EvaluationCheck"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "duration_ms": {
+      "minimum": 0,
+      "title": "Duration Ms",
+      "type": "integer"
+    },
+    "errors": {
+      "items": {
+        "$ref": "#/$defs/EvaluationError"
+      },
+      "title": "Errors",
+      "type": "array"
+    },
+    "evaluator_id": {
+      "minLength": 1,
+      "title": "Evaluator Id",
+      "type": "string"
+    },
+    "evaluator_version": {
+      "minLength": 1,
+      "title": "Evaluator Version",
+      "type": "string"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "score": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Score",
+      "type": "integer"
+    },
+    "summary_ar": {
+      "title": "Summary Ar",
+      "type": "string"
+    },
+    "summary_en": {
+      "title": "Summary En",
+      "type": "string"
+    },
+    "task_version_id": {
+      "format": "uuid",
+      "title": "Task Version Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "evaluator_id",
+    "evaluator_version",
+    "task_version_id",
+    "passed",
+    "score",
+    "checks",
+    "errors",
+    "summary_ar",
+    "summary_en",
+    "duration_ms"
+  ],
+  "title": "EvaluationResult",
+  "type": "object"
+}

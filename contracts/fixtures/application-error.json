@@ -1,0 +1,6 @@
+{
+  "category": "validation",
+  "code": "invalid_format",
+  "message": "File format not supported",
+  "retryable": false
+}

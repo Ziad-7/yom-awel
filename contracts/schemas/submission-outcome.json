@@ -1,0 +1,290 @@
+{
+  "$defs": {
+    "EvaluationCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "check_id": {
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "details": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Details"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "weight": {
+          "minimum": 0,
+          "title": "Weight",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "check_id",
+        "passed",
+        "weight"
+      ],
+      "title": "EvaluationCheck",
+      "type": "object"
+    },
+    "EvaluationError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "EvaluationError",
+      "type": "object"
+    },
+    "EvaluationResult": {
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/EvaluationCheck"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "errors": {
+          "items": {
+            "$ref": "#/$defs/EvaluationError"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "evaluator_id": {
+          "minLength": 1,
+          "title": "Evaluator Id",
+          "type": "string"
+        },
+        "evaluator_version": {
+          "minLength": 1,
+          "title": "Evaluator Version",
+          "type": "string"
+        },
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Score",
+          "type": "integer"
+        },
+        "summary_ar": {
+          "title": "Summary Ar",
+          "type": "string"
+        },
+        "summary_en": {
+          "title": "Summary En",
+          "type": "string"
+        },
+        "task_version_id": {
+          "format": "uuid",
+          "title": "Task Version Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "evaluator_id",
+        "evaluator_version",
+        "task_version_id",
+        "passed",
+        "score",
+        "checks",
+        "errors",
+        "summary_ar",
+        "summary_en",
+        "duration_ms"
+      ],
+      "title": "EvaluationResult",
+      "type": "object"
+    },
+    "FeedbackResult": {
+      "additionalProperties": false,
+      "properties": {
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "feedback_text": {
+          "title": "Feedback Text",
+          "type": "string"
+        },
+        "language": {
+          "enum": [
+            "ar-EG",
+            "en"
+          ],
+          "title": "Language",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Model"
+        },
+        "persona_id": {
+          "minLength": 1,
+          "title": "Persona Id",
+          "type": "string"
+        },
+        "prompt_version": {
+          "minLength": 1,
+          "title": "Prompt Version",
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "used_fallback": {
+          "title": "Used Fallback",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "feedback_text",
+        "language",
+        "persona_id",
+        "prompt_version",
+        "provider",
+        "model",
+        "used_fallback",
+        "duration_ms"
+      ],
+      "title": "FeedbackResult",
+      "type": "object"
+    },
+    "LearnerStatus": {
+      "enum": [
+        "ONBOARDING",
+        "READY",
+        "IN_TASK",
+        "PROCESSING",
+        "NEEDS_RETRY",
+        "TASK_COMPLETED",
+        "PROGRAM_COMPLETED"
+      ],
+      "title": "LearnerStatus",
+      "type": "string"
+    },
+    "SkillSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Score",
+          "type": "integer"
+        },
+        "skill_id": {
+          "minLength": 1,
+          "title": "Skill Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill_id",
+        "score"
+      ],
+      "title": "SkillSummary",
+      "type": "object"
+    },
+    "TaskStatus": {
+      "enum": [
+        "AVAILABLE",
+        "ACTIVE",
+        "COMPLETED"
+      ],
+      "title": "TaskStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "attempt_id": {
+      "format": "uuid",
+      "title": "Attempt Id",
+      "type": "string"
+    },
+    "attempt_number": {
+      "minimum": 1,
+      "title": "Attempt Number",
+      "type": "integer"
+    },
+    "evaluation": {
+      "$ref": "#/$defs/EvaluationResult"
+    },
+    "feedback": {
+      "$ref": "#/$defs/FeedbackResult"
+    },
+    "learner_status": {
+      "$ref": "#/$defs/LearnerStatus"
+    },
+    "skills": {
+      "items": {
+        "$ref": "#/$defs/SkillSummary"
+      },
+      "title": "Skills",
+      "type": "array"
+    },
+    "submission_id": {
+      "format": "uuid",
+      "title": "Submission Id",
+      "type": "string"
+    },
+    "task_status": {
+      "$ref": "#/$defs/TaskStatus"
+    }
+  },
+  "required": [
+    "submission_id",
+    "attempt_id",
+    "attempt_number",
+    "evaluation",
+    "feedback",
+    "learner_status",
+    "task_status",
+    "skills"
+  ],
+  "title": "SubmissionOutcome",
+  "type": "object"
+}

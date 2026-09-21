@@ -1,0 +1,110 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "SkillMapping": {
+      "additionalProperties": false,
+      "properties": {
+        "check_id": {
+          "minLength": 1,
+          "title": "Check Id",
+          "type": "string"
+        },
+        "skill_id": {
+          "minLength": 1,
+          "title": "Skill Id",
+          "type": "string"
+        },
+        "weight": {
+          "minimum": 0,
+          "title": "Weight",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "skill_id",
+        "check_id",
+        "weight"
+      ],
+      "title": "SkillMapping",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifact_schema": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Artifact Schema",
+      "type": "object"
+    },
+    "content_hash": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "evaluator_id": {
+      "minLength": 1,
+      "title": "Evaluator Id",
+      "type": "string"
+    },
+    "evaluator_version": {
+      "minLength": 1,
+      "title": "Evaluator Version",
+      "type": "string"
+    },
+    "instructions_ar": {
+      "minLength": 1,
+      "title": "Instructions Ar",
+      "type": "string"
+    },
+    "instructions_en": {
+      "minLength": 1,
+      "title": "Instructions En",
+      "type": "string"
+    },
+    "pass_threshold": {
+      "maximum": 100,
+      "minimum": 0,
+      "title": "Pass Threshold",
+      "type": "integer"
+    },
+    "skill_mappings": {
+      "items": {
+        "$ref": "#/$defs/SkillMapping"
+      },
+      "title": "Skill Mappings",
+      "type": "array"
+    },
+    "task_id": {
+      "minLength": 1,
+      "title": "Task Id",
+      "type": "string"
+    },
+    "task_version_id": {
+      "format": "uuid",
+      "title": "Task Version Id",
+      "type": "string"
+    },
+    "version": {
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "task_version_id",
+    "task_id",
+    "version",
+    "instructions_ar",
+    "instructions_en",
+    "artifact_schema",
+    "evaluator_id",
+    "evaluator_version",
+    "pass_threshold",
+    "skill_mappings",
+    "content_hash"
+  ],
+  "title": "TaskVersion",
+  "type": "object"
+}

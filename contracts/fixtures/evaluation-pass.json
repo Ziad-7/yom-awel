@@ -1,0 +1,19 @@
+{
+  "checks": [
+    {
+      "check_id": "clean_data",
+      "details": null,
+      "passed": true,
+      "weight": 100
+    }
+  ],
+  "duration_ms": 1500,
+  "errors": [],
+  "evaluator_id": "sales-cleaning",
+  "evaluator_version": "1",
+  "passed": true,
+  "score": 100,
+  "summary_ar": "نجاح",
+  "summary_en": "Success",
+  "task_version_id": "00000000-0000-0000-0000-000000000001"
+}

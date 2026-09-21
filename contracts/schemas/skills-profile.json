@@ -1,0 +1,47 @@
+{
+  "$defs": {
+    "SkillSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "score": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Score",
+          "type": "integer"
+        },
+        "skill_id": {
+          "minLength": 1,
+          "title": "Skill Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "skill_id",
+        "score"
+      ],
+      "title": "SkillSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "learner_id": {
+      "format": "uuid",
+      "title": "Learner Id",
+      "type": "string"
+    },
+    "skills": {
+      "items": {
+        "$ref": "#/$defs/SkillSummary"
+      },
+      "title": "Skills",
+      "type": "array"
+    }
+  },
+  "required": [
+    "learner_id",
+    "skills"
+  ],
+  "title": "SkillsProfile",
+  "type": "object"
+}
