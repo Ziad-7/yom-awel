@@ -8,6 +8,9 @@ from uuid import uuid4
 import pytest
 
 from yom_awel.persistence.retention import (
+    ArtifactCleanupService,
+    CleanupArtifact,
+    InMemoryCleanupQueue,
     InMemoryRetentionStore,
     RetentionArtifact,
     RetentionService,
@@ -142,10 +145,48 @@ async def test_deletion_request_requires_reconciliation_before_anonymous_cleanup
     assert [item.action for item in store.audit_log].count("ANONYMOUS_RECONCILED") == 1
 
 
+@pytest.mark.asyncio
+async def test_cleanup_worker_resolves_missing_object_and_retries_failures() -> None:
+    entry = CleanupArtifact(uuid4(), uuid4(), uuid4(), "learner/artifact")
+    queue = InMemoryCleanupQueue([entry])
+    deleter = FakeDeleter(missing={entry.object_path})
+    result = await ArtifactCleanupService(queue, deleter).run_once(NOW, "worker")
+    assert result == type(result)(claimed=1, resolved=1, failed=0)
+    assert entry.cleanup_id in queue.resolved
+
+    failed_entry = CleanupArtifact(uuid4(), uuid4(), uuid4(), "learner/failed")
+    retry_queue = InMemoryCleanupQueue([failed_entry])
+    retry_deleter = FakeDeleter(failures={failed_entry.object_path})
+    service = ArtifactCleanupService(retry_queue, retry_deleter)
+    failed = await service.run_once(NOW, "worker")
+    assert failed.failed == 1
+    retry_deleter.failures.clear()
+    recovered = await service.run_once(NOW + timedelta(minutes=1), "worker")
+    assert recovered.resolved == 1
+
+
+@pytest.mark.asyncio
+async def test_cleanup_stale_owner_cannot_finalize_reclaimed_lease() -> None:
+    entry = CleanupArtifact(uuid4(), uuid4(), uuid4(), "learner/stale")
+    queue = InMemoryCleanupQueue([entry])
+    first = await queue.claim_pending(NOW, "one", 30, 1)
+    assert len(first) == 1
+    reclaimed = await queue.claim_pending(NOW + timedelta(seconds=31), "two", 30, 1)
+    assert len(reclaimed) == 1
+    with pytest.raises(RuntimeError):
+        await queue.finalize_cleanup(entry.cleanup_id, "one", True, NOW + timedelta(seconds=31))
+
+
 def test_migration_security_static_contract() -> None:
     root = Path(__file__).resolve().parents[4]
     migration = next((root / "supabase" / "migrations").glob("*_platform_schema.sql"))
     sql = migration.read_text(encoding="utf-8")
+    release_migration = next((root / "supabase" / "migrations").glob("*_release_submission.sql"))
+    release_sql = release_migration.read_text(encoding="utf-8")
+    cleanup_migration = next(
+        (root / "supabase" / "migrations").glob("*_artifact_cleanup_recovery.sql")
+    )
+    cleanup_sql = cleanup_migration.read_text(encoding="utf-8")
     tables = (
         "learners",
         "external_identities",
@@ -186,13 +227,60 @@ def test_migration_security_static_contract() -> None:
         assert f"revoke all on function public.{function}" in sql
         assert f"grant execute on function public.{function}" in sql
     assert sql.count("set search_path = public, pg_temp") >= 3
+    assert "create or replace function public.expire_submission" in release_sql
+    assert "set search_path = public, pg_temp" in release_sql
+    assert "revoke all on function public.expire_submission" in release_sql
+    assert "grant execute on function public.expire_submission" in release_sql
+    assert "p_expected_version" in release_sql
+    assert "p_lease_owner" in release_sql
+    assert "from public, anon, authenticated" in release_sql
+    assert "create table public.artifact_cleanup_queue" in cleanup_sql
+    assert "grant select on public.artifacts to authenticated" in cleanup_sql
+    assert "object_path = learner_id::text || '/' || artifact_id::text" in cleanup_sql
+    for function in (
+        "enqueue_artifact_cleanup",
+        "resolve_artifact_cleanup",
+        "finalize_artifact_cleanup",
+        "tombstone_artifact",
+        "claim_artifact_cleanup",
+        "release_artifact_cleanup",
+        "reserve_artifact",
+        "prepare_artifact_delete",
+        "activate_artifact",
+    ):
+        assert "set search_path = public, pg_temp" in cleanup_sql
+        assert f"revoke all on function public.{function}" in cleanup_sql
+        assert f"grant execute on function public.{function}" in cleanup_sql
+    assert (
+        "revoke all on table public.artifact_cleanup_queue from anon, authenticated" in cleanup_sql
+    )
+    assert "for update skip locked" in cleanup_sql
+    assert "purge_status = 'ACTIVE'" in cleanup_sql
+    assert (
+        "purge_status in ('ACTIVE', 'UPLOADING', 'CLAIMED', 'PURGE_FAILED', 'PURGED')"
+        in cleanup_sql
+    )
+    assert "'created', false" in cleanup_sql
+    assert "purge_status = 'UPLOADING'" in cleanup_sql
+    assert "p_upload_owner text" in cleanup_sql
+    assert "p_upload_lease_seconds integer" in cleanup_sql
+    assert "purge_lease_owner = p_upload_owner" in cleanup_sql
+    assert "purge_lease_expires_at > timezone('utc', now())" in cleanup_sql
+    assert "not exists (" in cleanup_sql
+    assert "reserve_artifact(uuid, uuid, text, text, bigint, text, text, integer)" in cleanup_sql
+    assert "activate_artifact(uuid, uuid, text)" in cleanup_sql
 
     workflow = (root / ".github" / "workflows" / "retention.yml").read_text(encoding="utf-8")
     assert "actions/checkout@v7" in workflow
     assert 'cron: "17 3 * * *"' in workflow
+    assert "workflow_dispatch" in workflow
+    assert "astral-sh/setup-uv@v10" in workflow
+    assert "SUPABASE_URL: ${{ secrets.SUPABASE_URL }}" in workflow
+    assert "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" in workflow
+    assert "--cleanup-queue" in workflow
+    assert "--dry-run" not in workflow
     assert "workflow_dispatch:" in workflow
     assert "contents: read" in workflow
-    assert "secrets." not in workflow
     assert "deploy" not in workflow.lower()
 
     config = (root / "supabase" / "config.toml").read_text(encoding="utf-8")

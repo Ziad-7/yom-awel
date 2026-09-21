@@ -219,9 +219,15 @@ class RetentionRun:
 
 
 class RetentionService:
-    def __init__(self, store: RetentionStore, deleter: ObjectDeleter):
+    def __init__(
+        self,
+        store: RetentionStore,
+        deleter: ObjectDeleter,
+        cleanup_worker: ArtifactCleanupService | None = None,
+    ):
         self.store = store
         self.deleter = deleter
+        self.cleanup_worker = cleanup_worker
 
     async def run_once(
         self, now: datetime, owner: str, limit: int = 100, lease_seconds: int = 300
@@ -253,6 +259,8 @@ class RetentionService:
             else:
                 await self.store.finalize_purge(row.artifact_id, owner, True, {}, now=now)
                 purged += 1
+        if self.cleanup_worker is not None:
+            await self.cleanup_worker.run_once(now, owner, limit, lease_seconds)
         return RetentionRun(claimed=len(rows), purged=purged, failed=failed)
 
     async def request_learner_deletion(
@@ -264,3 +272,108 @@ class RetentionService:
         self, learner_id: UUID, actor_id: str, now: datetime
     ) -> bool:
         return await self.store.reconcile_anonymous(learner_id, actor_id, now)
+
+
+@dataclass(frozen=True)
+class CleanupArtifact:
+    cleanup_id: UUID
+    learner_id: UUID
+    artifact_id: UUID
+    object_path: str
+    attempts: int = 0
+    lease_owner: str | None = None
+    lease_expires_at: datetime | None = None
+
+
+class CleanupQueueStore(Protocol):
+    async def claim_pending(
+        self, now: datetime, owner: str, lease_seconds: int, limit: int
+    ) -> list[CleanupArtifact]: ...
+
+    async def finalize_cleanup(
+        self, cleanup_id: UUID, owner: str, deleted: bool, now: datetime
+    ) -> None: ...
+
+
+@dataclass(frozen=True)
+class CleanupRun:
+    claimed: int
+    resolved: int
+    failed: int
+
+
+class InMemoryCleanupQueue:
+    """Lease-safe cleanup queue used by local mode and deterministic tests."""
+
+    def __init__(self, entries: list[CleanupArtifact] | None = None) -> None:
+        self.entries = {item.cleanup_id: item for item in entries or []}
+        self.resolved: set[UUID] = set()
+        self._lock = asyncio.Lock()
+
+    async def claim_pending(
+        self, now: datetime, owner: str, lease_seconds: int, limit: int
+    ) -> list[CleanupArtifact]:
+        if not owner or lease_seconds <= 0 or limit < 1:
+            raise ValueError("owner, lease_seconds, and limit are required")
+        current = _utc(now)
+        claimed: list[CleanupArtifact] = []
+        async with self._lock:
+            for item in sorted(self.entries.values(), key=lambda value: str(value.cleanup_id)):
+                if item.cleanup_id in self.resolved:
+                    continue
+                lease_expired = item.lease_expires_at is None or item.lease_expires_at <= current
+                if item.lease_owner is not None and not lease_expired:
+                    continue
+                updated = replace(
+                    item,
+                    attempts=item.attempts + 1,
+                    lease_owner=owner,
+                    lease_expires_at=current + timedelta(seconds=lease_seconds),
+                )
+                self.entries[item.cleanup_id] = updated
+                claimed.append(updated)
+                if len(claimed) == limit:
+                    break
+        return claimed
+
+    async def finalize_cleanup(
+        self, cleanup_id: UUID, owner: str, deleted: bool, now: datetime
+    ) -> None:
+        async with self._lock:
+            item = self.entries[cleanup_id]
+            current = _utc(now)
+            if (
+                item.lease_owner != owner
+                or item.lease_expires_at is None
+                or item.lease_expires_at <= current
+            ):
+                raise RuntimeError("cleanup lease conflict")
+            if deleted:
+                self.resolved.add(cleanup_id)
+            self.entries[cleanup_id] = replace(item, lease_owner=None, lease_expires_at=None)
+
+
+class ArtifactCleanupService:
+    def __init__(self, queue: CleanupQueueStore, deleter: ObjectDeleter):
+        self.queue = queue
+        self.deleter = deleter
+
+    async def run_once(
+        self, now: datetime, owner: str, limit: int = 100, lease_seconds: int = 300
+    ) -> CleanupRun:
+        rows = await self.queue.claim_pending(now, owner, lease_seconds, limit)
+        resolved = 0
+        failed = 0
+        for row in rows:
+            try:
+                await self.deleter.delete(row.object_path)
+            except FileNotFoundError:
+                await self.queue.finalize_cleanup(row.cleanup_id, owner, True, now)
+                resolved += 1
+            except Exception:  # noqa: BLE001
+                await self.queue.finalize_cleanup(row.cleanup_id, owner, False, now)
+                failed += 1
+            else:
+                await self.queue.finalize_cleanup(row.cleanup_id, owner, True, now)
+                resolved += 1
+        return CleanupRun(claimed=len(rows), resolved=resolved, failed=failed)

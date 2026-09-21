@@ -14,5 +14,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - name: Run bounded local retention command
-        run: python services/api/scripts/purge_expired_artifacts.py --dry-run
+      - uses: astral-sh/setup-uv@v10
+      - name: Run bounded retention cleanup
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: uv run --project services/api python services/api/scripts/purge_expired_artifacts.py --cleanup-queue
