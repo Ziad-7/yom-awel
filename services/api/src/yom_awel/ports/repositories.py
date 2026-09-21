@@ -6,7 +6,9 @@ from uuid import UUID
 from yom_awel.domain.contracts import SkillsProfile, SubmissionOutcome, TaskVersion
 from yom_awel.domain.entities import (
     Attempt,
+    EvaluationRecord,
     ExternalIdentity,
+    FeedbackRecord,
     Learner,
     LearnerProgress,
     OutboxEvent,
@@ -58,6 +60,14 @@ class SubmissionRepository(Protocol):
 
     async def get_reservation(self, learner_id: UUID, key: str) -> SubmissionReservation | None: ...
 
+    async def expire(
+        self,
+        learner_id: UUID,
+        key: str,
+        expected_version: int | None = None,
+        lease_owner: str | None = None,
+    ) -> None: ...
+
     async def finalize(
         self,
         reservation_id: UUID,
@@ -81,6 +91,16 @@ class SkillRepository(Protocol):
     async def list_evidence(self, learner_id: UUID) -> list[SkillEvidence]: ...
 
     async def get_profile(self, learner_id: UUID) -> SkillsProfile: ...
+
+
+class EvaluationRepository(Protocol):
+    async def get(self, evaluation_id: UUID) -> EvaluationRecord | None: ...
+    async def add(self, record: EvaluationRecord) -> None: ...
+
+
+class FeedbackRepository(Protocol):
+    async def get(self, feedback_id: UUID) -> FeedbackRecord | None: ...
+    async def add(self, record: FeedbackRecord) -> None: ...
 
 
 class OutboxRepository(Protocol):

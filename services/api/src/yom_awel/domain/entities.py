@@ -57,6 +57,7 @@ class SubmissionReservation(BaseModel):
     idempotency_key: str = Field(strict=True, min_length=1)
     request_fingerprint: str = Field(strict=True, min_length=1)
     status: SubmissionStatus
+    created_at: datetime
     version: int = Field(strict=True, ge=1)
     lease_expires_at: datetime
     lease_owner: str | None = None
@@ -126,9 +127,10 @@ class Attempt(BaseModel):
 class LearnerProgress(BaseModel):
     learner_id: UUID
     current_status: LearnerStatus
-    current_task_id: str | None = None
+    current_task_id: UUID | None = None
     version: int = Field(strict=True, ge=1)
     updated_at: datetime
+    reset_at: datetime | None = None
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     def advance_status(

@@ -12,7 +12,9 @@ from yom_awel.domain.contracts import SkillsProfile, SkillSummary, SubmissionOut
 from yom_awel.domain.entities import (
     Artifact,
     Attempt,
+    EvaluationRecord,
     ExternalIdentity,
+    FeedbackRecord,
     Learner,
     LearnerProgress,
     OutboxEvent,
@@ -70,6 +72,8 @@ class _State:
     attempts: dict[UUID, Attempt] = field(default_factory=dict)
     evidence: dict[UUID, SkillEvidence] = field(default_factory=dict)
     outbox: dict[UUID, OutboxEvent] = field(default_factory=dict)
+    evaluations: dict[UUID, EvaluationRecord] = field(default_factory=dict)
+    feedback: dict[UUID, FeedbackRecord] = field(default_factory=dict)
     artifacts: dict[UUID, _StoredArtifact] = field(default_factory=dict)
     revision: int = 0
 
@@ -220,6 +224,7 @@ class _Submissions(_MemoryRepository):
             status=SubmissionStatus.RECEIVED,
             version=1,
             lease_expires_at=now + timedelta(seconds=lease_seconds),
+            created_at=now,
             lease_owner=lease_owner,
         )
         state.reservations[reservation.reservation_id] = reservation
@@ -229,6 +234,33 @@ class _Submissions(_MemoryRepository):
     async def get_reservation(self, learner_id: UUID, key: str) -> SubmissionReservation | None:
         reservation_id = self._state.reservation_keys.get((learner_id, key))
         return _copy(self._state.reservations.get(reservation_id)) if reservation_id else None
+
+    async def expire(
+        self,
+        learner_id: UUID,
+        key: str,
+        expected_version: int | None = None,
+        lease_owner: str | None = None,
+    ) -> None:
+        state = self._state
+        existing_id = state.reservation_keys.get((learner_id, key))
+        if existing_id is None:
+            return
+        existing = state.reservations[existing_id]
+        if expected_version is not None and existing.version != expected_version:
+            raise OptimisticConflict("submission_reservation")
+        if lease_owner is not None and existing.lease_owner != lease_owner:
+            raise ReservationOwnerConflict()
+        if existing.status == SubmissionStatus.COMPLETED:
+            return
+        now = self._uow._database.clock.now()
+        expired = existing.model_copy(
+            update={
+                "lease_expires_at": now,
+                "version": existing.version + 1,
+            }
+        )
+        state.reservations[existing_id] = expired
 
     async def finalize(
         self,
@@ -290,6 +322,11 @@ class _Attempts(_MemoryRepository):
             raise UniqueConstraintViolation("attempts.learner_task_attempt_number")
         if attempt.attempt_number != len(existing) + 1:
             raise OptimisticConflict("attempt ordering")
+        if attempt.evaluation_id not in state.evaluations:
+            raise NotFound("evaluation")
+        if attempt.feedback_id not in state.feedback:
+            raise NotFound("feedback")
+
         state.attempts[attempt.attempt_id] = _copy(attempt)
 
     async def get(self, attempt_id: UUID) -> Attempt | None:
@@ -347,6 +384,22 @@ class _Skills(_MemoryRepository):
                 for skill_id, score in sorted(totals.items())
             ],
         )
+
+
+class _Evaluations(_MemoryRepository):
+    async def get(self, evaluation_id: UUID) -> EvaluationRecord | None:
+        return _copy(self._state.evaluations.get(evaluation_id))
+
+    async def add(self, record: EvaluationRecord) -> None:
+        self._state.evaluations[record.evaluation_id] = _copy(record)
+
+
+class _Feedback(_MemoryRepository):
+    async def get(self, feedback_id: UUID) -> FeedbackRecord | None:
+        return _copy(self._state.feedback.get(feedback_id))
+
+    async def add(self, record: FeedbackRecord) -> None:
+        self._state.feedback[record.feedback_id] = _copy(record)
 
 
 class _Outbox(_MemoryRepository):
@@ -419,6 +472,8 @@ class MemoryUnitOfWork:
         self.attempts = _Attempts(self)
         self.skills = _Skills(self)
         self.outbox = _Outbox(self)
+        self.evaluations = _Evaluations(self)
+        self.feedback = _Feedback(self)
         self.artifacts = _Artifacts(self)
 
     async def __aenter__(self) -> Self:

@@ -6,6 +6,8 @@ from typing import Protocol, Self
 from yom_awel.ports.artifacts import ArtifactStore
 from yom_awel.ports.repositories import (
     AttemptRepository,
+    EvaluationRepository,
+    FeedbackRepository,
     LearnerRepository,
     OutboxRepository,
     SkillRepository,
@@ -21,6 +23,8 @@ class UnitOfWork(Protocol):
     attempts: AttemptRepository
     skills: SkillRepository
     outbox: OutboxRepository
+    evaluations: EvaluationRepository
+    feedback: FeedbackRepository
     artifacts: ArtifactStore
 
     async def __aenter__(self) -> Self: ...

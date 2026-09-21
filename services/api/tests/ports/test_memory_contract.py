@@ -432,14 +432,53 @@ async def test_attempts_and_skill_evidence_enforce_audit_scope_order_and_uniquen
             60,
             "owner",
         )
+        from yom_awel.domain.contracts import EvaluationResult, FeedbackResult
+        from yom_awel.domain.entities import EvaluationRecord, FeedbackRecord
+
+        eval_id = uuid4()
+        fb_id = uuid4()
+        await uow.evaluations.add(
+            EvaluationRecord(
+                evaluation_id=eval_id,
+                result=EvaluationResult(
+                    evaluator_id="e1",
+                    evaluator_version="1",
+                    task_version_id=task.task_version_id,
+                    passed=True,
+                    score=100,
+                    checks=[],
+                    errors=[],
+                    summary_ar="ar",
+                    summary_en="en",
+                    duration_ms=10,
+                ),
+                recorded_at=NOW,
+            )
+        )
+        await uow.feedback.add(
+            FeedbackRecord(
+                feedback_id=fb_id,
+                result=FeedbackResult(
+                    feedback_text="fb",
+                    language="en",
+                    persona_id="t",
+                    prompt_version="1",
+                    provider="sys",
+                    model=None,
+                    used_fallback=False,
+                    duration_ms=10,
+                ),
+                recorded_at=NOW,
+            )
+        )
         attempt = Attempt(
             attempt_id=uuid4(),
             learner_id=item.learner_id,
             submission_id=reservation.submission_id,
             task_version_id=task.task_version_id,
             attempt_number=1,
-            evaluation_id=uuid4(),
-            feedback_id=uuid4(),
+            evaluation_id=eval_id,
+            feedback_id=fb_id,
             evaluator_id="evaluator",
             evaluator_version="1",
             prompt_version="persona@1",
@@ -520,3 +559,59 @@ async def test_artifact_round_trip_scope_hash_size_uniqueness_and_delete(
 def test_factory_is_typed_as_unit_of_work_factory() -> None:
     factory: Callable[[], UnitOfWork] = MemoryUnitOfWorkFactory(MemoryDatabase())
     assert isinstance(factory(), MemoryUnitOfWork)
+
+
+@pytest.mark.asyncio
+async def test_evaluation_repository(factory):
+    async with factory() as uow:
+        eval_id = uuid4()
+        from yom_awel.domain.contracts import EvaluationResult
+        from yom_awel.domain.entities import EvaluationRecord
+
+        result = EvaluationResult(
+            evaluator_id="e1",
+            evaluator_version="1",
+            task_version_id=uuid4(),
+            passed=True,
+            score=100,
+            checks=[],
+            errors=[],
+            summary_ar="ar",
+            summary_en="en",
+            duration_ms=10,
+        )
+        record = EvaluationRecord(evaluation_id=eval_id, result=result, recorded_at=NOW)
+
+        await uow.evaluations.add(record)
+        fetched = await uow.evaluations.get(eval_id)
+
+        assert fetched is not None
+        assert fetched.evaluation_id == eval_id
+        assert fetched.result.passed is True
+
+
+@pytest.mark.asyncio
+async def test_feedback_repository(factory):
+    async with factory() as uow:
+        fb_id = uuid4()
+        from yom_awel.domain.contracts import FeedbackResult
+        from yom_awel.domain.entities import FeedbackRecord
+
+        result = FeedbackResult(
+            feedback_text="fb",
+            language="en",
+            persona_id="tarek",
+            prompt_version="1",
+            provider="sys",
+            model=None,
+            used_fallback=False,
+            duration_ms=10,
+        )
+        record = FeedbackRecord(feedback_id=fb_id, result=result, recorded_at=NOW)
+
+        await uow.feedback.add(record)
+        fetched = await uow.feedback.get(fb_id)
+
+        assert fetched is not None
+        assert fetched.feedback_id == fb_id
+        assert fetched.result.feedback_text == "fb"

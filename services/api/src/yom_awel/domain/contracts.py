@@ -51,6 +51,11 @@ class FrozenDict(dict[K, V]):
     def __ior__(self, other: Any) -> Any:  # type: ignore[misc]
         raise TypeError("Immutable")
 
+    def __deepcopy__(self, memo: Any) -> Any:
+        import copy
+
+        return self.__class__(copy.deepcopy(dict(self), memo))
+
 
 class FrozenList(list[T]):
     def __setitem__(self, key: Any, value: Any) -> None:
@@ -88,6 +93,11 @@ class FrozenList(list[T]):
 
     def __imul__(self, other: Any) -> Any:  # type: ignore[misc]
         raise TypeError("Immutable")
+
+    def __deepcopy__(self, memo: Any) -> Any:
+        import copy
+
+        return self.__class__(copy.deepcopy(list(self), memo))
 
 
 def deep_freeze(obj: Any) -> Any:
