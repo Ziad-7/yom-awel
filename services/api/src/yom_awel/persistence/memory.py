@@ -444,6 +444,8 @@ class _Artifacts(_MemoryRepository):
             raise ValueError("content size does not match artifact metadata")
         if hashlib.sha256(content).hexdigest() != artifact.sha256:
             raise ValueError("content sha256 does not match artifact metadata")
+        if artifact.learner_id not in self._state.learners:
+            raise LearnerScopeViolation("artifact.learner_id")
         if artifact.artifact_id in self._state.artifacts:
             raise UniqueConstraintViolation("artifacts.id")
         self._state.artifacts[artifact.artifact_id] = _StoredArtifact(
