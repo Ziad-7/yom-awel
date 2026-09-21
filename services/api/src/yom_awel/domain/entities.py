@@ -3,8 +3,75 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from yom_awel.domain.contracts import EvaluationResult, FeedbackResult, SkillSummary, TaskVersion
-from yom_awel.domain.enums import LearnerStatus
+from yom_awel.domain.contracts import (
+    EvaluationResult,
+    FeedbackResult,
+    SkillSummary,
+    SubmissionOutcome,
+    TaskVersion,
+)
+from yom_awel.domain.enums import Channel, Language, LearnerStatus, SubmissionStatus
+
+
+class Learner(BaseModel):
+    learner_id: UUID
+    display_name: str = Field(strict=True, min_length=1)
+    preferred_language: Language
+    status: LearnerStatus
+    created_at: datetime
+    updated_at: datetime
+    state_machine_version: str = Field(default="1", strict=True, min_length=1)
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class ExternalIdentity(BaseModel):
+    identity_id: UUID
+    learner_id: UUID
+    provider: str = Field(strict=True, min_length=1)
+    provider_subject: str = Field(strict=True, min_length=1)
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class Task(BaseModel):
+    task_id: str = Field(strict=True, min_length=1)
+    title: str = Field(strict=True, min_length=1)
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class Artifact(BaseModel):
+    artifact_id: UUID
+    learner_id: UUID
+    filename: str = Field(strict=True, min_length=1, max_length=255)
+    size_bytes: int = Field(strict=True, ge=0, le=5 * 1024 * 1024)
+    sha256: str = Field(strict=True, pattern=r"^[a-f0-9]{64}$")
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class SubmissionReservation(BaseModel):
+    reservation_id: UUID
+    submission_id: UUID
+    learner_id: UUID
+    task_version_id: UUID
+    artifact_id: UUID | None = None
+    channel: Channel | None = None
+    idempotency_key: str = Field(strict=True, min_length=1)
+    request_fingerprint: str = Field(strict=True, min_length=1)
+    status: SubmissionStatus
+    version: int = Field(strict=True, ge=1)
+    lease_expires_at: datetime
+    lease_owner: str | None = None
+    outcome: SubmissionOutcome | None = None
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class OutboxEvent(BaseModel):
+    event_id: UUID
+    event_type: str = Field(strict=True, min_length=1)
+    aggregate_id: UUID
+    payload: dict[str, object]
+    created_at: datetime
+    published_at: datetime | None = None
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
 
 class EvaluationRecord(BaseModel):
@@ -43,10 +110,14 @@ class SkillEvidence(BaseModel):
 class Attempt(BaseModel):
     attempt_id: UUID
     learner_id: UUID
+    submission_id: UUID
     task_version_id: UUID
     attempt_number: int = Field(strict=True, ge=1)
-    evaluation_id: UUID | None = None
-    feedback_id: UUID | None = None
+    evaluation_id: UUID
+    feedback_id: UUID
+    evaluator_id: str = Field(strict=True, min_length=1)
+    evaluator_version: str = Field(strict=True, min_length=1)
+    prompt_version: str = Field(strict=True, min_length=1)
     started_at: datetime
     completed_at: datetime | None = None
     model_config = ConfigDict(frozen=True, extra="forbid")
