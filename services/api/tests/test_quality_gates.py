@@ -69,7 +69,7 @@ def test_ci_workflow() -> None:
         if uses.startswith("actions/checkout"):
             assert uses == "actions/checkout@v7"
         if uses.startswith("astral-sh/setup-uv"):
-            assert uses == "astral-sh/setup-uv@v10"
+            assert uses == "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7"
         if uses.startswith("actions/setup-python"):
             assert uses == "actions/setup-python@v6"
             assert "3.12" in step.get("with", {}).get("python-version", "")
