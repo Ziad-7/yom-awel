@@ -27,6 +27,7 @@ class AsyncGeminiClient(Protocol):
 
 
 TaskContextResolver = Callable[[UUID], Awaitable[TaskVersion | None]]
+FREE_TIER_MODELS = frozenset({"gemini-2.5-flash", "gemini-2.5-flash-lite"})
 
 
 class GoogleGenAIClient:
@@ -65,6 +66,8 @@ class GeminiAdapter(FeedbackProvider):
         client: AsyncGeminiClient | None = None,
         timeout_seconds: float = 10.0,
     ) -> None:
+        if model not in FREE_TIER_MODELS:
+            raise ValueError("Gemini model must be an approved free-tier model")
         self._api_key = api_key
         self._model = model
         self._task_context_resolver = task_context_resolver

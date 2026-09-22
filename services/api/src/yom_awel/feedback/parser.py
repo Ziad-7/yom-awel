@@ -53,31 +53,11 @@ def parse_provider_response(
     if response.reveals_reference_solution:
         raise ProviderResponseError("solution_disclosure")
     normalized = " ".join(response.feedback_text.split())
-    if language is Language.AR_EG and not _ARABIC.search(normalized):
-        raise ProviderResponseError("non_arabic_response")
-    headings = _AR_SECTIONS if language is Language.AR_EG else _EN_SECTIONS
-    positions = [normalized.find(heading) for heading in headings]
-    if any(position < 0 for position in positions) or positions != sorted(positions):
-        raise ProviderResponseError("missing_feedback_sections")
-    if language is Language.AR_EG:
-        expected_text_decision = (
-            "القرار: التسليم مقبول"
-            if evaluation.passed
-            else "القرار: التسليم محتاج إعادة شغل"
-        )
-    else:
-        expected_text_decision = (
-            "Decision: submission accepted"
-            if evaluation.passed
-            else "Decision: submission needs rework"
-        )
-    if expected_text_decision not in normalized or str(evaluation.score) not in normalized:
-        raise ProviderResponseError("text_contradiction")
     failed_check_ids = {check.check_id for check in evaluation.checks if not check.passed}
     if failed_check_ids and not failed_check_ids.intersection(response.referenced_check_ids):
         raise ProviderResponseError("missing_failed_check_reference")
 
-    return FeedbackResult(
+    result = FeedbackResult(
         feedback_text=normalized,
         language=cast(Literal["ar-EG", "en"], language.value),
         persona_id=ACTIVE_FEEDBACK_POLICY.persona_id,
@@ -87,3 +67,46 @@ def parse_provider_response(
         used_fallback=False,
         duration_ms=max(0, duration_ms),
     )
+    validate_grounded_feedback(result, evaluation, language)
+    return result
+
+
+def validate_grounded_feedback(
+    result: FeedbackResult, evaluation: EvaluationResult, language: Language
+) -> None:
+    """Validate prose too, including results returned by another primary provider."""
+    text = " ".join(result.feedback_text.split())
+    if result.language != language.value:
+        raise ProviderResponseError("wrong_language")
+    if not text or len(text) > 900:
+        raise ProviderResponseError("invalid_feedback_length")
+    if language is Language.AR_EG and not _ARABIC.search(text):
+        raise ProviderResponseError("non_arabic_response")
+
+    headings = _AR_SECTIONS if language is Language.AR_EG else _EN_SECTIONS
+    positions = [text.find(heading) for heading in headings]
+    if (
+        any(position < 0 for position in positions)
+        or positions != sorted(positions)
+        or any(text.count(heading) != 1 for heading in headings)
+    ):
+        raise ProviderResponseError("missing_feedback_sections")
+    sections = [
+        text[position + len(heading) : positions[index + 1] if index < 3 else None].strip()
+        for index, (position, heading) in enumerate(zip(positions, headings, strict=True))
+    ]
+    if any(not section for section in sections):
+        raise ProviderResponseError("empty_feedback_section")
+
+    if language is Language.AR_EG:
+        expected = "التسليم مقبول" if evaluation.passed else "التسليم محتاج إعادة شغل"
+        opposite = "التسليم محتاج إعادة شغل" if evaluation.passed else "التسليم مقبول"
+        score_pattern = rf"(?<!\d){evaluation.score}(?!\d)\s*من\s*100"
+    else:
+        expected = "submission accepted" if evaluation.passed else "submission needs rework"
+        opposite = "submission needs rework" if evaluation.passed else "submission accepted"
+        score_pattern = rf"(?<!\d){evaluation.score}(?!\d)\s*of\s*100"
+    if not sections[0].startswith(expected) or opposite in text:
+        raise ProviderResponseError("text_contradiction")
+    if not re.search(score_pattern, sections[3]):
+        raise ProviderResponseError("text_contradiction")

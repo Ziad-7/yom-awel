@@ -48,6 +48,18 @@ def test_parser_accepts_grounded_response(failed_evaluation: EvaluationResult) -
         lambda payload: payload.update(reveals_reference_solution=True),
         lambda payload: payload.update(feedback_text="English only feedback"),
         lambda payload: payload.update(referenced_check_ids=[]),
+        lambda payload: payload.update(
+            feedback_text=(
+                "القرار: التسليم محتاج إعادة شغل. تأثير الشغل: التقرير ناقص. "
+                "الخطوة الجاية: راجع البيانات. تفسير الدرجة: حصلت على 100 من 100."
+            )
+        ),
+        lambda payload: payload.update(
+            feedback_text=(
+                "القرار: التسليم محتاج إعادة شغل. تأثير الشغل: التقرير ناقص. "
+                "الخطوة الجاية: راجع البيانات. تفسير الدرجة: الدرجة غير مذكورة."
+            )
+        ),
     ],
 )
 def test_parser_rejects_unsafe_or_ungrounded_response(

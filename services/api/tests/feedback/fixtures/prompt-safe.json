@@ -15,13 +15,13 @@
         "check_id": "clean_data",
         "passed": false,
         "weight": 100,
-        "details": "Missing rows"
+        "details": "توجد مشكلة في تنظيف البيانات"
       }
     ],
     "errors": [
       {
         "code": "missing_data",
-        "message": "Data is incomplete"
+        "message": "البيانات غير مكتملة"
       }
     ]
   },

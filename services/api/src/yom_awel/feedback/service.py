@@ -8,6 +8,7 @@ from yom_awel.domain.contracts import EvaluationResult, FeedbackResult
 from yom_awel.domain.enums import Language
 from yom_awel.feedback.errors import FeedbackProviderError, ProviderTimeoutError
 from yom_awel.feedback.fallback import DeterministicFeedbackProvider
+from yom_awel.feedback.parser import validate_grounded_feedback
 from yom_awel.ports.feedback import FeedbackProvider
 
 _Sleep = Callable[[float], Awaitable[None]]
@@ -75,7 +76,7 @@ class ResilientFeedbackProvider(FeedbackProvider):
     ) -> FeedbackResult:
         assert self._primary is not None
         try:
-            return await self._primary.generate(evaluation, language, learner_note)
+            result = await self._primary.generate(evaluation, language, learner_note)
         except FeedbackProviderError as error:
             elapsed = self._clock() - started
             if error.code == "quota" and error.retry_after_seconds is None:
@@ -85,7 +86,9 @@ class ResilientFeedbackProvider(FeedbackProvider):
                 raise
             if delay:
                 await self._sleep(delay)
-            return await self._primary.generate(evaluation, language, learner_note)
+            result = await self._primary.generate(evaluation, language, learner_note)
+        validate_grounded_feedback(result, evaluation, language)
+        return result
 
     async def _use_fallback(
         self,
