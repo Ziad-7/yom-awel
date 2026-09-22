@@ -153,6 +153,21 @@ class _Tasks(_MemoryRepository):
     async def get_task(self, task_id: str) -> Task | None:
         return _copy(self._state.task_groups.get(task_id))
 
+    async def get_current_published_version(self, task_id: str) -> TaskVersion | None:
+        # Local TaskVersion records are already publication-approved.  Numeric
+        # ordering avoids the lexical "10" < "2" trap; UUID breaks ties.
+        versions = [item for item in self._state.tasks.values() if item.task_id == task_id]
+        if not versions:
+            return None
+
+        def order(item: TaskVersion) -> tuple[int, int, str, str]:
+            version = item.version
+            if version.isdecimal():
+                return (1, int(version), "", str(item.task_version_id))
+            return (0, 0, version, str(item.task_version_id))
+
+        return _copy(max(versions, key=order))
+
     async def add(self, task_version: TaskVersion) -> None:
         if task_version.task_version_id in self._state.tasks:
             raise UniqueConstraintViolation("task_versions.id")

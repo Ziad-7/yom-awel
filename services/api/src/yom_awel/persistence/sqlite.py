@@ -333,7 +333,7 @@ class _Learners(_Repo):
                 (
                     learner_key,
                     progress.current_status.value,
-                    _uuid(progress.current_task_id) if progress.current_task_id else None,
+                    progress.current_task_id,
                     progress.version,
                     _dt(progress.updated_at),
                     _dt(progress.reset_at) if progress.reset_at else None,
@@ -347,7 +347,7 @@ class _Learners(_Repo):
             "updated_at=?, reset_at=? WHERE learner_id=? AND version=?",
             (
                 progress.current_status.value,
-                _uuid(progress.current_task_id) if progress.current_task_id else None,
+                progress.current_task_id,
                 progress.version,
                 _dt(progress.updated_at),
                 _dt(progress.reset_at) if progress.reset_at else None,
@@ -369,6 +369,23 @@ class _Tasks(_Repo):
     async def get_task(self, task_id: str) -> Task | None:
         row = self._one("SELECT task_id FROM task_versions WHERE task_id=? LIMIT 1", (task_id,))
         return Task(task_id=row["task_id"], title=row["task_id"]) if row else None
+
+    async def get_current_published_version(self, task_id: str) -> TaskVersion | None:
+        # SQLite's local contract stores only approved task versions.  Select
+        # numeric publication order in Python rather than lexical SQL order.
+        rows = self.db.execute(
+            "SELECT * FROM task_versions WHERE task_id=?", (task_id,)
+        ).fetchall()
+        if not rows:
+            return None
+
+        def order(row: sqlite3.Row) -> tuple[int, int, str, str]:
+            version = row["version"]
+            if version.isdecimal():
+                return (1, int(version), "", row["task_version_id"])
+            return (0, 0, version, row["task_version_id"])
+
+        return _task(max(rows, key=order))
 
     async def add(self, task_version: TaskVersion) -> None:
         try:
@@ -953,7 +970,7 @@ def _progress(row: sqlite3.Row) -> LearnerProgress:
     return LearnerProgress(
         learner_id=UUID(row["learner_id"]),
         current_status=row["current_status"],
-        current_task_id=UUID(row["current_task_id"]) if row["current_task_id"] else None,
+        current_task_id=row["current_task_id"] if row["current_task_id"] else None,
         version=row["version"],
         updated_at=_parse_dt(row["updated_at"]),
         reset_at=_parse_dt(row["reset_at"]) if row["reset_at"] else None,

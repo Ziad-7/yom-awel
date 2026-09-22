@@ -44,7 +44,7 @@ async def test_get_current_task():
             TaskVersion(
                 task_version_id=task_id,
                 task_id="t1",
-                version="1",
+                version="2",
                 instructions_ar="a",
                 instructions_en="e",
                 artifact_schema={},
@@ -55,11 +55,27 @@ async def test_get_current_task():
                 content_hash="a" * 64,
             )
         )
+        current_task_version_id = uuid4()
+        await uow.tasks.add(
+            TaskVersion(
+                task_version_id=current_task_version_id,
+                task_id="t1",
+                version="10",
+                instructions_ar="new",
+                instructions_en="new",
+                artifact_schema={},
+                evaluator_id="e1",
+                evaluator_version="1",
+                pass_threshold=50,
+                skill_mappings=[],
+                content_hash="b" * 64,
+            )
+        )
         await uow.learners.save_progress(
             LearnerProgress(
                 learner_id=learner_id,
                 current_status=LearnerStatus.IN_TASK,
-                current_task_id=task_id,
+                current_task_id="t1",
                 version=1,
                 updated_at=clock.now(),
             ),
@@ -71,7 +87,7 @@ async def test_get_current_task():
     res = await get_task.execute(learner_id)
     assert res.status == "IN_TASK"
     assert res.task is not None
-    assert res.task.task_version_id == task_id
+    assert res.task.task_version_id == current_task_version_id
 
 
 @pytest.mark.asyncio
@@ -213,7 +229,7 @@ async def test_reset_demo_learner():
                 current_status=LearnerStatus.IN_TASK,
                 version=1,
                 updated_at=clock.now(),
-                current_task_id=uuid4(),
+                current_task_id="reset-task",
             ),
             expected_version=0,
         )

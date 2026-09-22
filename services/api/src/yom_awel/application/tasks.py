@@ -27,7 +27,7 @@ class GetCurrentTask:
 
             task = None
             if progress.current_task_id:
-                task = await uow.tasks.get(progress.current_task_id)
+                task = await uow.tasks.get_current_published_version(progress.current_task_id)
 
             return CurrentTaskResult(status=progress.current_status.value, task=task)
 

@@ -127,7 +127,9 @@ class Attempt(BaseModel):
 class LearnerProgress(BaseModel):
     learner_id: UUID
     current_status: LearnerStatus
-    current_task_id: UUID | None = None
+    # LearnerProgress stores the stable text task identifier used by tasks.task_id.
+    # A task version remains UUID-addressed separately.
+    current_task_id: str | None = None
     version: int = Field(strict=True, ge=1)
     updated_at: datetime
     reset_at: datetime | None = None

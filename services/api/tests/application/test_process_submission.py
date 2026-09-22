@@ -216,6 +216,56 @@ async def test_concurrent_same_key(base_setup):
 
 
 @pytest.mark.asyncio
+async def test_concurrent_different_keys_same_task_only_one_advances(base_setup):
+    """Two successful keys for one learner/task cannot both commit progression."""
+
+    cmd, uow_factory, evaluator, feedback, clock, id_gen = await seed_data(base_setup)
+    evaluator.started = asyncio.Event()
+    evaluator.release = asyncio.Event()
+    evaluator.result = EvaluationResult(
+        evaluator_id="e1",
+        evaluator_version="1",
+        task_version_id=cmd.task_version_id,
+        passed=True,
+        score=100,
+        checks=[EvaluationCheck(check_id="c1", passed=True, weight=10, details=None)],
+        errors=[],
+        summary_ar="ar",
+        summary_en="en",
+        duration_ms=10,
+    )
+    feedback.result = FeedbackResult(
+        feedback_text="fb",
+        language="en",
+        persona_id="tarek",
+        prompt_version="1",
+        provider="sys",
+        model=None,
+        used_fallback=False,
+        duration_ms=10,
+    )
+    process = ProcessSubmission(uow_factory, evaluator, feedback, clock, id_gen)
+    second = cmd.model_copy(update={"idempotency_key": "key2"})
+
+    first_task = asyncio.create_task(process.execute(cmd, "owner1"))
+    await evaluator.started.wait()
+    second_task = asyncio.create_task(process.execute(second, "owner2"))
+    evaluator.release.set()
+    results = await asyncio.gather(first_task, second_task, return_exceptions=True)
+
+    assert sum(isinstance(result, SubmissionOutcome) for result in results) == 1
+    assert sum(isinstance(result, DomainError) for result in results) == 1
+    async with uow_factory() as uow:
+        progress = await uow.learners.get_progress(cmd.learner_id)
+        assert progress is not None
+        assert progress.current_status == LearnerStatus.TASK_COMPLETED
+        assert progress.version == 2
+        assert len(await uow.attempts.list_for_task(cmd.learner_id, cmd.task_version_id)) == 1
+        assert len(await uow.skills.list_evidence(cmd.learner_id)) == 1
+        assert len(await uow.outbox.pending()) == 1
+
+
+@pytest.mark.asyncio
 async def test_duplicate_completed(base_setup):
     cmd, uow_factory, evaluator, feedback, clock, id_gen = await seed_data(base_setup)
     process = ProcessSubmission(uow_factory, evaluator, feedback, clock, id_gen)
