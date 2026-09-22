@@ -274,7 +274,7 @@ def test_migration_security_static_contract() -> None:
     assert "actions/checkout@v7" in workflow
     assert 'cron: "17 3 * * *"' in workflow
     assert "workflow_dispatch" in workflow
-    assert "astral-sh/setup-uv@v10" in workflow
+    assert "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0" in workflow
     assert "SUPABASE_URL: ${{ secrets.SUPABASE_URL }}" in workflow
     assert "SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" in workflow
     assert "--cleanup-queue" in workflow

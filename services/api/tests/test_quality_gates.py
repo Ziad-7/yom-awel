@@ -105,3 +105,24 @@ def test_ci_workflow() -> None:
     assert "export_schemas" in commands_found
     assert "uv lock" in commands_found
     assert "uv sync" in commands_found
+
+
+def test_ci_and_retention_use_approved_setup_uv_pin() -> None:
+    approved_setup_uv = "astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7"
+    workflow_paths = (
+        ROOT / ".github" / "workflows" / "ci.yml",
+        ROOT / ".github" / "workflows" / "retention.yml",
+    )
+
+    for workflow_path in workflow_paths:
+        workflow: dict[str, Any] = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+        setup_uv_uses = [
+            step.get("uses")
+            for job in workflow.get("jobs", {}).values()
+            for step in job.get("steps", [])
+            if step.get("uses", "").startswith("astral-sh/setup-uv@")
+        ]
+
+        assert setup_uv_uses == [approved_setup_uv], (
+            f"{workflow_path.name} must use the approved immutable setup-uv pin"
+        )
