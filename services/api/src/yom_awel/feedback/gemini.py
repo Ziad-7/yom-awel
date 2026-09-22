@@ -21,9 +21,7 @@ from yom_awel.ports.feedback import FeedbackProvider
 
 
 class AsyncGeminiClient(Protocol):
-    async def generate_json(
-        self, *, model: str, prompt: str, timeout_seconds: float
-    ) -> str: ...
+    async def generate_json(self, *, model: str, prompt: str, timeout_seconds: float) -> str: ...
 
 
 TaskContextResolver = Callable[[UUID], Awaitable[TaskVersion | None]]
@@ -37,11 +35,9 @@ class GoogleGenAIClient:
         self._api_key = api_key
         self._client: Any | None = None
 
-    async def generate_json(
-        self, *, model: str, prompt: str, timeout_seconds: float
-    ) -> str:
+    async def generate_json(self, *, model: str, prompt: str, timeout_seconds: float) -> str:
         if self._client is None:
-            from google import genai  # type: ignore[import-not-found]
+            from google import genai
 
             self._client = genai.Client(api_key=self._api_key)
         async with asyncio.timeout(timeout_seconds):

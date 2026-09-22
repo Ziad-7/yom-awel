@@ -46,4 +46,3 @@ PERSONAS = {
         status="roadmap",
     ),
 }
-

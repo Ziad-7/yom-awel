@@ -28,9 +28,7 @@ class ProviderNetworkError(FeedbackProviderError):
 
 class ProviderQuotaError(FeedbackProviderError):
     def __init__(self, retry_after_seconds: float | None = None) -> None:
-        super().__init__(
-            code="quota", retryable=True, retry_after_seconds=retry_after_seconds
-        )
+        super().__init__(code="quota", retryable=True, retry_after_seconds=retry_after_seconds)
 
 
 class ProviderRefusalError(FeedbackProviderError):

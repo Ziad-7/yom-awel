@@ -134,4 +134,3 @@ async def test_non_retryable_failure_is_not_retried(
     result = await service.generate(failed_evaluation, Language.AR_EG, None)
     assert result.used_fallback is True
     assert primary.calls == 1
-

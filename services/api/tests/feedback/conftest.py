@@ -11,9 +11,7 @@ ROOT = Path(__file__).resolve().parents[4]
 @pytest.fixture
 def task() -> TaskVersion:
     payload = json.loads(
-        (ROOT / "contracts/fixtures/task-version-clean-sales.json").read_text(
-            encoding="utf-8"
-        )
+        (ROOT / "contracts/fixtures/task-version-clean-sales.json").read_text(encoding="utf-8")
     )
     return TaskVersion.model_validate(payload)
 
@@ -32,4 +30,3 @@ def failed_evaluation() -> EvaluationResult:
         (ROOT / "contracts/fixtures/evaluation-fail.json").read_text(encoding="utf-8")
     )
     return EvaluationResult.model_validate(payload)
-

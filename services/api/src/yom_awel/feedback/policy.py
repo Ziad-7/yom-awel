@@ -24,4 +24,3 @@ ACTIVE_FEEDBACK_POLICY = FeedbackPolicy(
     ),
     maximum_characters=900,
 )
-
