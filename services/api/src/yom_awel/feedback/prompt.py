@@ -18,6 +18,17 @@ _STORAGE_PATH = re.compile(
     r"(?i)(?:supabase://|storage://|(?:bucket|object_path)\s*[:=]\s*)[^\s,;]+"
 )
 _LEARNER_PATH = re.compile(r"(?i)learners/[0-9a-f-]{32,}/[^\s,;]+")
+_SAFE_ID = re.compile(r"^[a-z][a-z0-9_-]{0,99}$")
+
+# Evaluator details and error messages may contain workbook cells. Only published,
+# task-neutral explanations are allowed into the provider request.
+_SAFE_CHECK_DETAILS = {
+    "clean_data": {"ar-EG": "توجد مشكلة في تنظيف البيانات", "en": "Data cleaning needs review"},
+}
+_SAFE_ERROR_MESSAGES = {
+    "missing_data": {"ar-EG": "البيانات غير مكتملة", "en": "Data is incomplete"},
+}
+_GENERIC_ERROR = {"ar-EG": "فحص يحتاج مراجعة", "en": "A check needs review"}
 
 
 class _StrictModel(BaseModel):
@@ -79,8 +90,12 @@ def _redact(value: str) -> tuple[str, int]:
 
 
 def _clean(value: str, limit: int) -> tuple[str, int]:
-    redacted, count = _redact(value[:limit])
-    return redacted, count
+    redacted, count = _redact(value)
+    return redacted[:limit], count
+
+
+def _safe_id(value: str, fallback: str) -> str:
+    return value if _SAFE_ID.fullmatch(value) else fallback
 
 
 def build_provider_request(
@@ -99,23 +114,29 @@ def build_provider_request(
 
     checks = [
         SafeCheck(
-            check_id=clean(check.check_id, 100),
+            check_id=_safe_id(check.check_id, "unknown_check"),
             passed=check.passed,
             weight=check.weight,
-            details=clean(check.details) if check.details else None,
+            details=(
+                _SAFE_CHECK_DETAILS[check.check_id][language.value]
+                if check.details and check.check_id in _SAFE_CHECK_DETAILS
+                else None
+            ),
         )
         for check in evaluation.checks[:20]
     ]
     errors = [
         SafeError(
-            code=clean(error.code, 100),
-            message=clean(error.message),
+            code=_safe_id(error.code, "unknown_error"),
+            message=_SAFE_ERROR_MESSAGES.get(error.code, _GENERIC_ERROR)[language.value],
         )
         for error in evaluation.errors[:10]
     ]
     note = None
     if learner_note:
-        note = f"<untrusted_learner_note>{clean(learner_note, 500)}</untrusted_learner_note>"
+        safe_note = clean(learner_note, 500)
+        safe_note = safe_note.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        note = f"<untrusted_learner_note>{safe_note}</untrusted_learner_note>"
     return ProviderRequest(
         prompt_version=ACTIVE_FEEDBACK_POLICY.version,
         system_policy=(

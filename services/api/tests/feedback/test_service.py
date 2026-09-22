@@ -71,7 +71,12 @@ async def test_transient_failure_retries_once(
     failed_evaluation: EvaluationResult,
 ) -> None:
     generated = FeedbackResult(
-        feedback_text="التسليم محتاج تعديل في الصفوف المكررة.",
+        feedback_text=(
+            "القرار: التسليم محتاج إعادة شغل. "
+            "تأثير الشغل: البيانات الناقصة تؤثر على التقرير. "
+            "الخطوة الجاية: راجع فحص تنظيف البيانات. "
+            "تفسير الدرجة: حصلت على 0 من 100."
+        ),
         language="ar-EG",
         persona_id="eng-tarek",
         prompt_version="tarek-feedback@1",
@@ -85,6 +90,40 @@ async def test_transient_failure_retries_once(
     result = await service.generate(failed_evaluation, Language.AR_EG, None)
     assert result == generated
     assert primary.calls == 2
+
+
+@pytest.mark.parametrize(
+    "feedback_text",
+    [
+        (
+            "القرار: التسليم مقبول. تأثير الشغل: التقرير جيد. الخطوة الجاية: التالي. "
+            "تفسير الدرجة: حصلت على 0 من 100."
+        ),
+        (
+            "القرار: التسليم محتاج إعادة شغل. تأثير الشغل: التقرير ناقص. "
+            "الخطوة الجاية: راجع البيانات. تفسير الدرجة: حصلت على 100 من 100."
+        ),
+        "القرار: التسليم محتاج إعادة شغل.",
+    ],
+)
+async def test_primary_prose_contradiction_activates_fallback(
+    failed_evaluation: EvaluationResult, feedback_text: str
+) -> None:
+    generated = FeedbackResult(
+        feedback_text=feedback_text,
+        language="ar-EG",
+        persona_id="eng-tarek",
+        prompt_version="tarek-feedback@1",
+        provider="gemini",
+        model="test-model",
+        used_fallback=False,
+        duration_ms=2,
+    )
+    primary = SequenceProvider([generated])
+    service = ResilientFeedbackProvider(primary, DeterministicFeedbackProvider())
+    result = await service.generate(failed_evaluation, Language.AR_EG)
+    assert result.used_fallback is True
+    assert primary.calls == 1
 
 
 async def test_non_retryable_failure_is_not_retried(

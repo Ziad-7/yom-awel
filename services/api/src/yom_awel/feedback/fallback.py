@@ -54,6 +54,9 @@ class DeterministicFeedbackProvider(FeedbackProvider):
                 CHECK_GUIDANCE.get(check.check_id, _GENERIC_GUIDANCE)[1]
                 for check in selected
             ]
+            if not selected:
+                consequences = [_GENERIC_GUIDANCE[0]]
+                actions = [_GENERIC_GUIDANCE[1]]
             remaining = len(failures) - len(selected)
             remainder = f" وفيه {remaining} فحوصات إضافية محتاجة مراجعة." if remaining else ""
             text = (
@@ -63,8 +66,10 @@ class DeterministicFeedbackProvider(FeedbackProvider):
                 f"تفسير الدرجة: حصلت على {evaluation.score} من 100 حسب الفحوصات المحددة."
             )
         duration_ms = max(0, round((self._clock() - started) * 1000))
+        if len(text) > ACTIVE_FEEDBACK_POLICY.maximum_characters:
+            text = self._short_text(evaluation, language)
         return FeedbackResult(
-            feedback_text=text[: ACTIVE_FEEDBACK_POLICY.maximum_characters],
+            feedback_text=text,
             language=cast(Literal["ar-EG", "en"], language.value),
             persona_id=ACTIVE_FEEDBACK_POLICY.persona_id,
             prompt_version=ACTIVE_FEEDBACK_POLICY.version,
@@ -88,4 +93,22 @@ class DeterministicFeedbackProvider(FeedbackProvider):
             "Business impact: the failed checks reduce confidence in the report.\n"
             "Next action: review the evaluator details and correct the file before resubmitting.\n"
             f"Score explanation: the deterministic checks awarded {evaluation.score} of 100."
+        )
+
+    @staticmethod
+    def _short_text(evaluation: EvaluationResult, language: Language) -> str:
+        if language is Language.EN:
+            decision = "accepted" if evaluation.passed else "needs rework"
+            return (
+                f"Decision: submission {decision}.\n"
+                "Business impact: the evaluated result affects report reliability.\n"
+                "Next action: review the recorded checks before the next task.\n"
+                f"Score explanation: {evaluation.score} of 100 from deterministic checks."
+            )
+        decision = "مقبول" if evaluation.passed else "محتاج إعادة شغل"
+        return (
+            f"القرار: التسليم {decision}.\n"
+            "تأثير الشغل: نتيجة الفحوصات تؤثر على موثوقية التقرير.\n"
+            "الخطوة الجاية: راجع الفحوصات المسجلة قبل الخطوة التالية.\n"
+            f"تفسير الدرجة: حصلت على {evaluation.score} من 100 حسب الفحوصات المحددة."
         )
