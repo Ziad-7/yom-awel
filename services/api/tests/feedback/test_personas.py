@@ -15,4 +15,3 @@ def test_tarek_is_the_only_active_v1_persona() -> None:
 def test_policy_forbids_grade_override_and_solution_disclosure() -> None:
     assert "override_grade" in ACTIVE_FEEDBACK_POLICY.prohibited_actions
     assert "reveal_reference_solution" in ACTIVE_FEEDBACK_POLICY.prohibited_actions
-

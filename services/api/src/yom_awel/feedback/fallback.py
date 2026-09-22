@@ -1,6 +1,5 @@
 from collections.abc import Callable
 from time import perf_counter
-from typing import Literal, cast
 
 from yom_awel.domain.contracts import EvaluationResult, FeedbackResult
 from yom_awel.domain.enums import Language
@@ -47,12 +46,10 @@ class DeterministicFeedbackProvider(FeedbackProvider):
             failures = [check for check in evaluation.checks if not check.passed]
             selected = failures[:3]
             consequences = [
-                CHECK_GUIDANCE.get(check.check_id, _GENERIC_GUIDANCE)[0]
-                for check in selected
+                CHECK_GUIDANCE.get(check.check_id, _GENERIC_GUIDANCE)[0] for check in selected
             ]
             actions = [
-                CHECK_GUIDANCE.get(check.check_id, _GENERIC_GUIDANCE)[1]
-                for check in selected
+                CHECK_GUIDANCE.get(check.check_id, _GENERIC_GUIDANCE)[1] for check in selected
             ]
             if not selected:
                 consequences = [_GENERIC_GUIDANCE[0]]
@@ -70,7 +67,7 @@ class DeterministicFeedbackProvider(FeedbackProvider):
             text = self._short_text(evaluation, language)
         return FeedbackResult(
             feedback_text=text,
-            language=cast(Literal["ar-EG", "en"], language.value),
+            language=language.value,
             persona_id=ACTIVE_FEEDBACK_POLICY.persona_id,
             prompt_version=ACTIVE_FEEDBACK_POLICY.version,
             provider="deterministic",

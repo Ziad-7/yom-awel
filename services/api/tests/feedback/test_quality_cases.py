@@ -32,7 +32,9 @@ async def test_deterministic_quality_case(
     if case["score_override"] is not None:
         evaluation = evaluation.model_copy(update={"score": case["score_override"]})
     result = await DeterministicFeedbackProvider().generate(
-        evaluation, Language.AR_EG, case["learner_note"]  # type: ignore[arg-type]
+        evaluation,
+        Language.AR_EG,
+        case["learner_note"],  # type: ignore[arg-type]
     )
     assert len(result.feedback_text) <= 900
     assert str(evaluation.score) in result.feedback_text

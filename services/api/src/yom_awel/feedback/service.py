@@ -55,9 +55,7 @@ class ResilientFeedbackProvider(FeedbackProvider):
             )
         try:
             async with asyncio.timeout(self._timeout_seconds):
-                return await self._generate_with_retry(
-                    evaluation, language, learner_note, started
-                )
+                return await self._generate_with_retry(evaluation, language, learner_note, started)
         except TimeoutError:
             error: Exception = ProviderTimeoutError()
         except Exception as caught:  # noqa: BLE001 - every provider failure must fall back

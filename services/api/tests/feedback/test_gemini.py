@@ -13,9 +13,7 @@ class FakeGeminiClient:
         self.prompt: str | None = None
         self.timeout_seconds: float | None = None
 
-    async def generate_json(
-        self, *, model: str, prompt: str, timeout_seconds: float
-    ) -> str:
+    async def generate_json(self, *, model: str, prompt: str, timeout_seconds: float) -> str:
         self.model = model
         self.prompt = prompt
         self.timeout_seconds = timeout_seconds

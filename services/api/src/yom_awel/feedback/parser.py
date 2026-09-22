@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Literal, cast
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -59,7 +59,7 @@ def parse_provider_response(
 
     result = FeedbackResult(
         feedback_text=normalized,
-        language=cast(Literal["ar-EG", "en"], language.value),
+        language=language.value,
         persona_id=ACTIVE_FEEDBACK_POLICY.persona_id,
         prompt_version=ACTIVE_FEEDBACK_POLICY.version,
         provider=provider,
