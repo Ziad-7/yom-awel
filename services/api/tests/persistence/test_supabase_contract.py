@@ -370,6 +370,10 @@ async def test_real_supabase_contract_is_opt_in() -> None:
         pytest.skip("set SUPABASE_LOCAL_SERVICE_ROLE_KEY to run local Supabase integration tests")
     rest = LocalRest(base_url, service_key)
     learner_id, task_version_id, artifact_id = uuid4(), uuid4(), uuid4()
+    run_id = uuid4().hex
+    task_id = f"local-contract-task-{run_id}"
+    skill_id = f"local-skill-{run_id}"
+    idempotency_key = f"local-contract-{run_id}"
     await rest.insert(
         "learners",
         {
@@ -380,12 +384,12 @@ async def test_real_supabase_contract_is_opt_in() -> None:
             "state_machine_version": "1",
         },
     )
-    await rest.insert("tasks", {"task_id": "local-contract-task", "title": "Contract"})
+    await rest.insert("tasks", {"task_id": task_id, "title": "Contract"})
     await rest.insert(
         "task_versions",
         {
             "task_version_id": str(task_version_id),
-            "task_id": "local-contract-task",
+            "task_id": task_id,
             "version": "1",
             "instructions_ar": "تعليمات",
             "instructions_en": "Instructions",
@@ -393,14 +397,14 @@ async def test_real_supabase_contract_is_opt_in() -> None:
             "evaluator_id": "eval-1",
             "evaluator_version": "1",
             "pass_threshold": 50,
-            "skill_mappings": [{"skill_id": "local-skill", "check_id": "clarity", "weight": 3}],
+            "skill_mappings": [{"skill_id": skill_id, "check_id": "clarity", "weight": 3}],
             "content_hash": "a" * 64,
             "status": "PUBLISHED",
         },
     )
     await rest.insert(
         "skill_definitions",
-        {"skill_id": "local-skill", "title": "Local", "description": "Local"},
+        {"skill_id": skill_id, "title": "Local", "description": "Local"},
     )
     await rest.insert(
         "artifacts",
@@ -423,7 +427,7 @@ async def test_real_supabase_contract_is_opt_in() -> None:
         task_version_id,
         artifact_id,
         Channel.WEB,
-        "local-contract",
+        idempotency_key,
         "c" * 64,
         300,
         "local-worker",
@@ -448,7 +452,7 @@ async def test_real_supabase_contract_is_opt_in() -> None:
         task_version_id,
         artifact_id,
         Channel.WEB,
-        "local-contract",
+        idempotency_key,
         "c" * 64,
         300,
         "replay-worker",
@@ -482,25 +486,35 @@ async def test_local_rls_owner_other_anonymous_and_service_boundaries() -> None:
         )
 
     rest = LocalRest(base_url, service_key)
-    learner_id, artifact_id = uuid4(), uuid4()
-    await rest.insert(
-        "learners",
-        {
-            "learner_id": str(learner_id),
-            "display_name": "rls-owner",
-            "preferred_language": "en",
-            "status": "ONBOARDING",
-            "state_machine_version": "1",
-        },
+    existing_identity = await rest.select_one(
+        "external_identities", {"provider": "web", "provider_subject": owner_subject}
     )
-    await rest.insert(
-        "external_identities",
-        {
-            "learner_id": str(learner_id),
-            "provider": "web",
-            "provider_subject": owner_subject,
-        },
-    )
+    if existing_identity is None:
+        learner_id = uuid4()
+        await rest.insert(
+            "learners",
+            {
+                "learner_id": str(learner_id),
+                "display_name": "rls-owner",
+                "preferred_language": "en",
+                "status": "ONBOARDING",
+                "state_machine_version": "1",
+            },
+        )
+        await rest.insert(
+            "external_identities",
+            {
+                "learner_id": str(learner_id),
+                "provider": "web",
+                "provider_subject": owner_subject,
+            },
+        )
+    else:
+        try:
+            learner_id = UUID(str(existing_identity["learner_id"]))
+        except (KeyError, TypeError, ValueError) as error:
+            pytest.fail(f"existing owner identity has invalid learner mapping: {error}")
+    artifact_id = uuid4()
     await rest.insert(
         "artifacts",
         {

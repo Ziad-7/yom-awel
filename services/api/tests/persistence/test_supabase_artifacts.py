@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import os
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -169,7 +170,10 @@ class LocalArtifactMetadata:
                 method="POST",
             )
             with urlopen(http_request, timeout=5) as response:
-                return json.loads(response.read().decode("utf-8"))
+                body = response.read()
+            # PostgREST returns an empty body for successful void RPCs when
+            # callers request the default response representation.
+            return None if not body else json.loads(body.decode("utf-8"))
 
         return await asyncio.to_thread(request)
 
@@ -344,6 +348,28 @@ class LocalArtifactStorage:
                 return
 
         await asyncio.to_thread(request)
+
+
+@pytest.mark.asyncio
+async def test_local_artifact_rpc_helper_accepts_empty_success_body(monkeypatch) -> None:
+    class EmptyResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        @staticmethod
+        def read() -> bytes:
+            return b""
+
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "urlopen",
+        lambda request, timeout: EmptyResponse(),
+    )
+    metadata = LocalArtifactMetadata("http://supabase.invalid", "service-key")
+    assert await metadata._rpc("resolve_artifact_cleanup", {}) is None
 
 
 def artifact(learner_id: UUID, artifact_id: UUID, content: bytes) -> Artifact:
