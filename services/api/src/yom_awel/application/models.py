@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from yom_awel.domain.contracts import TaskVersion
 from yom_awel.domain.enums import SubmissionStatus
+from yom_awel.ports.repositories import MAX_SUBMISSION_LEASE_SECONDS
 
 
 class ProcessingState(BaseModel):
@@ -12,7 +13,7 @@ class ProcessingState(BaseModel):
     status: SubmissionStatus
     # Transport adapters can copy this directly to Retry-After. It is derived
     # from the committed reservation lease, never guessed locally.
-    retry_after_seconds: int = Field(strict=True, ge=1, le=3600)
+    retry_after_seconds: int = Field(strict=True, ge=1, le=MAX_SUBMISSION_LEASE_SECONDS)
 
 
 class UploadAuthorizationResult(BaseModel):

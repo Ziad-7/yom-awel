@@ -41,11 +41,10 @@ from yom_awel.ports.clock import Clock
 from yom_awel.ports.evaluation import Evaluator
 from yom_awel.ports.feedback import FeedbackProvider
 from yom_awel.ports.id_generator import IDGenerator
+from yom_awel.ports.repositories import MAX_SUBMISSION_LEASE_SECONDS
 from yom_awel.ports.unit_of_work import UnitOfWorkFactory
 
 logger = logging.getLogger(__name__)
-
-MAX_RETRY_AFTER_SECONDS = 3600
 
 
 async def _run_post_commit_cleanup(
@@ -212,7 +211,7 @@ class ProcessSubmission:
             retry_after = max(
                 1,
                 min(
-                    MAX_RETRY_AFTER_SECONDS,
+                    MAX_SUBMISSION_LEASE_SECONDS,
                     math.ceil((res.lease_expires_at - self.clock.now()).total_seconds()),
                 ),
             )

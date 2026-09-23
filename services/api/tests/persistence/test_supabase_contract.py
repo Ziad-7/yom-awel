@@ -20,6 +20,7 @@ from yom_awel.domain.contracts import (
     SubmissionOutcome,
 )
 from yom_awel.domain.enums import Channel, LearnerStatus, TaskStatus
+from yom_awel.domain.errors import IdempotencyConflict
 from yom_awel.persistence.supabase import (
     SupabasePersistenceError,
     SupabaseSubmissionRepository,
@@ -263,6 +264,19 @@ async def test_provider_error_is_mapped_without_leaking_details() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("error", [{"code": "23505"}, {"status": 409}])
+async def test_reservation_fingerprint_conflict_maps_to_domain_error(error: object) -> None:
+    rpc = RpcFake(Response(None, error=error))
+    repository = SupabaseSubmissionRepository(rpc)
+    key = "same-key"
+    with pytest.raises(IdempotencyConflict) as conflict:
+        await repository.reserve(uuid4(), uuid4(), uuid4(), Channel.WEB, key, "a" * 64, 30, "w")
+    assert conflict.value.code == "idempotency_conflict"
+    assert conflict.value.details["key"] == key
+    assert "23505" not in str(conflict.value)
+
+
+@pytest.mark.asyncio
 async def test_expire_calls_service_only_cas_rpc() -> None:
     rpc = RpcFake(Response(None))
     repository = SupabaseSubmissionRepository(rpc)
@@ -436,7 +450,7 @@ async def test_real_supabase_contract_is_opt_in() -> None:
         learner_id,
         task_version_id,
         artifact_id,
-        Channel.TELEGRAM,
+        Channel.WEB,
         idempotency_key,
         "c" * 64,
         300,
@@ -444,7 +458,7 @@ async def test_real_supabase_contract_is_opt_in() -> None:
     )
     assert active_duplicate.submission_id == reservation.submission_id
     assert active_duplicate.lease_owner == reservation.lease_owner
-    with pytest.raises(SupabasePersistenceError):
+    with pytest.raises(IdempotencyConflict):
         await repository.reserve(
             learner_id,
             task_version_id,

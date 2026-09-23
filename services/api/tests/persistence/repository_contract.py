@@ -116,7 +116,7 @@ async def assert_reservation_and_finalization(factory: Factory) -> None:
             learner.learner_id,
             version.task_version_id,
             artifact.artifact_id,
-            Channel.TELEGRAM,
+            Channel.WEB,
             "contract-key",
             "a" * 64,
             120,
@@ -154,13 +154,16 @@ async def assert_reservation_and_finalization(factory: Factory) -> None:
 async def assert_progress_rollback_and_cas(factory: Factory) -> None:
     learner, _, _ = await seed(factory)
     async with factory() as uow:
-        progress = await uow.learners.get_progress(learner.learner_id)
-        assert progress is None
+        await uow.learners.save_progress(
+            learner_progress(learner.learner_id, version=1), expected_version=0
+        )
         with pytest.raises(OptimisticConflict):
             await uow.learners.save_progress(
-                learner_progress(learner.learner_id, version=2), expected_version=1
+                learner_progress(learner.learner_id, version=3), expected_version=1
             )
         await uow.rollback()
+    async with factory() as uow:
+        assert await uow.learners.get_progress(learner.learner_id) is None
 
 
 def learner_progress(learner_id: UUID, *, version: int) -> Any:

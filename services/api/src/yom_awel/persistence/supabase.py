@@ -17,7 +17,7 @@ from pydantic import ValidationError
 from yom_awel.domain.contracts import SubmissionOutcome
 from yom_awel.domain.entities import SubmissionReservation
 from yom_awel.domain.enums import Channel, SubmissionStatus
-from yom_awel.domain.errors import PersistenceError
+from yom_awel.domain.errors import IdempotencyConflict, PersistenceError
 from yom_awel.ports.repositories import MAX_SUBMISSION_LEASE_SECONDS
 
 
@@ -45,9 +45,18 @@ class SupabaseQueryClient(Protocol):
 
 def _response_value(response: SupabaseResponse) -> object:
     if response.error is not None:
+        if _is_idempotency_conflict(response.error):
+            # Preserve a stable domain signal while discarding provider text.
+            raise SupabasePersistenceError("idempotency_conflict")
         # Provider details are deliberately not copied into a user-visible error.
         raise SupabasePersistenceError("supabase_provider_error")
     return response.data
+
+
+def _is_idempotency_conflict(error: object) -> bool:
+    if not isinstance(error, Mapping):
+        return False
+    return any(str(error.get(field)) in {"23505", "409"} for field in ("code", "status"))
 
 
 def _row(value: object) -> Mapping[str, object]:
@@ -163,7 +172,9 @@ class SupabaseSubmissionRepository:
         try:
             response = await self._rpc.rpc("reserve_submission", params)
             reservation = map_submission_row(_response_value(response))
-        except SupabasePersistenceError:
+        except SupabasePersistenceError as exc:
+            if exc.code == "idempotency_conflict":
+                raise IdempotencyConflict(key) from None
             raise
         except Exception as exc:
             raise SupabasePersistenceError("supabase_provider_error") from exc
