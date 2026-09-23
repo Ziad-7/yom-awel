@@ -4,7 +4,7 @@
 
 **Goal:** Build reproducible task packages and secure deterministic evaluators that provide the only authoritative grade and skill evidence.
 
-**Architecture:** Each immutable task package declares artifact schema, planted defects, checks, weights, pass threshold, safe hints, and skill mappings. Evaluators implement the shared async port, validate hostile inputs before parsing, and return only canonical `EvaluationResult` objects.
+**Architecture:** Each immutable task package declares artifact schema, planted defects, checks, weights, pass threshold, safe hints, and skill mappings. Evaluators implement the shared async port, receive artifact bytes that the application loaded after its ownership check, validate hostile inputs before parsing, and return only canonical `EvaluationResult` objects.
 
 **Tech Stack:** Python 3.12, pandas, openpyxl, sqlite3, Pydantic 2, pytest, Hypothesis where useful, Ruff, mypy.
 
@@ -160,7 +160,7 @@ git commit -m "test: add reproducible clean-sales fixtures"
 - Create: `services/api/tests/evaluation/fixtures/oversized-metadata.xlsx`
 
 **Interfaces:**
-- Consumes: `ArtifactRef` and task-package limits.
+- Consumes: `ArtifactRef`, the artifact `content: bytes` passed through the evaluator port, and task-package limits.
 - Produces: validated local artifact handle or canonical evaluation validation error.
 
 - [ ] **Step 1: Write extension/MIME mismatch tests**
@@ -203,7 +203,7 @@ git commit -m "feat: validate untrusted evaluation artifacts"
 - Create: `services/api/tests/evaluation/test_sales_cleaning_boundaries.py`
 
 **Interfaces:**
-- Consumes: exact `Evaluator.evaluate(task, artifact)` port, validated artifact, task package.
+- Consumes: exact `Evaluator.evaluate(task_version, artifact, content)` port (contract change #5), validated artifact, task package.
 - Produces: `EvaluationResult(evaluator_id="sales-cleaning", evaluator_version="1")`.
 
 - [ ] **Step 1: Write golden pass/fail tests**
