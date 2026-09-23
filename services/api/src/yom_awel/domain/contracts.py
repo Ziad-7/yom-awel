@@ -135,8 +135,10 @@ class EvaluationCheck(BaseModel):
     check_id: str = Field(strict=True, min_length=1)
     passed: bool = Field(strict=True)
     weight: int = Field(strict=True, ge=0)
-    details_ar: str = Field(strict=True)
-    details_en: str = Field(strict=True)
+    # Learner-safe text must contain a non-space character, matching the database
+    # validator's btrim() check (_cloud_json_string).
+    details_ar: str = Field(strict=True, min_length=1, pattern=r"[^ ]")
+    details_en: str = Field(strict=True, min_length=1, pattern=r"[^ ]")
     diagnostic_code: str = Field(strict=True, min_length=1)
     model_config = ConfigDict(frozen=True, extra="forbid")
 
