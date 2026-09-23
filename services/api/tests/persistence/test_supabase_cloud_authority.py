@@ -216,7 +216,16 @@ def payloads(fixture: Mapping[str, object], reservation: Mapping[str, object]) -
         "task_version_id": str(fixture["task_version_id"]),
         "passed": True,
         "score": 100,
-        "checks": [{"check_id": "clarity", "passed": True, "weight": 3, "details": "ok"}],
+        "checks": [
+            {
+                "check_id": "clarity",
+                "passed": True,
+                "weight": 3,
+                "details_ar": "واضح",
+                "details_en": "Clear",
+                "diagnostic_code": "clarity_passed",
+            }
+        ],
         "errors": [],
         "summary_ar": "جيد",
         "summary_en": "Good",
