@@ -446,7 +446,8 @@ class _Artifacts(_Repo):
 
     async def download(self, artifact_id: UUID, learner_id: UUID) -> bytes | None:
         row = self._one(
-            "SELECT content, size_bytes FROM artifacts WHERE artifact_id=? AND learner_id=?",
+            "SELECT content, size_bytes, sha256 FROM artifacts "
+            "WHERE artifact_id=? AND learner_id=?",
             (_uuid(artifact_id), _uuid(learner_id)),
         )
         if row is None:
