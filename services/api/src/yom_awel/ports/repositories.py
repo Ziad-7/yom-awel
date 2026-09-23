@@ -18,6 +18,8 @@ from yom_awel.domain.entities import (
 )
 from yom_awel.domain.enums import Channel
 
+MAX_SUBMISSION_LEASE_SECONDS = 3600
+
 
 class LearnerRepository(Protocol):
     async def get(self, learner_id: UUID) -> Learner | None: ...
@@ -41,6 +43,8 @@ class TaskRepository(Protocol):
     async def get(self, task_version_id: UUID) -> TaskVersion | None: ...
 
     async def get_task(self, task_id: str) -> Task | None: ...
+
+    async def get_current_published_version(self, task_id: str) -> TaskVersion | None: ...
 
     async def add(self, task_version: TaskVersion) -> None: ...
 

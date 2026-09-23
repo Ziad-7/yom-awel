@@ -13,9 +13,10 @@ from pydantic import ValidationError
 
 from yom_awel.domain.contracts import MAX_ARTIFACT_BYTES
 from yom_awel.domain.entities import Artifact
-from yom_awel.domain.errors import PersistenceError
+from yom_awel.domain.errors import ArtifactIntegrityFailure, ArtifactNotReady, PersistenceError
 from yom_awel.persistence.retention import CleanupArtifact, CleanupQueueStore
 from yom_awel.persistence.supabase import SupabaseRpcClient
+from yom_awel.ports.artifacts import ArtifactUploadAuthorization
 
 PRIVATE_BUCKET = "submissions"
 
@@ -298,9 +299,109 @@ class SupabaseArtifactStore:
             raise SupabaseArtifactError("supabase_provider_error") from exc
         if row is None:
             return None
-        if row.get("purge_status") not in {"ACTIVE", "PURGE_FAILED"}:
+        if row.get("purge_status") != "ACTIVE":
             return None
         return map_artifact_row(row, learner_id)
+
+    async def authorize_upload(
+        self, artifact: Artifact, *, expires_in_seconds: int | None = None
+    ) -> ArtifactUploadAuthorization:
+        """Reserve metadata and mint a short-lived one-object signed URL.
+
+        The browser performs the actual object upload with this URL.  The
+        metadata row is created before that mutation, so a subsequent
+        submission can resolve the artifact by learner/id and independently
+        verify size and SHA-256 through ``download``.
+        """
+
+        expiry = self._upload_expiry if expires_in_seconds is None else expires_in_seconds
+        if not 1 <= expiry <= 900:
+            raise ValueError("signed upload expiry must be between one and 900 seconds")
+        path = generated_object_path(artifact.learner_id, artifact.artifact_id)
+        metadata = {
+            "sha256": artifact.sha256,
+            "size_bytes": str(artifact.size_bytes),
+            "upsert": "false",
+        }
+        cleanup_row = self._cleanup_row(artifact, "UPLOAD_FAILED", path)
+        try:
+            await self._metadata.enqueue_cleanup(cleanup_row)
+            reservation = await self._metadata.reserve_artifact(
+                {
+                    "artifact_id": str(artifact.artifact_id),
+                    "learner_id": str(artifact.learner_id),
+                    "object_path": path,
+                    "filename": artifact.filename,
+                    "size_bytes": artifact.size_bytes,
+                    "sha256": artifact.sha256,
+                    "upload_owner": self._upload_owner,
+                    "upload_lease_seconds": self._upload_lease_seconds,
+                }
+            )
+            if not isinstance(reservation, ArtifactReservation):
+                raise SupabaseArtifactError("provider_payload_invalid")
+            row = reservation.row
+            status = row.get("purge_status")
+            if status in {"PURGED", "CLAIMED"}:
+                raise SupabaseArtifactError("artifact_unavailable")
+            signed = await self._storage.create_signed_upload_url(
+                PRIVATE_BUCKET, path, expiry, metadata
+            )
+            if not isinstance(signed.url, str) or not signed.url:
+                raise SupabaseArtifactError("provider_payload_invalid")
+            if not isinstance(signed.token, str) or not signed.token:
+                raise SupabaseArtifactError("provider_payload_invalid")
+            return ArtifactUploadAuthorization(
+                artifact=map_artifact_row(row, artifact.learner_id),
+                upload_url=signed.url,
+                upload_token=signed.token,
+                expires_in_seconds=expiry,
+                headers={"x-upsert": "false"},
+            )
+        except SupabaseArtifactError:
+            raise
+        except Exception as exc:
+            raise SupabaseArtifactError("supabase_provider_error") from exc
+
+    async def complete_upload(self, artifact_id: UUID, learner_id: UUID) -> Artifact:
+        """Verify the browser-uploaded object before activating its metadata."""
+
+        try:
+            row = await self._metadata.select_artifact(artifact_id, learner_id)
+        except Exception as exc:
+            raise SupabaseArtifactError("supabase_provider_error") from exc
+        if row is None:
+            raise ArtifactNotReady()
+        status = row.get("purge_status")
+        artifact = map_artifact_row(row, learner_id)
+        if status == "ACTIVE":
+            return artifact
+        if status != "UPLOADING":
+            raise ArtifactNotReady()
+
+        path = generated_object_path(learner_id, artifact_id)
+        try:
+            signed = await self._storage.create_signed_download_url(
+                PRIVATE_BUCKET, path, self._download_expiry
+            )
+            content = await self._storage.download_with_signed_url(signed)
+        except Exception as exc:
+            raise SupabaseArtifactError("supabase_provider_error") from exc
+        if (
+            len(content) != artifact.size_bytes
+            or hashlib.sha256(content).hexdigest() != artifact.sha256
+        ):
+            raise ArtifactIntegrityFailure()
+        try:
+            await self._metadata.activate_artifact(learner_id, artifact_id, self._upload_owner)
+        except Exception as exc:
+            raise SupabaseArtifactError("supabase_provider_error") from exc
+        await self._best_effort_resolve(learner_id, artifact_id)
+        activated_row = dict(row)
+        activated_row["purge_status"] = "ACTIVE"
+        activated_row["purge_lease_owner"] = None
+        activated_row["purge_lease_expires_at"] = None
+        return map_artifact_row(activated_row, learner_id)
 
     async def put(self, artifact: Artifact, content: bytes) -> Artifact:
         if len(content) != artifact.size_bytes or len(content) > MAX_ARTIFACT_BYTES:

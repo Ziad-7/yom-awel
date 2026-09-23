@@ -8,6 +8,8 @@ No connection is held while evaluator or provider I/O is in progress.
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import json
 import sqlite3
 from datetime import UTC, datetime, timedelta
@@ -34,8 +36,10 @@ from yom_awel.domain.entities import (
     SubmissionReservation,
     Task,
 )
-from yom_awel.domain.enums import Channel, SubmissionStatus
+from yom_awel.domain.enums import Channel, LearnerStatus, SubmissionStatus
 from yom_awel.domain.errors import (
+    ArtifactIntegrityFailure,
+    ArtifactNotReady,
     FinalizationConflict,
     IdempotencyConflict,
     LearnerScopeViolation,
@@ -47,7 +51,9 @@ from yom_awel.domain.errors import (
     TransactionReuse,
     UniqueConstraintViolation,
 )
+from yom_awel.ports.artifacts import ArtifactUploadAuthorization
 from yom_awel.ports.clock import Clock
+from yom_awel.ports.repositories import MAX_SUBMISSION_LEASE_SECONDS
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -216,6 +222,10 @@ class SQLiteDatabase:
         elif self.path != "":
             Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self._anchor = self._connect()
+        # Serialize short reservation transactions within one local process.
+        # This closes SQLite's deferred read-to-write upgrade race for the
+        # same learner/idempotency key.
+        self._reservation_lock = asyncio.Lock()
         self._anchor.executescript(SCHEMA)
         self._anchor.commit()
 
@@ -333,11 +343,15 @@ class _Learners(_Repo):
                 (
                     learner_key,
                     progress.current_status.value,
-                    _uuid(progress.current_task_id) if progress.current_task_id else None,
+                    progress.current_task_id,
                     progress.version,
                     _dt(progress.updated_at),
                     _dt(progress.reset_at) if progress.reset_at else None,
                 ),
+            )
+            self.db.execute(
+                "UPDATE learners SET status=?, updated_at=? WHERE learner_id=?",
+                (progress.current_status.value, _dt(progress.updated_at), learner_key),
             )
             return
         if int(current["version"]) != expected_version or progress.version != expected_version + 1:
@@ -347,7 +361,7 @@ class _Learners(_Repo):
             "updated_at=?, reset_at=? WHERE learner_id=? AND version=?",
             (
                 progress.current_status.value,
-                _uuid(progress.current_task_id) if progress.current_task_id else None,
+                progress.current_task_id,
                 progress.version,
                 _dt(progress.updated_at),
                 _dt(progress.reset_at) if progress.reset_at else None,
@@ -357,6 +371,12 @@ class _Learners(_Repo):
         )
         if updated.rowcount != 1:
             raise OptimisticConflict("learner_progress")
+        learner_updated = self.db.execute(
+            "UPDATE learners SET status=?, updated_at=? WHERE learner_id=?",
+            (progress.current_status.value, _dt(progress.updated_at), learner_key),
+        )
+        if learner_updated.rowcount != 1:
+            raise LearnerScopeViolation("learner_progress.learner_id")
 
 
 class _Tasks(_Repo):
@@ -369,6 +389,21 @@ class _Tasks(_Repo):
     async def get_task(self, task_id: str) -> Task | None:
         row = self._one("SELECT task_id FROM task_versions WHERE task_id=? LIMIT 1", (task_id,))
         return Task(task_id=row["task_id"], title=row["task_id"]) if row else None
+
+    async def get_current_published_version(self, task_id: str) -> TaskVersion | None:
+        # SQLite's local contract stores only approved task versions.  Select
+        # numeric publication order in Python rather than lexical SQL order.
+        rows = self.db.execute("SELECT * FROM task_versions WHERE task_id=?", (task_id,)).fetchall()
+        if not rows:
+            return None
+
+        def order(row: sqlite3.Row) -> tuple[int, int, str, str]:
+            version = row["version"]
+            if version.isdecimal():
+                return (1, int(version), "", row["task_version_id"])
+            return (0, 0, version, row["task_version_id"])
+
+        return _task(max(rows, key=order))
 
     async def add(self, task_version: TaskVersion) -> None:
         try:
@@ -395,26 +430,111 @@ class _Tasks(_Repo):
 class _Artifacts(_Repo):
     async def get(self, artifact_id: UUID, learner_id: UUID) -> Artifact | None:
         row = self._one(
-            "SELECT artifact_id, learner_id, filename, size_bytes, sha256 FROM artifacts "
+            "SELECT artifact_id, learner_id, filename, size_bytes, sha256, content FROM artifacts "
             "WHERE artifact_id=? AND learner_id=?",
             (_uuid(artifact_id), _uuid(learner_id)),
         )
-        return _artifact(row) if row else None
+        if row is None:
+            return None
+        content = bytes(row["content"])
+        if (
+            len(content) != int(row["size_bytes"])
+            or hashlib.sha256(content).hexdigest() != row["sha256"]
+        ):
+            return None
+        return _artifact(row)
 
     async def download(self, artifact_id: UUID, learner_id: UUID) -> bytes | None:
         row = self._one(
-            "SELECT content FROM artifacts WHERE artifact_id=? AND learner_id=?",
+            "SELECT content, size_bytes FROM artifacts WHERE artifact_id=? AND learner_id=?",
             (_uuid(artifact_id), _uuid(learner_id)),
         )
-        return bytes(row["content"]) if row else None
+        if row is None:
+            return None
+        content = bytes(row["content"])
+        if (
+            len(content) != int(row["size_bytes"])
+            or hashlib.sha256(content).hexdigest() != row["sha256"]
+        ):
+            return None
+        return content
+
+    async def authorize_upload(
+        self, artifact: Artifact, *, expires_in_seconds: int = 300
+    ) -> ArtifactUploadAuthorization:
+        if expires_in_seconds < 1:
+            raise ValueError("expires_in_seconds must be positive")
+        existing = self._one(
+            "SELECT learner_id, filename, size_bytes, sha256 FROM artifacts WHERE artifact_id=?",
+            (_uuid(artifact.artifact_id),),
+        )
+        if existing is not None:
+            if (
+                existing["learner_id"] != _uuid(artifact.learner_id)
+                or existing["filename"] != artifact.filename
+                or int(existing["size_bytes"]) != artifact.size_bytes
+                or existing["sha256"] != artifact.sha256
+            ):
+                raise UniqueConstraintViolation("artifacts.id")
+        else:
+            if not await self._learner_exists(artifact.learner_id):
+                raise LearnerScopeViolation("artifact.learner_id")
+            self.db.execute(
+                "INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    _uuid(artifact.artifact_id),
+                    _uuid(artifact.learner_id),
+                    artifact.filename,
+                    artifact.size_bytes,
+                    artifact.sha256,
+                    sqlite3.Binary(b""),
+                ),
+            )
+        return ArtifactUploadAuthorization(
+            artifact=artifact,
+            upload_url=f"/artifacts/{artifact.learner_id}/{artifact.artifact_id}",
+            upload_token=None,
+            expires_in_seconds=expires_in_seconds,
+        )
+
+    async def complete_upload(self, artifact_id: UUID, learner_id: UUID) -> Artifact:
+        row = self._one(
+            "SELECT artifact_id, learner_id, filename, size_bytes, sha256, content "
+            "FROM artifacts WHERE artifact_id=? AND learner_id=?",
+            (_uuid(artifact_id), _uuid(learner_id)),
+        )
+        if row is None:
+            raise ArtifactNotReady()
+        content = bytes(row["content"])
+        if len(content) != int(row["size_bytes"]):
+            raise ArtifactNotReady()
+        if hashlib.sha256(content).hexdigest() != row["sha256"]:
+            raise ArtifactIntegrityFailure()
+        return _artifact(row)
 
     async def put(self, artifact: Artifact, content: bytes) -> Artifact:
-        import hashlib
-
         if len(content) != artifact.size_bytes:
             raise ValueError("content size does not match artifact metadata")
         if hashlib.sha256(content).hexdigest() != artifact.sha256:
             raise ValueError("content sha256 does not match artifact metadata")
+        existing = self._one(
+            "SELECT learner_id, filename, size_bytes, sha256, content FROM artifacts WHERE artifact_id=?",
+            (_uuid(artifact.artifact_id),),
+        )
+        if existing is not None:
+            if (
+                existing["learner_id"] != _uuid(artifact.learner_id)
+                or existing["filename"] != artifact.filename
+                or int(existing["size_bytes"]) != artifact.size_bytes
+                or existing["sha256"] != artifact.sha256
+                or len(bytes(existing["content"])) == int(existing["size_bytes"])
+            ):
+                raise UniqueConstraintViolation("artifacts.id")
+            self.db.execute(
+                "UPDATE artifacts SET content=? WHERE artifact_id=?",
+                (sqlite3.Binary(content), _uuid(artifact.artifact_id)),
+            )
+            return artifact
         try:
             self.db.execute(
                 "INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?)",
@@ -461,8 +581,15 @@ class _Submissions(_Repo):
         lease_seconds: int,
         lease_owner: str,
     ) -> SubmissionReservation:
-        if lease_seconds <= 0 or not lease_owner:
-            raise ValueError("lease_seconds must be positive and lease_owner must be non-empty")
+        await self._uow.acquire_submission_lock()
+        if (
+            lease_seconds <= 0
+            or lease_seconds > MAX_SUBMISSION_LEASE_SECONDS
+            or not lease_owner.strip()
+        ):
+            raise ValueError(
+                "lease_seconds must be between 1 and 3600 and lease_owner must be non-empty"
+            )
         if not await self._learner_exists(learner_id):
             raise LearnerScopeViolation("submission.learner_id")
         now = self._uow._database.clock.now()
@@ -499,6 +626,19 @@ class _Submissions(_Repo):
             return reclaimed
         if not await self._exists("task_versions", "task_version_id", task_version_id):
             raise NotFound("task_version")
+        task = await self._uow.tasks.get(task_version_id)
+        if task is None:
+            raise NotFound("task_version")
+        progress = await self._uow.learners.get_progress(learner_id)
+        if progress is not None:
+            if progress.current_task_id is not None and progress.current_task_id != task.task_id:
+                raise SubmissionMismatch("Submission task is not the learner's current task")
+            if progress.current_status not in (
+                LearnerStatus.IN_TASK,
+                LearnerStatus.PROCESSING,
+                LearnerStatus.NEEDS_RETRY,
+            ):
+                raise SubmissionMismatch("Learner is not eligible for task submission")
         artifact = self._one(
             "SELECT learner_id FROM artifacts WHERE artifact_id=?", (_uuid(artifact_id),)
         )
@@ -521,25 +661,43 @@ class _Submissions(_Repo):
             created_at=_utc(now),
             lease_owner=lease_owner,
         )
-        self.db.execute(
-            "INSERT INTO submissions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                _uuid(result.reservation_id),
-                _uuid(result.submission_id),
-                _uuid(learner_id),
-                _uuid(task_version_id),
-                _uuid(artifact_id),
-                channel.value,
-                key,
-                request_fingerprint,
-                result.status.value,
-                _dt(result.created_at),
-                result.version,
-                _dt(result.lease_expires_at),
-                lease_owner,
-                None,
-            ),
-        )
+        try:
+            self.db.execute(
+                "INSERT INTO submissions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    _uuid(result.reservation_id),
+                    _uuid(result.submission_id),
+                    _uuid(learner_id),
+                    _uuid(task_version_id),
+                    _uuid(artifact_id),
+                    channel.value,
+                    key,
+                    request_fingerprint,
+                    result.status.value,
+                    _dt(result.created_at),
+                    result.version,
+                    _dt(result.lease_expires_at),
+                    lease_owner,
+                    None,
+                ),
+            )
+        except sqlite3.IntegrityError as error:
+            # A writer outside this process may have won the unique-key race.
+            # Reload its committed row and apply normal idempotency semantics.
+            raced_row = self._one(
+                "SELECT * FROM submissions WHERE learner_id=? AND idempotency_key=?",
+                (_uuid(learner_id), key),
+            )
+            if raced_row is not None:
+                raced = _reservation(raced_row)
+                if raced.request_fingerprint != request_fingerprint:
+                    raise IdempotencyConflict(key) from error
+                return raced
+            raise OptimisticConflict("submission_reservation") from error
+        except sqlite3.OperationalError as error:
+            if "locked" in str(error).lower() or "busy" in str(error).lower():
+                raise OptimisticConflict("submission_reservation") from error
+            raise
         return result
 
     async def get_reservation(self, learner_id: UUID, key: str) -> SubmissionReservation | None:
@@ -832,6 +990,7 @@ class SQLiteUnitOfWork:
         self._connection: sqlite3.Connection | None = None
         self._active = False
         self._base_revision = 0
+        self._reservation_lock_acquired = False
         self.learners = _Learners(self)
         self.tasks = _Tasks(self)
         self.submissions = _Submissions(self)
@@ -880,6 +1039,7 @@ class SQLiteUnitOfWork:
                 raise OptimisticConflict("unit_of_work") from error
             raise
         finally:
+            self._release_submission_lock()
             self._connection.close()
             self._connection = None
             self._active = False
@@ -890,9 +1050,35 @@ class SQLiteUnitOfWork:
                 if self._active:
                     self._connection.rollback()
             finally:
+                self._release_submission_lock()
                 self._connection.close()
                 self._connection = None
         self._active = False
+
+    async def acquire_submission_lock(self) -> None:
+        if not self._active or self._connection is None:
+            raise RuntimeError("unit of work is not active")
+        if self._reservation_lock_acquired:
+            return
+        await self._database._reservation_lock.acquire()
+        self._reservation_lock_acquired = True
+        # Reads before reservation may have established a stale deferred
+        # snapshot. Restart the short transaction while holding the process
+        # lock so it observes a concurrently committed winner.
+        self._connection.rollback()
+        self._connection.execute("BEGIN")
+        revision = self._connection.execute(
+            "SELECT value FROM adapter_meta WHERE key='revision'"
+        ).fetchone()
+        if revision is None:
+            self._release_submission_lock()
+            raise RuntimeError("SQLite adapter metadata is not initialized")
+        self._base_revision = int(revision[0])
+
+    def _release_submission_lock(self) -> None:
+        if self._reservation_lock_acquired:
+            self._reservation_lock_acquired = False
+            self._database._reservation_lock.release()
 
 
 class SQLiteUnitOfWorkFactory:
@@ -953,7 +1139,7 @@ def _progress(row: sqlite3.Row) -> LearnerProgress:
     return LearnerProgress(
         learner_id=UUID(row["learner_id"]),
         current_status=row["current_status"],
-        current_task_id=UUID(row["current_task_id"]) if row["current_task_id"] else None,
+        current_task_id=row["current_task_id"] if row["current_task_id"] else None,
         version=row["version"],
         updated_at=_parse_dt(row["updated_at"]),
         reset_at=_parse_dt(row["reset_at"]) if row["reset_at"] else None,

@@ -1,3 +1,4 @@
+import hashlib
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -6,9 +7,13 @@ import pytest
 from yom_awel.application.admin import ResetDemoLearner
 from yom_awel.application.commands import CreateUploadCommand, ResetDemoLearnerCommand
 from yom_awel.application.profiles import GetSkillsProfile
-from yom_awel.application.tasks import AuthorizeUpload, GetCurrentTask
+from yom_awel.application.tasks import (
+    CompleteArtifactUpload,
+    CreateArtifactUpload,
+    GetCurrentTask,
+)
 from yom_awel.domain.contracts import MAX_ARTIFACT_BYTES
-from yom_awel.domain.entities import Learner, LearnerProgress, SkillEvidence, TaskVersion
+from yom_awel.domain.entities import Artifact, Learner, LearnerProgress, SkillEvidence, TaskVersion
 from yom_awel.domain.enums import ErrorCategory, LearnerStatus
 from yom_awel.domain.errors import DomainError
 from yom_awel.persistence.memory import MemoryUnitOfWorkFactory
@@ -46,7 +51,7 @@ async def test_get_current_task():
             TaskVersion(
                 task_version_id=task_id,
                 task_id="t1",
-                version="1",
+                version="2",
                 instructions_ar="a",
                 instructions_en="e",
                 artifact_schema={},
@@ -57,11 +62,27 @@ async def test_get_current_task():
                 content_hash="a" * 64,
             )
         )
+        current_task_version_id = uuid4()
+        await uow.tasks.add(
+            TaskVersion(
+                task_version_id=current_task_version_id,
+                task_id="t1",
+                version="10",
+                instructions_ar="new",
+                instructions_en="new",
+                artifact_schema={},
+                evaluator_id="e1",
+                evaluator_version="1",
+                pass_threshold=50,
+                skill_mappings=[],
+                content_hash="b" * 64,
+            )
+        )
         await uow.learners.save_progress(
             LearnerProgress(
                 learner_id=learner_id,
                 current_status=LearnerStatus.IN_TASK,
-                current_task_id=task_id,
+                current_task_id="t1",
                 version=1,
                 updated_at=clock.now(),
             ),
@@ -73,7 +94,77 @@ async def test_get_current_task():
     res = await get_task.execute(learner_id)
     assert res.status == "IN_TASK"
     assert res.task is not None
-    assert res.task.task_version_id == task_id
+    assert res.task.task_version_id == current_task_version_id
+
+
+@pytest.mark.asyncio
+async def test_authorize_upload():
+    uow_factory = MemoryUnitOfWorkFactory()
+    clock = FakeClock()
+    id_gen = FakeIDGenerator()
+    learner_id = uuid4()
+
+    async with uow_factory() as uow:
+        await uow.learners.add(
+            Learner(
+                learner_id=learner_id,
+                display_name="L1",
+                preferred_language="en",
+                status=LearnerStatus.IN_TASK,
+                created_at=clock.now(),
+                updated_at=clock.now(),
+            )
+        )
+        await uow.learners.save_progress(
+            LearnerProgress(
+                learner_id=learner_id,
+                current_status=LearnerStatus.IN_TASK,
+                version=1,
+                updated_at=clock.now(),
+            ),
+            expected_version=0,
+        )
+        await uow.commit()
+
+    auth = CreateArtifactUpload(uow_factory, clock, id_gen)
+    content = b"x" * 100
+    digest = hashlib.sha256(content).hexdigest()
+    cmd = CreateUploadCommand(
+        learner_id=learner_id,
+        filename="test.txt",
+        size_bytes=len(content),
+        artifact_sha256=digest,
+    )
+    res = await auth.execute(cmd)
+
+    assert res.artifact_id is not None
+    assert res.expires_in_seconds > 0
+
+    async with uow_factory() as uow:
+        pending = await uow.outbox.pending()
+        assert len(pending) == 1
+        assert pending[0].event_type == "artifact.upload_authorized"
+        assert pending[0].payload["artifact_id"] == str(res.artifact_id)
+        assert "upload_url" not in pending[0].payload
+        assert "upload_token" not in pending[0].payload
+        assert await uow.artifacts.get(res.artifact_id, learner_id) is None
+        await uow.artifacts.put(
+            Artifact(
+                artifact_id=res.artifact_id,
+                learner_id=learner_id,
+                filename=cmd.filename,
+                size_bytes=cmd.size_bytes,
+                sha256=cmd.artifact_sha256,
+            ),
+            content,
+        )
+        await uow.commit()
+        assert res.upload_url is not None
+
+    completed = await CompleteArtifactUpload(uow_factory).execute(learner_id, res.artifact_id)
+    assert completed.artifact_id == res.artifact_id
+    async with uow_factory() as uow:
+        assert await uow.artifacts.get(res.artifact_id, learner_id) is not None
 
 
 async def seed_learner_in_task(uow_factory: MemoryUnitOfWorkFactory, clock: FakeClock):
@@ -102,53 +193,36 @@ async def seed_learner_in_task(uow_factory: MemoryUnitOfWorkFactory, clock: Fake
     return learner_id
 
 
-@pytest.mark.asyncio
-async def test_authorize_upload():
-    uow_factory = MemoryUnitOfWorkFactory()
-    clock = FakeClock()
-    learner_id = await seed_learner_in_task(uow_factory, clock)
-
-    auth = AuthorizeUpload(uow_factory, clock, FakeIDGenerator())
-    cmd = CreateUploadCommand(learner_id=learner_id, filename="test.txt", size_bytes=100)
-    res = await auth.execute(cmd)
-
-    assert res.artifact_id is not None
-    assert res.expires_in_seconds > 0
-
-    async with uow_factory() as uow:
-        pending = await uow.outbox.pending()
-        assert len(pending) == 1
-        assert pending[0].event_type == "artifact.upload_authorized"
-        assert pending[0].payload["artifact_id"] == str(res.artifact_id)
-
-
-@pytest.mark.asyncio
-async def test_authorize_upload_accepts_exactly_the_size_limit():
-    uow_factory = MemoryUnitOfWorkFactory()
-    clock = FakeClock()
-    learner_id = await seed_learner_in_task(uow_factory, clock)
-
-    auth = AuthorizeUpload(uow_factory, clock, FakeIDGenerator())
-    cmd = CreateUploadCommand(
-        learner_id=learner_id, filename="sales.xlsx", size_bytes=MAX_ARTIFACT_BYTES
+def upload_command(learner_id, size_bytes: int) -> CreateUploadCommand:
+    return CreateUploadCommand(
+        learner_id=learner_id,
+        filename="sales.xlsx",
+        size_bytes=size_bytes,
+        artifact_sha256="a" * 64,
     )
 
-    assert (await auth.execute(cmd)).artifact_id is not None
-
 
 @pytest.mark.asyncio
-async def test_authorize_upload_rejects_one_byte_over_the_limit_with_stable_code():
+async def test_create_upload_accepts_exactly_the_size_limit():
     uow_factory = MemoryUnitOfWorkFactory()
     clock = FakeClock()
     learner_id = await seed_learner_in_task(uow_factory, clock)
 
-    auth = AuthorizeUpload(uow_factory, clock, FakeIDGenerator())
-    cmd = CreateUploadCommand(
-        learner_id=learner_id, filename="sales.xlsx", size_bytes=MAX_ARTIFACT_BYTES + 1
-    )
+    auth = CreateArtifactUpload(uow_factory, clock, FakeIDGenerator())
+
+    assert (await auth.execute(upload_command(learner_id, MAX_ARTIFACT_BYTES))).artifact_id
+
+
+@pytest.mark.asyncio
+async def test_create_upload_rejects_one_byte_over_the_limit_with_stable_code():
+    uow_factory = MemoryUnitOfWorkFactory()
+    clock = FakeClock()
+    learner_id = await seed_learner_in_task(uow_factory, clock)
+
+    auth = CreateArtifactUpload(uow_factory, clock, FakeIDGenerator())
 
     with pytest.raises(DomainError) as exc:
-        await auth.execute(cmd)
+        await auth.execute(upload_command(learner_id, MAX_ARTIFACT_BYTES + 1))
     assert exc.value.code == "artifact_too_large"
     assert exc.value.details == {"category": ErrorCategory.VALIDATION, "retryable": False}
     async with uow_factory() as uow:
@@ -251,7 +325,7 @@ async def test_reset_demo_learner():
                 current_status=LearnerStatus.IN_TASK,
                 version=1,
                 updated_at=clock.now(),
-                current_task_id=uuid4(),
+                current_task_id="reset-task",
             ),
             expected_version=0,
         )
@@ -263,7 +337,10 @@ async def test_reset_demo_learner():
     await reset.execute(cmd)
 
     async with uow_factory() as uow:
+        learner = await uow.learners.get(learner_id)
         progress = await uow.learners.get_progress(learner_id)
+        assert learner is not None
+        assert learner.status == progress.current_status
         assert progress.current_status == LearnerStatus.ONBOARDING
         assert progress.current_task_id is None
         assert progress.reset_at == clock.now()

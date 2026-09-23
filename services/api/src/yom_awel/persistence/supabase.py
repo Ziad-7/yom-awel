@@ -17,7 +17,18 @@ from pydantic import ValidationError
 from yom_awel.domain.contracts import SubmissionOutcome
 from yom_awel.domain.entities import SubmissionReservation
 from yom_awel.domain.enums import Channel, SubmissionStatus
-from yom_awel.domain.errors import PersistenceError
+from yom_awel.domain.errors import (
+    FinalizationConflict,
+    IdempotencyConflict,
+    LearnerNotEligible,
+    OptimisticConflict,
+    PersistenceError,
+    ReservationExpired,
+    ReservationOwnerConflict,
+    SubmissionMismatch,
+    TaskNotCurrent,
+)
+from yom_awel.ports.repositories import MAX_SUBMISSION_LEASE_SECONDS
 
 
 class SupabasePersistenceError(PersistenceError):
@@ -44,9 +55,45 @@ class SupabaseQueryClient(Protocol):
 
 def _response_value(response: SupabaseResponse) -> object:
     if response.error is not None:
+        error_code = _provider_error_code(response.error)
+        if error_code is not None:
+            # Preserve a stable domain signal while discarding provider text.
+            raise SupabasePersistenceError(error_code)
         # Provider details are deliberately not copied into a user-visible error.
         raise SupabasePersistenceError("supabase_provider_error")
     return response.data
+
+
+def _is_idempotency_conflict(error: object) -> bool:
+    if not isinstance(error, Mapping):
+        return False
+    return any(str(error.get(field)) in {"23505", "409"} for field in ("code", "status"))
+
+
+def _provider_error_code(error: object) -> str | None:
+    if not isinstance(error, Mapping):
+        return None
+    code = str(error.get("code") or error.get("status") or "")
+    if code in {"23505", "409"}:
+        return "idempotency_conflict"
+    if code == "40001":
+        message = str(error.get("message") or "").lower()
+        if "lease expired" in message:
+            return "reservation_expired"
+        return "reservation_conflict"
+    if code == "42501":
+        message = str(error.get("message") or "").lower()
+        if "owner conflict" in message:
+            return "reservation_owner_conflict"
+    if code == "22023":
+        message = str(error.get("message") or "").lower()
+        if "learner current task" in message or "not the learner current task" in message:
+            return "task_not_current"
+        if "not eligible for task submission" in message:
+            return "invalid_status"
+        if "submission mismatch" in message or "task version mismatch" in message:
+            return "submission_mismatch"
+    return None
 
 
 def _row(value: object) -> Mapping[str, object]:
@@ -141,6 +188,14 @@ class SupabaseSubmissionRepository:
         lease_seconds: int,
         lease_owner: str,
     ) -> SubmissionReservation:
+        if (
+            lease_seconds <= 0
+            or lease_seconds > MAX_SUBMISSION_LEASE_SECONDS
+            or not lease_owner.strip()
+        ):
+            raise ValueError(
+                "lease_seconds must be between 1 and 3600 and lease_owner must be non-empty"
+            )
         params: dict[str, object] = {
             "p_learner_id": str(learner_id),
             "p_task_version_id": str(task_version_id),
@@ -154,7 +209,30 @@ class SupabaseSubmissionRepository:
         try:
             response = await self._rpc.rpc("reserve_submission", params)
             reservation = map_submission_row(_response_value(response))
-        except SupabasePersistenceError:
+        except SupabasePersistenceError as exc:
+            if exc.code == "idempotency_conflict":
+                # A unique violation can be the loser of an absent-row race,
+                # not necessarily a fingerprint mismatch.  If a query port is
+                # available, reload the committed winner before classifying it.
+                if self._query is not None:
+                    raced = await self.get_reservation(learner_id, key)
+                    if raced is not None and raced.request_fingerprint == request_fingerprint:
+                        self._reservations[raced.reservation_id] = raced
+                        return raced
+                raise IdempotencyConflict(key) from None
+            if exc.code == "reservation_conflict":
+                # A concurrent RPC may have committed just after the unique
+                # index race. Reload the row and apply normal replay rules.
+                if self._query is None:
+                    raise OptimisticConflict("submission_reservation") from None
+                raced = await self.get_reservation(learner_id, key)
+                if raced is not None:
+                    if raced.request_fingerprint != request_fingerprint:
+                        raise IdempotencyConflict(key) from None
+                    return raced
+                raise OptimisticConflict("submission_reservation") from None
+            if exc.code in {"task_not_current", "invalid_status"}:
+                _raise_shared_reservation_error(exc)
             raise
         except Exception as exc:
             raise SupabasePersistenceError("supabase_provider_error") from exc
@@ -195,8 +273,8 @@ class SupabaseSubmissionRepository:
         try:
             response = await self._rpc.rpc("expire_submission", params)
             _response_value(response)
-        except SupabasePersistenceError:
-            raise
+        except SupabasePersistenceError as exc:
+            _raise_shared_reservation_error(exc)
         except Exception as exc:
             raise SupabasePersistenceError("supabase_provider_error") from exc
 
@@ -209,19 +287,19 @@ class SupabaseSubmissionRepository:
     ) -> None:
         reservation = await self._load_reservation(reservation_id)
         if reservation.lease_owner != lease_owner:
-            raise SupabasePersistenceError("reservation_owner_conflict")
+            raise ReservationOwnerConflict()
         if reservation.version != expected_version:
-            raise SupabasePersistenceError("reservation_version_conflict")
+            raise OptimisticConflict("submission_reservation")
         if reservation.status == SubmissionStatus.COMPLETED:
-            raise SupabasePersistenceError("reservation_already_finalized")
+            raise FinalizationConflict("Reservation is already finalized")
         if reservation.lease_expires_at <= (
             datetime.now(UTC) if self._clock is None else self._clock.now()
         ):
-            raise SupabasePersistenceError("reservation_expired")
+            raise ReservationExpired()
         if outcome.submission_id != reservation.submission_id:
-            raise SupabasePersistenceError("submission_mismatch")
+            raise SubmissionMismatch()
         if outcome.evaluation.task_version_id != reservation.task_version_id:
-            raise SupabasePersistenceError("task_version_mismatch")
+            raise SubmissionMismatch("Outcome task version does not match reservation")
         now = datetime.now(UTC) if self._clock is None else self._clock.now()
         evaluation_id = uuid4()
         feedback_id = uuid4()
@@ -261,8 +339,8 @@ class SupabaseSubmissionRepository:
         try:
             response = await self._rpc.rpc("finalize_submission", params)
             completed = map_submission_row(_response_value(response))
-        except SupabasePersistenceError:
-            raise
+        except SupabasePersistenceError as exc:
+            _raise_shared_reservation_error(exc)
         except Exception as exc:
             raise SupabasePersistenceError("supabase_provider_error") from exc
         self._reservations[reservation_id] = completed
@@ -356,3 +434,23 @@ class SupabaseSubmissionRepository:
         if type(version) is not int or version < 1:
             raise SupabasePersistenceError("provider_payload_invalid", "Invalid progress version")
         return version
+
+
+def _raise_shared_reservation_error(error: SupabasePersistenceError) -> None:
+    """Translate provider CAS/lease codes before they reach application code."""
+
+    if error.code == "reservation_conflict":
+        raise OptimisticConflict("submission_reservation") from None
+    if error.code == "reservation_owner_conflict":
+        raise ReservationOwnerConflict() from None
+    if error.code == "reservation_expired":
+        raise ReservationExpired() from None
+    if error.code == "reservation_already_finalized":
+        raise FinalizationConflict("Reservation is already finalized") from None
+    if error.code == "submission_mismatch":
+        raise SubmissionMismatch() from None
+    if error.code == "task_not_current":
+        raise TaskNotCurrent() from None
+    if error.code == "invalid_status":
+        raise LearnerNotEligible() from None
+    raise error

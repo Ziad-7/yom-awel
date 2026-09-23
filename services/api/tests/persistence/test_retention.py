@@ -181,6 +181,10 @@ def test_migration_security_static_contract() -> None:
     root = Path(__file__).resolve().parents[4]
     migration = next((root / "supabase" / "migrations").glob("*_platform_schema.sql"))
     sql = migration.read_text(encoding="utf-8")
+    recovery_migration = next((root / "supabase" / "migrations").glob("*_retention_recovery.sql"))
+    recovery_sql = recovery_migration.read_text(encoding="utf-8")
+    rls_migration = next((root / "supabase" / "migrations").glob("*_rls_hardening.sql"))
+    rls_sql = rls_migration.read_text(encoding="utf-8")
     release_migration = next((root / "supabase" / "migrations").glob("*_release_submission.sql"))
     release_sql = release_migration.read_text(encoding="utf-8")
     cleanup_migration = next(
@@ -209,6 +213,17 @@ def test_migration_security_static_contract() -> None:
     assert "alter table public.%I enable row level security" in sql
     assert "using (learner_id = (select public.current_learner_id()))" in sql
     assert "values ('submissions', 'submissions', false, 5242880)" in sql
+    assert (
+        "revoke all on function public.prevent_identity_mutation_during_deletion()"
+        "\n    from public, anon, authenticated;"
+    ) in recovery_sql
+    assert (
+        "grant execute on function public.prevent_identity_mutation_during_deletion()"
+        " to service_role;"
+    ) in recovery_sql
+    assert "alter table storage.objects enable row level security" not in rls_sql
+    assert "revoke all on table storage.objects from public, anon, authenticated" in rls_sql
+    assert "grant all on table storage.objects to service_role" in rls_sql
     assert "set search_path = public, pg_temp" in sql
     assert "revoke all on function public.reserve_submission" in sql
     assert "revoke all on function public.current_learner_id() from public, anon" in sql

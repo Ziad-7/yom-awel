@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import os
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -16,6 +17,7 @@ import pytest
 
 from yom_awel.domain.contracts import MAX_ARTIFACT_BYTES
 from yom_awel.domain.entities import Artifact
+from yom_awel.domain.errors import ArtifactIntegrityFailure
 from yom_awel.persistence.retention import CleanupArtifact
 from yom_awel.persistence.supabase_artifacts import (
     PRIVATE_BUCKET,
@@ -169,7 +171,10 @@ class LocalArtifactMetadata:
                 method="POST",
             )
             with urlopen(http_request, timeout=5) as response:
-                return json.loads(response.read().decode("utf-8"))
+                body = response.read()
+            # PostgREST returns an empty body for successful void RPCs when
+            # callers request the default response representation.
+            return None if not body else json.loads(body.decode("utf-8"))
 
         return await asyncio.to_thread(request)
 
@@ -346,6 +351,36 @@ class LocalArtifactStorage:
         await asyncio.to_thread(request)
 
 
+@pytest.mark.asyncio
+async def test_local_artifact_rpc_helper_accepts_empty_success_body(monkeypatch) -> None:
+    class EmptyResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            return None
+
+        @staticmethod
+        def read() -> bytes:
+            return b""
+
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "urlopen",
+        lambda request, timeout: EmptyResponse(),
+    )
+
+    async def direct_to_thread(func, /, *args, **kwargs):
+        # Keep this response-fixture unit test deterministic.  The real
+        # helper uses a worker for blocking HTTP, but creating the default
+        # executor here makes pytest-asyncio wait on executor teardown.
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(asyncio, "to_thread", direct_to_thread)
+    metadata = LocalArtifactMetadata("http://supabase.invalid", "service-key")
+    assert await metadata._rpc("resolve_artifact_cleanup", {}) is None
+
+
 def artifact(learner_id: UUID, artifact_id: UUID, content: bytes) -> Artifact:
     import hashlib
 
@@ -399,6 +434,69 @@ async def test_put_and_download_use_private_signed_uuid_path_and_hash_metadata()
     assert metadata.activated == [(learner_id, artifact_id, "artifact-uploader")]
     assert metadata.reserved[0]["upload_owner"] == "artifact-uploader"
     assert metadata.reserved[0]["upload_lease_seconds"] == 600
+
+
+@pytest.mark.asyncio
+async def test_authorize_upload_reserves_metadata_and_returns_signed_browser_details() -> None:
+    learner_id, artifact_id, content = uuid4(), uuid4(), b"hello"
+    value = artifact(learner_id, artifact_id, content)
+    row = artifact_row(value)
+    row["purge_status"] = "UPLOADING"
+    metadata = MetadataFake(row)
+    storage = StorageFake()
+    store = SupabaseArtifactStore(metadata, storage, upload_expiry_seconds=180)
+
+    result = await store.authorize_upload(value)
+
+    assert result.artifact == value
+    assert result.upload_url == "https://signed.invalid/upload"
+    assert result.upload_token == "opaque"
+    assert result.expires_in_seconds == 180
+    assert storage.upload_calls == [
+        (
+            PRIVATE_BUCKET,
+            generated_object_path(learner_id, artifact_id),
+            180,
+            {
+                "sha256": value.sha256,
+                "size_bytes": "5",
+                "upsert": "false",
+            },
+        )
+    ]
+    assert storage.content == b""
+
+
+@pytest.mark.asyncio
+async def test_complete_upload_verifies_object_before_activation() -> None:
+    learner_id, artifact_id, content = uuid4(), uuid4(), b"hello"
+    value = artifact(learner_id, artifact_id, content)
+    row = artifact_row(value)
+    row["purge_status"] = "UPLOADING"
+    metadata = MetadataFake(row)
+    storage = StorageFake(content)
+    store = SupabaseArtifactStore(metadata, storage)
+
+    assert await store.get(artifact_id, learner_id) is None
+    completed = await store.complete_upload(artifact_id, learner_id)
+
+    assert completed == value
+    assert metadata.activated == [(learner_id, artifact_id, "artifact-uploader")]
+    assert metadata.resolved == [(learner_id, artifact_id)]
+
+
+@pytest.mark.asyncio
+async def test_complete_upload_rejects_hash_or_size_mismatch_without_activation() -> None:
+    learner_id, artifact_id, content = uuid4(), uuid4(), b"hello"
+    value = artifact(learner_id, artifact_id, content)
+    row = artifact_row(value)
+    row["purge_status"] = "UPLOADING"
+    metadata = MetadataFake(row)
+    store = SupabaseArtifactStore(metadata, StorageFake(b"tampered"))
+
+    with pytest.raises(ArtifactIntegrityFailure):
+        await store.complete_upload(artifact_id, learner_id)
+    assert metadata.activated == []
 
 
 @pytest.mark.asyncio

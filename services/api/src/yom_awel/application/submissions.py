@@ -1,4 +1,8 @@
 import hashlib
+import logging
+import math
+from collections.abc import Awaitable, Callable
+from datetime import datetime
 from typing import Literal, cast
 from uuid import UUID
 
@@ -28,16 +32,34 @@ from yom_awel.domain.errors import (
     DomainError,
     FinalizationConflict,
     IdempotencyConflict,
+    LearnerNotEligible,
     OptimisticConflict,
     ReservationExpired,
     ReservationOwnerConflict,
     SubmissionMismatch,
+    TaskNotCurrent,
 )
 from yom_awel.ports.clock import Clock
 from yom_awel.ports.evaluation import Evaluator
 from yom_awel.ports.feedback import FeedbackProvider
 from yom_awel.ports.id_generator import IDGenerator
+from yom_awel.ports.repositories import MAX_SUBMISSION_LEASE_SECONDS
 from yom_awel.ports.unit_of_work import UnitOfWorkFactory
+
+logger = logging.getLogger(__name__)
+
+
+async def _run_post_commit_cleanup(
+    cleanup: Callable[[datetime], Awaitable[None]], now: datetime
+) -> None:
+    """Run maintenance after commit without changing accepted outcome state."""
+
+    try:
+        await cleanup(now)
+    except Exception as error:  # noqa: BLE001
+        # Log only the exception type: provider messages may contain sensitive
+        # infrastructure details.
+        logger.warning("post_commit_retention_cleanup_failed: %s", type(error).__name__)
 
 
 def generate_fingerprint(command: ProcessSubmissionCommand) -> str:
@@ -54,7 +76,7 @@ def _generate_canonical_fallback(language: str) -> FeedbackResult:
     return FeedbackResult(
         feedback_text=text,
         language=cast(Literal["ar-EG", "en"], language),
-        persona_id="eng-tarek",
+        persona_id="tarek",
         prompt_version="tarek-feedback@1",
         provider="deterministic",
         model=None,
@@ -98,12 +120,14 @@ class ProcessSubmission:
         feedback: FeedbackProvider,
         clock: Clock,
         id_gen: IDGenerator,
+        post_commit_cleanup: Callable[[datetime], Awaitable[None]] | None = None,
     ):
         self.uow_factory = uow_factory
         self.evaluator = evaluator
         self.feedback = feedback
         self.clock = clock
         self.id_gen = id_gen
+        self.post_commit_cleanup = post_commit_cleanup
 
     async def execute(
         self, command: ProcessSubmissionCommand, lease_owner: str
@@ -116,6 +140,12 @@ class ProcessSubmission:
 
         try:
             async with self.uow_factory() as uow:
+                # SQLite uses this optional hook to serialize reservation
+                # snapshots before any learner/task reads. Cloud adapters do
+                # the equivalent locking inside their reservation RPC.
+                acquire_submission_lock = getattr(uow, "acquire_submission_lock", None)
+                if acquire_submission_lock is not None:
+                    await acquire_submission_lock()
                 learner = await uow.learners.get(command.learner_id)
                 if not learner:
                     raise DomainError(
@@ -135,6 +165,44 @@ class ProcessSubmission:
                         category=ErrorCategory.VALIDATION,
                         retryable=False,
                     )
+
+                existing_reservation = await uow.submissions.get_reservation(
+                    command.learner_id, command.idempotency_key
+                )
+                existing_is_replay = existing_reservation is not None and (
+                    existing_reservation.status == SubmissionStatus.COMPLETED
+                    or existing_reservation.lease_expires_at > self.clock.now()
+                )
+                if not existing_is_replay:
+                    progress = await uow.learners.get_progress(command.learner_id)
+                    if progress is None:
+                        raise DomainError(
+                            "progress_not_found",
+                            "Progress not found",
+                            category=ErrorCategory.VALIDATION,
+                            retryable=False,
+                        )
+                    if (
+                        progress.current_task_id is not None
+                        and progress.current_task_id != task_version.task_id
+                    ):
+                        raise DomainError(
+                            "task_not_current",
+                            "Submission task is not the learner's current task",
+                            category=ErrorCategory.VALIDATION,
+                            retryable=False,
+                        )
+                    if progress.current_status not in (
+                        LearnerStatus.IN_TASK,
+                        LearnerStatus.PROCESSING,
+                        LearnerStatus.NEEDS_RETRY,
+                    ):
+                        raise DomainError(
+                            "invalid_status",
+                            "Learner is not eligible for task submission",
+                            category=ErrorCategory.VALIDATION,
+                            retryable=False,
+                        )
 
                 artifact = await uow.artifacts.get(command.artifact_id, command.learner_id)
                 if not artifact:
@@ -186,7 +254,18 @@ class ProcessSubmission:
             return res.outcome
 
         if res.lease_owner != lease_owner:
-            return ProcessingState(submission_id=res.submission_id, status=res.status)
+            retry_after = max(
+                1,
+                min(
+                    MAX_SUBMISSION_LEASE_SECONDS,
+                    math.ceil((res.lease_expires_at - self.clock.now()).total_seconds()),
+                ),
+            )
+            return ProcessingState(
+                submission_id=res.submission_id,
+                status=res.status,
+                retry_after_seconds=retry_after,
+            )
 
         artifact_ref = ArtifactRef(
             artifact_id=command.artifact_id,
@@ -219,7 +298,7 @@ class ProcessSubmission:
 
         try:
             eval_result = await self.evaluator.evaluate(task_version, artifact_ref, content)
-        except Exception as e:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             # Expire lock on evaluation failure
             await _expire_reservation(
                 self.uow_factory,
@@ -230,7 +309,11 @@ class ProcessSubmission:
             )
             raise DomainError(
                 code="evaluation_failed",
-                message=str(e),
+                message=(
+                    "تعذر تقييم الملف حالياً. يرجى المحاولة مرة أخرى."
+                    if lang == "ar-EG"
+                    else "We could not evaluate the file right now. Please try again."
+                ),
                 category=ErrorCategory.EVALUATION,
                 retryable=True,
             )
@@ -373,8 +456,23 @@ class ProcessSubmission:
                     outcome=outcome,
                 )
                 await uow_fin.commit()
+                # The submission is accepted once its transaction commits.
+                # Retention is bounded opportunistic maintenance and must
+                # never turn a successful submission into a failed request.
+                if self.post_commit_cleanup is not None:
+                    await _run_post_commit_cleanup(self.post_commit_cleanup, now)
                 return outcome
 
+        except (
+            TaskNotCurrent,
+            LearnerNotEligible,
+        ) as validation_error:
+            raise DomainError(
+                code=validation_error.code,
+                message=validation_error.message,
+                category=ErrorCategory.VALIDATION,
+                retryable=False,
+            ) from None
         except (
             OptimisticConflict,
             FinalizationConflict,

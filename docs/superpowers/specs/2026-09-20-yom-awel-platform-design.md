@@ -241,6 +241,7 @@ class TaskStatus(StrEnum):
     ACTIVE = "ACTIVE"
     COMPLETED = "COMPLETED"
 
+
 class SubmissionStatus(StrEnum):
     RECEIVED = "RECEIVED"
     EVALUATING = "EVALUATING"

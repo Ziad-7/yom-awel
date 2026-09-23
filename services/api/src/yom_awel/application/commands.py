@@ -18,6 +18,14 @@ class CreateUploadCommand(BaseModel):
     learner_id: UUID
     filename: str = Field(..., min_length=1)
     size_bytes: int = Field(..., ge=0)
+    # Browsers calculate this before requesting a signed upload.  The server
+    # reserves only immutable metadata that it can verify after upload.
+    artifact_sha256: str = Field(
+        ...,
+        min_length=64,
+        max_length=64,
+        pattern=r"^[a-f0-9]{64}$",
+    )
 
 
 class ProcessSubmissionCommand(BaseModel):

@@ -10,7 +10,13 @@ from pathlib import Path
 from uuid import UUID
 
 from yom_awel.domain.entities import Artifact
-from yom_awel.domain.errors import LearnerScopeViolation, UniqueConstraintViolation
+from yom_awel.domain.errors import (
+    ArtifactIntegrityFailure,
+    ArtifactNotReady,
+    LearnerScopeViolation,
+    UniqueConstraintViolation,
+)
+from yom_awel.ports.artifacts import ArtifactUploadAuthorization
 
 
 class LocalArtifactStore:
@@ -54,7 +60,7 @@ class LocalArtifactStore:
     async def get(self, artifact_id: UUID, learner_id: UUID) -> Artifact | None:
         data_path = self._data_path(artifact_id, learner_id)
         meta_path = self._meta_path(data_path)
-        if not data_path.is_file() or not meta_path.is_file():
+        if not meta_path.is_file():
             return None
         try:
             artifact = self._read_metadata(meta_path)
@@ -62,6 +68,67 @@ class LocalArtifactStore:
             return None
         if artifact.learner_id != learner_id or artifact.artifact_id != artifact_id:
             return None
+        try:
+            content = data_path.read_bytes()
+        except OSError:
+            return None
+        if (
+            len(content) != artifact.size_bytes
+            or hashlib.sha256(content).hexdigest() != artifact.sha256
+        ):
+            return None
+        return artifact
+
+    async def authorize_upload(
+        self, artifact: Artifact, *, expires_in_seconds: int = 300
+    ) -> ArtifactUploadAuthorization:
+        if expires_in_seconds < 1:
+            raise ValueError("expires_in_seconds must be positive")
+        learner_dir = self._learner_dir(artifact.learner_id)
+        learner_dir.mkdir(parents=True, exist_ok=True)
+        data_path = self._data_path(artifact)
+        meta_path = self._meta_path(data_path)
+        if data_path.exists() or meta_path.exists():
+            try:
+                existing = self._read_metadata(meta_path)
+            except (OSError, ValueError, TypeError):
+                raise UniqueConstraintViolation("artifacts.id") from None
+            if existing != artifact:
+                raise UniqueConstraintViolation("artifacts.id")
+        else:
+            temporary = learner_dir / f".{artifact.artifact_id}.metadata.pending"
+            try:
+                temporary.write_bytes(self._metadata(artifact))
+                os.replace(temporary, meta_path)
+            finally:
+                try:
+                    temporary.unlink()
+                except FileNotFoundError:
+                    pass
+        return ArtifactUploadAuthorization(
+            artifact=artifact,
+            upload_url=f"/artifacts/{artifact.learner_id}/{artifact.artifact_id}",
+            upload_token=None,
+            expires_in_seconds=expires_in_seconds,
+        )
+
+    async def complete_upload(self, artifact_id: UUID, learner_id: UUID) -> Artifact:
+        data_path = self._data_path(artifact_id, learner_id)
+        meta_path = self._meta_path(data_path)
+        if not meta_path.is_file() or not data_path.is_file():
+            raise ArtifactNotReady()
+        try:
+            artifact = self._read_metadata(meta_path)
+            content = data_path.read_bytes()
+        except (OSError, ValueError, TypeError) as exc:
+            raise ArtifactNotReady() from exc
+        if artifact.learner_id != learner_id or artifact.artifact_id != artifact_id:
+            raise LearnerScopeViolation("artifact.learner_id")
+        if (
+            len(content) != artifact.size_bytes
+            or hashlib.sha256(content).hexdigest() != artifact.sha256
+        ):
+            raise ArtifactIntegrityFailure()
         return artifact
 
     async def download(self, artifact_id: UUID, learner_id: UUID) -> bytes | None:
@@ -69,9 +136,15 @@ class LocalArtifactStore:
         if artifact is None:
             return None
         try:
-            return self._data_path(artifact).read_bytes()
+            content = self._data_path(artifact).read_bytes()
         except OSError:
             return None
+        if (
+            len(content) != artifact.size_bytes
+            or hashlib.sha256(content).hexdigest() != artifact.sha256
+        ):
+            return None
+        return content
 
     async def put(self, artifact: Artifact, content: bytes) -> Artifact:
         if len(content) != artifact.size_bytes:
@@ -84,8 +157,15 @@ class LocalArtifactStore:
         learner_dir.mkdir(parents=True, exist_ok=True)
         data_path = self._data_path(artifact)
         meta_path = self._meta_path(data_path)
-        if data_path.exists() or meta_path.exists():
+        if data_path.exists():
             raise UniqueConstraintViolation("artifacts.id")
+        if meta_path.exists():
+            try:
+                existing = self._read_metadata(meta_path)
+            except (OSError, ValueError, TypeError):
+                raise UniqueConstraintViolation("artifacts.id") from None
+            if existing != artifact:
+                raise UniqueConstraintViolation("artifacts.id")
 
         temporary_paths: list[Path] = []
         try:

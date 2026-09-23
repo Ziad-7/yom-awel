@@ -203,6 +203,7 @@ async def test_concurrent_same_key(base_setup):
     from yom_awel.domain.enums import SubmissionStatus
 
     assert res2.status == SubmissionStatus.RECEIVED
+    assert res2.retry_after_seconds == 300
 
     # Now let first request finish.
     evaluator.release.set()
@@ -223,11 +224,120 @@ async def test_concurrent_same_key(base_setup):
         assert len(await uow.skills.list_evidence(cmd.learner_id)) == 1
         assert len(await uow.outbox.pending()) == 1
         progress = await uow.learners.get_progress(cmd.learner_id)
+        learner = await uow.learners.get(cmd.learner_id)
         assert progress is not None
+        assert learner is not None
+        assert learner.status == progress.current_status
         assert progress.current_status == LearnerStatus.TASK_COMPLETED
         # Only the winning finalization advances progress; the competing
         # request did not advance it again.
         assert progress.version == 2
+
+
+@pytest.mark.asyncio
+async def test_committed_submission_survives_post_commit_cleanup_failure(base_setup):
+    cmd, uow_factory, evaluator, feedback, clock, id_gen = await seed_data(base_setup)
+    evaluator.result = EvaluationResult(
+        evaluator_id="e1",
+        evaluator_version="1",
+        task_version_id=cmd.task_version_id,
+        passed=True,
+        score=100,
+        checks=[
+            EvaluationCheck(
+                check_id="c1",
+                passed=True,
+                weight=10,
+                detail_ar="ت",
+                detail_en="d",
+                diagnostic_code="c1",
+            )
+        ],
+        errors=[],
+        summary_ar="ar",
+        summary_en="en",
+        duration_ms=1,
+    )
+    feedback.result = FeedbackResult(
+        feedback_text="fb",
+        language="en",
+        persona_id="tarek",
+        prompt_version="1",
+        provider="sys",
+        model=None,
+        used_fallback=False,
+        duration_ms=1,
+    )
+
+    async def cleanup_failure(now):
+        raise RuntimeError("retention provider failure")
+
+    result = await ProcessSubmission(
+        uow_factory, evaluator, feedback, clock, id_gen, cleanup_failure
+    ).execute(cmd, "owner")
+    assert isinstance(result, SubmissionOutcome)
+    async with uow_factory() as uow:
+        reservation = await uow.submissions.get_reservation(cmd.learner_id, cmd.idempotency_key)
+        assert reservation is not None and reservation.outcome == result
+
+
+@pytest.mark.asyncio
+async def test_concurrent_different_keys_same_task_only_one_advances(base_setup):
+    """Two successful keys for one learner/task cannot both commit progression."""
+
+    cmd, uow_factory, evaluator, feedback, clock, id_gen = await seed_data(base_setup)
+    evaluator.started = asyncio.Event()
+    evaluator.release = asyncio.Event()
+    evaluator.result = EvaluationResult(
+        evaluator_id="e1",
+        evaluator_version="1",
+        task_version_id=cmd.task_version_id,
+        passed=True,
+        score=100,
+        checks=[
+            EvaluationCheck(
+                check_id="c1",
+                passed=True,
+                weight=10,
+                detail_ar="ت",
+                detail_en="d",
+                diagnostic_code="c1",
+            )
+        ],
+        errors=[],
+        summary_ar="ar",
+        summary_en="en",
+        duration_ms=10,
+    )
+    feedback.result = FeedbackResult(
+        feedback_text="fb",
+        language="en",
+        persona_id="tarek",
+        prompt_version="1",
+        provider="sys",
+        model=None,
+        used_fallback=False,
+        duration_ms=10,
+    )
+    process = ProcessSubmission(uow_factory, evaluator, feedback, clock, id_gen)
+    second = cmd.model_copy(update={"idempotency_key": "key2"})
+
+    first_task = asyncio.create_task(process.execute(cmd, "owner1"))
+    await evaluator.started.wait()
+    second_task = asyncio.create_task(process.execute(second, "owner2"))
+    evaluator.release.set()
+    results = await asyncio.gather(first_task, second_task, return_exceptions=True)
+
+    assert sum(isinstance(result, SubmissionOutcome) for result in results) == 1
+    assert sum(isinstance(result, DomainError) for result in results) == 1
+    async with uow_factory() as uow:
+        progress = await uow.learners.get_progress(cmd.learner_id)
+        assert progress is not None
+        assert progress.current_status == LearnerStatus.TASK_COMPLETED
+        assert progress.version == 2
+        assert len(await uow.attempts.list_for_task(cmd.learner_id, cmd.task_version_id)) == 1
+        assert len(await uow.skills.list_evidence(cmd.learner_id)) == 1
+        assert len(await uow.outbox.pending()) == 1
 
 
 @pytest.mark.asyncio
@@ -290,7 +400,7 @@ async def test_fallback_authority(base_setup):
     res = await process.execute(cmd, "owner1")
     assert isinstance(res, SubmissionOutcome)
     assert res.feedback.used_fallback is True
-    assert res.feedback.persona_id == "eng-tarek"
+    assert res.feedback.persona_id == "tarek"
     assert res.feedback.prompt_version == "tarek-feedback@1"
     assert res.feedback.provider == "deterministic"
 
@@ -300,11 +410,13 @@ async def test_evaluation_failure_releases_reservation(base_setup):
     cmd, uow_factory, evaluator, feedback, clock, id_gen = await seed_data(base_setup)
     process = ProcessSubmission(uow_factory, evaluator, feedback, clock, id_gen)
 
-    evaluator.exception = ValueError("Evaluation crash")
+    evaluator.exception = ValueError("secret provider payload: Evaluation crash")
 
     with pytest.raises(DomainError) as exc:
         await process.execute(cmd, "owner1")
     assert exc.value.code == "evaluation_failed"
+    assert exc.value.message == "We could not evaluate the file right now. Please try again."
+    assert "secret provider payload" not in str(exc.value)
 
     async with uow_factory() as uow:
         res = await uow.submissions.get_reservation(cmd.learner_id, cmd.idempotency_key)
@@ -456,6 +568,28 @@ async def test_artifact_ownership_hash_validation(base_setup):
     async with uow_factory() as uow:
         res = await uow.submissions.get_reservation(cmd.learner_id, cmd.idempotency_key)
         assert res is None
+
+
+@pytest.mark.asyncio
+async def test_task_must_match_learner_current_task_before_reservation(base_setup):
+    cmd, uow_factory, evaluator, feedback, clock, id_gen = await seed_data(base_setup)
+    async with uow_factory() as uow:
+        progress = await uow.learners.get_progress(cmd.learner_id)
+        assert progress is not None
+        await uow.learners.save_progress(
+            progress.model_copy(update={"current_task_id": "another-task", "version": 2}),
+            expected_version=1,
+        )
+        await uow.commit()
+
+    with pytest.raises(DomainError) as exc:
+        await ProcessSubmission(uow_factory, evaluator, feedback, clock, id_gen).execute(
+            cmd, "owner"
+        )
+    assert exc.value.code == "task_not_current"
+    assert evaluator.call_count == 0
+    async with uow_factory() as uow:
+        assert await uow.submissions.get_reservation(cmd.learner_id, cmd.idempotency_key) is None
 
 
 @pytest.mark.asyncio

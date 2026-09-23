@@ -17,9 +17,11 @@ from yom_awel.domain.contracts import (
     EvaluationCheck,
     EvaluationResult,
     FeedbackResult,
+    SkillSummary,
     SubmissionOutcome,
 )
 from yom_awel.domain.enums import Channel, LearnerStatus, TaskStatus
+from yom_awel.domain.errors import IdempotencyConflict
 from yom_awel.persistence.supabase import (
     SupabasePersistenceError,
     SupabaseSubmissionRepository,
@@ -263,6 +265,19 @@ async def test_provider_error_is_mapped_without_leaking_details() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("error", [{"code": "23505"}, {"status": 409}])
+async def test_reservation_fingerprint_conflict_maps_to_domain_error(error: object) -> None:
+    rpc = RpcFake(Response(None, error=error))
+    repository = SupabaseSubmissionRepository(rpc)
+    key = "same-key"
+    with pytest.raises(IdempotencyConflict) as conflict:
+        await repository.reserve(uuid4(), uuid4(), uuid4(), Channel.WEB, key, "a" * 64, 30, "w")
+    assert conflict.value.code == "idempotency_conflict"
+    assert conflict.value.details["key"] == key
+    assert "23505" not in str(conflict.value)
+
+
+@pytest.mark.asyncio
 async def test_expire_calls_service_only_cas_rpc() -> None:
     rpc = RpcFake(Response(None))
     repository = SupabaseSubmissionRepository(rpc)
@@ -377,22 +392,26 @@ async def test_real_supabase_contract_is_opt_in() -> None:
         pytest.skip("set SUPABASE_LOCAL_SERVICE_ROLE_KEY to run local Supabase integration tests")
     rest = LocalRest(base_url, service_key)
     learner_id, task_version_id, artifact_id = uuid4(), uuid4(), uuid4()
+    run_id = uuid4().hex
+    task_id = f"local-contract-task-{run_id}"
+    skill_id = f"local-skill-{run_id}"
+    idempotency_key = f"local-contract-{run_id}"
     await rest.insert(
         "learners",
         {
             "learner_id": str(learner_id),
             "display_name": "local-contract",
             "preferred_language": "en",
-            "status": "ONBOARDING",
+            "status": "IN_TASK",
             "state_machine_version": "1",
         },
     )
-    await rest.insert("tasks", {"task_id": "local-contract-task", "title": "Contract"})
+    await rest.insert("tasks", {"task_id": task_id, "title": "Contract"})
     await rest.insert(
         "task_versions",
         {
             "task_version_id": str(task_version_id),
-            "task_id": "local-contract-task",
+            "task_id": task_id,
             "version": "1",
             "instructions_ar": "تعليمات",
             "instructions_en": "Instructions",
@@ -400,14 +419,14 @@ async def test_real_supabase_contract_is_opt_in() -> None:
             "evaluator_id": "eval-1",
             "evaluator_version": "1",
             "pass_threshold": 50,
-            "skill_mappings": [{"skill_id": "local-skill", "check_id": "clarity", "weight": 3}],
+            "skill_mappings": [{"skill_id": skill_id, "check_id": "clarity", "weight": 3}],
             "content_hash": "a" * 64,
             "status": "PUBLISHED",
         },
     )
     await rest.insert(
         "skill_definitions",
-        {"skill_id": "local-skill", "title": "Local", "description": "Local"},
+        {"skill_id": skill_id, "title": "Local", "description": "Local"},
     )
     await rest.insert(
         "artifacts",
@@ -422,7 +441,12 @@ async def test_real_supabase_contract_is_opt_in() -> None:
     )
     await rest.insert(
         "learner_progress",
-        {"learner_id": str(learner_id), "current_status": "ONBOARDING", "version": 1},
+        {
+            "learner_id": str(learner_id),
+            "current_status": "IN_TASK",
+            "current_task_id": task_id,
+            "version": 1,
+        },
     )
     repository = SupabaseSubmissionRepository(LocalRpc(base_url, service_key), rest)
     reservation = await repository.reserve(
@@ -430,12 +454,40 @@ async def test_real_supabase_contract_is_opt_in() -> None:
         task_version_id,
         artifact_id,
         Channel.WEB,
-        "local-contract",
+        idempotency_key,
         "c" * 64,
         300,
         "local-worker",
     )
-    base_outcome = outcome(task_version_id, reservation.submission_id)
+    active_duplicate = await repository.reserve(
+        learner_id,
+        task_version_id,
+        artifact_id,
+        Channel.WEB,
+        idempotency_key,
+        "c" * 64,
+        300,
+        "second-worker",
+    )
+    assert active_duplicate.submission_id == reservation.submission_id
+    assert active_duplicate.lease_owner == reservation.lease_owner
+    with pytest.raises(IdempotencyConflict):
+        await repository.reserve(
+            learner_id,
+            task_version_id,
+            artifact_id,
+            Channel.WEB,
+            idempotency_key,
+            "d" * 64,
+            300,
+            "second-worker",
+        )
+    base_outcome = outcome(task_version_id, reservation.submission_id).model_copy(
+        update={
+            "learner_status": LearnerStatus.TASK_COMPLETED,
+            "skills": [SkillSummary(skill_id=skill_id, score=3)],
+        }
+    )
     final = base_outcome.model_copy(
         update={
             "evaluation": base_outcome.evaluation.model_copy(
@@ -462,7 +514,7 @@ async def test_real_supabase_contract_is_opt_in() -> None:
         task_version_id,
         artifact_id,
         Channel.WEB,
-        "local-contract",
+        idempotency_key,
         "c" * 64,
         300,
         "replay-worker",
@@ -496,25 +548,35 @@ async def test_local_rls_owner_other_anonymous_and_service_boundaries() -> None:
         )
 
     rest = LocalRest(base_url, service_key)
-    learner_id, artifact_id = uuid4(), uuid4()
-    await rest.insert(
-        "learners",
-        {
-            "learner_id": str(learner_id),
-            "display_name": "rls-owner",
-            "preferred_language": "en",
-            "status": "ONBOARDING",
-            "state_machine_version": "1",
-        },
+    existing_identity = await rest.select_one(
+        "external_identities", {"provider": "web", "provider_subject": owner_subject}
     )
-    await rest.insert(
-        "external_identities",
-        {
-            "learner_id": str(learner_id),
-            "provider": "web",
-            "provider_subject": owner_subject,
-        },
-    )
+    if existing_identity is None:
+        learner_id = uuid4()
+        await rest.insert(
+            "learners",
+            {
+                "learner_id": str(learner_id),
+                "display_name": "rls-owner",
+                "preferred_language": "en",
+                "status": "ONBOARDING",
+                "state_machine_version": "1",
+            },
+        )
+        await rest.insert(
+            "external_identities",
+            {
+                "learner_id": str(learner_id),
+                "provider": "web",
+                "provider_subject": owner_subject,
+            },
+        )
+    else:
+        try:
+            learner_id = UUID(str(existing_identity["learner_id"]))
+        except (KeyError, TypeError, ValueError) as error:
+            pytest.fail(f"existing owner identity has invalid learner mapping: {error}")
+    artifact_id = uuid4()
     await rest.insert(
         "artifacts",
         {

@@ -147,7 +147,7 @@ def main() -> None:
         {
             "feedback_text": "Fallback message",
             "language": "ar-EG",
-            "persona_id": "eng-tarek",
+            "persona_id": "tarek",
             "provider": "deterministic",
             "model": None,
             "used_fallback": True,
