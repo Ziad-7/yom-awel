@@ -156,7 +156,16 @@ async def test_concurrent_same_key(base_setup):
         task_version_id=cmd.task_version_id,
         passed=True,
         score=100,
-        checks=[EvaluationCheck(check_id="c1", passed=True, weight=10, details=None)],
+        checks=[
+            EvaluationCheck(
+                check_id="c1",
+                passed=True,
+                weight=10,
+                details_ar="نجح",
+                details_en="Passed",
+                diagnostic_code="c1_passed",
+            )
+        ],
         errors=[],
         summary_ar="ar",
         summary_en="en",
@@ -228,7 +237,16 @@ async def test_committed_submission_survives_post_commit_cleanup_failure(base_se
         task_version_id=cmd.task_version_id,
         passed=True,
         score=100,
-        checks=[EvaluationCheck(check_id="c1", passed=True, weight=10, details=None)],
+        checks=[
+            EvaluationCheck(
+                check_id="c1",
+                passed=True,
+                weight=10,
+                details_ar="نجح",
+                details_en="Passed",
+                diagnostic_code="c1_passed",
+            )
+        ],
         errors=[],
         summary_ar="ar",
         summary_en="en",
@@ -270,7 +288,16 @@ async def test_concurrent_different_keys_same_task_only_one_advances(base_setup)
         task_version_id=cmd.task_version_id,
         passed=True,
         score=100,
-        checks=[EvaluationCheck(check_id="c1", passed=True, weight=10, details=None)],
+        checks=[
+            EvaluationCheck(
+                check_id="c1",
+                passed=True,
+                weight=10,
+                details_ar="نجح",
+                details_en="Passed",
+                diagnostic_code="c1_passed",
+            )
+        ],
         errors=[],
         summary_ar="ar",
         summary_en="en",
@@ -464,7 +491,16 @@ async def test_failed_evaluation_no_skill_evidence(base_setup):
         task_version_id=cmd.task_version_id,
         passed=False,
         score=10,
-        checks=[EvaluationCheck(check_id="c1", passed=True, weight=10, details=None)],
+        checks=[
+            EvaluationCheck(
+                check_id="c1",
+                passed=True,
+                weight=10,
+                details_ar="نجح",
+                details_en="Passed",
+                diagnostic_code="c1_passed",
+            )
+        ],
         errors=[],
         summary_ar="ar",
         summary_en="en",

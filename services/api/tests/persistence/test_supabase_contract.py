@@ -347,7 +347,14 @@ async def test_finalize_calls_exact_rpc_and_does_not_open_external_transaction()
             "evaluation": outcome(task_version_id, reservation.submission_id).evaluation.model_copy(
                 update={
                     "checks": [
-                        EvaluationCheck(check_id="clarity", passed=True, weight=3, details="clear")
+                        EvaluationCheck(
+                            check_id="clarity",
+                            passed=True,
+                            weight=3,
+                            details_ar="واضح",
+                            details_en="Clear",
+                            diagnostic_code="clarity_passed",
+                        )
                     ]
                 }
             )
@@ -486,7 +493,14 @@ async def test_real_supabase_contract_is_opt_in() -> None:
             "evaluation": base_outcome.evaluation.model_copy(
                 update={
                     "checks": [
-                        EvaluationCheck(check_id="clarity", passed=True, weight=3, details="ok")
+                        EvaluationCheck(
+                            check_id="clarity",
+                            passed=True,
+                            weight=3,
+                            details_ar="واضح",
+                            details_en="Clear",
+                            diagnostic_code="clarity_passed",
+                        )
                     ]
                 }
             )

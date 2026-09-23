@@ -8,17 +8,18 @@
           "title": "Check Id",
           "type": "string"
         },
-        "details": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Details"
+        "details_ar": {
+          "title": "Details Ar",
+          "type": "string"
+        },
+        "details_en": {
+          "title": "Details En",
+          "type": "string"
+        },
+        "diagnostic_code": {
+          "minLength": 1,
+          "title": "Diagnostic Code",
+          "type": "string"
         },
         "passed": {
           "title": "Passed",
@@ -33,7 +34,10 @@
       "required": [
         "check_id",
         "passed",
-        "weight"
+        "weight",
+        "details_ar",
+        "details_en",
+        "diagnostic_code"
       ],
       "title": "EvaluationCheck",
       "type": "object"

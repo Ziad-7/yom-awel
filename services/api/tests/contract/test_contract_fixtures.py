@@ -30,8 +30,18 @@ VALID_ARTIFACT_REF = ArtifactRef(
     filename="sales.xlsx",
     size_bytes=1024,
     sha256="a" * 64,
+    content=b"artifact",
 )
-VALID_SKILL_MAPPING = SkillMapping(skill_id="data_cleaning", check_id="clean_data", weight=25)
+VALID_SKILL_MAPPING = SkillMapping(skill_id="data_cleaning", check_id="unique_orders", weight=25)
+VALID_SKILL_MAPPINGS = [
+    SkillMapping(skill_id="data_cleaning", check_id=check_id, weight=25)
+    for check_id in (
+        "unique_orders",
+        "standard_dates",
+        "valid_numeric_values",
+        "complete_customer_records",
+    )
+]
 VALID_TASK_VERSION = TaskVersion(
     task_version_id=UUID("00000000-0000-0000-0000-000000000001"),
     task_id="clean-sales",
@@ -49,13 +59,20 @@ VALID_TASK_VERSION = TaskVersion(
     evaluator_id="sales-cleaning",
     evaluator_version="1",
     pass_threshold=75,
-    skill_mappings=[VALID_SKILL_MAPPING],
+    skill_mappings=VALID_SKILL_MAPPINGS,
     content_hash="b" * 64,
 )
 VALID_EVALUATION_RESULT = EvaluationResult.model_validate_json(
     (ROOT / "contracts" / "fixtures" / "evaluation-pass.json").read_text(encoding="utf-8")
 )
-VALID_EVALUATION_CHECK = EvaluationCheck(check_id="clean_data", passed=True, weight=100)
+VALID_EVALUATION_CHECK = EvaluationCheck(
+    check_id="unique_orders",
+    passed=True,
+    weight=25,
+    details_ar="تم اجتياز الفحص.",
+    details_en="Check passed.",
+    diagnostic_code="unique_orders_passed",
+)
 VALID_EVALUATION_ERROR = EvaluationError(code="invalid", message="bad")
 VALID_FEEDBACK_RESULT = FeedbackResult.model_validate_json(
     (ROOT / "contracts" / "fixtures" / "feedback-generated.json").read_text(encoding="utf-8")
@@ -99,7 +116,7 @@ def test_clean_sales_task_version_example_is_valid() -> None:
     assert VALID_TASK_VERSION.pass_threshold == 75
     assert VALID_TASK_VERSION.instructions_ar
     assert VALID_TASK_VERSION.instructions_en
-    assert VALID_TASK_VERSION.skill_mappings == [VALID_SKILL_MAPPING]
+    assert VALID_TASK_VERSION.skill_mappings == VALID_SKILL_MAPPINGS
 
 
 def test_fallback_fixture_matches_member_three_consumer_contract() -> None:
@@ -129,7 +146,6 @@ def test_fallback_fixture_matches_member_three_consumer_contract() -> None:
         (VALID_EVALUATION_RESULT, "duration_ms", -1),
         (VALID_FEEDBACK_RESULT, "duration_ms", -1),
         (VALID_ARTIFACT_REF, "size_bytes", -1),
-        (VALID_ARTIFACT_REF, "size_bytes", 5 * 1024 * 1024 + 1),
         (VALID_ARTIFACT_REF, "sha256", "A" * 64),
         (VALID_TASK_VERSION, "version", ""),
         (VALID_TASK_VERSION, "instructions_ar", ""),
@@ -153,14 +169,16 @@ def test_contract_boundaries_reject_invalid_values(
         type(valid_model).model_validate(payload)
 
 
-def test_artifact_boundary_accepts_zero_and_five_mib() -> None:
+def test_artifact_boundary_allows_evaluator_to_classify_oversized_inputs() -> None:
     common = {
         "artifact_id": UUID("00000000-0000-0000-0000-000000000005"),
         "filename": "sales.xlsx",
         "sha256": "a" * 64,
+        "content": b"",
     }
     assert ArtifactRef(**common, size_bytes=0).size_bytes == 0
-    assert ArtifactRef(**common, size_bytes=5 * 1024 * 1024).size_bytes == 5 * 1024 * 1024
+    oversized = 5 * 1024 * 1024 + 1
+    assert ArtifactRef(**common, size_bytes=oversized).size_bytes == oversized
 
 
 @pytest.mark.parametrize(
@@ -213,7 +231,9 @@ def test_contract_boundaries_reject_coercible_primitives(
         (VALID_EVALUATION_RESULT, ("summary_ar",), b"arabic-summary"),
         (VALID_EVALUATION_RESULT, ("summary_en",), 123),
         (VALID_EVALUATION_CHECK, ("check_id",), b"clean_data"),
-        (VALID_EVALUATION_CHECK, ("details",), 123),
+        (VALID_EVALUATION_CHECK, ("details_ar",), 123),
+        (VALID_EVALUATION_CHECK, ("details_en",), 123),
+        (VALID_EVALUATION_CHECK, ("diagnostic_code",), 123),
         (VALID_EVALUATION_ERROR, ("code",), b"invalid"),
         (VALID_EVALUATION_ERROR, ("message",), 123),
         (VALID_FEEDBACK_RESULT, ("feedback_text",), b"Good job!"),

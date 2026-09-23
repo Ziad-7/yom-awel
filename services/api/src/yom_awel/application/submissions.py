@@ -137,6 +137,7 @@ class ProcessSubmission:
         lang = "en"
         artifact_filename = ""
         artifact_size = 0
+        artifact_content = b""
 
         try:
             async with self.uow_factory() as uow:
@@ -222,6 +223,15 @@ class ProcessSubmission:
 
                 artifact_filename = artifact.filename
                 artifact_size = artifact.size_bytes
+                downloaded = await uow.artifacts.download(command.artifact_id, command.learner_id)
+                if downloaded is None:
+                    raise DomainError(
+                        "artifact_not_ready",
+                        "Artifact upload is not complete",
+                        category=ErrorCategory.VALIDATION,
+                        retryable=False,
+                    )
+                artifact_content = downloaded
 
                 res = await uow.submissions.reserve(
                     learner_id=command.learner_id,
@@ -272,6 +282,7 @@ class ProcessSubmission:
             filename=artifact_filename,
             size_bytes=artifact_size,
             sha256=command.artifact_sha256,
+            content=artifact_content,
         )
 
         # Fetch task_version again since it was in UoW

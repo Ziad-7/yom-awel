@@ -9,8 +9,12 @@ from yom_awel.domain.enums import ErrorCategory, LearnerStatus, TaskStatus
 class ArtifactRef(BaseModel):
     artifact_id: UUID
     filename: str = Field(strict=True, max_length=255)
-    size_bytes: int = Field(strict=True, ge=0, le=5 * 1024 * 1024)
+    size_bytes: int = Field(strict=True, ge=0)
     sha256: str = Field(strict=True, pattern=r"^[a-f0-9]{64}$")
+    # Internal evaluator input. It is deliberately excluded from serialized
+    # contracts and outcomes so raw learner artifacts are never persisted in
+    # events or API payloads.
+    content: bytes = Field(default=b"", repr=False, exclude=True)
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
@@ -131,7 +135,9 @@ class EvaluationCheck(BaseModel):
     check_id: str = Field(strict=True, min_length=1)
     passed: bool = Field(strict=True)
     weight: int = Field(strict=True, ge=0)
-    details: str | None = Field(default=None, strict=True)
+    details_ar: str = Field(strict=True)
+    details_en: str = Field(strict=True)
+    diagnostic_code: str = Field(strict=True, min_length=1)
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 

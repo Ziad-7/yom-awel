@@ -55,7 +55,15 @@ def main() -> None:
         evaluator_id="sales-cleaning",
         evaluator_version="1",
         pass_threshold=75,
-        skill_mappings=[SkillMapping(skill_id="data_cleaning", check_id="clean_data", weight=25)],
+        skill_mappings=[
+            SkillMapping(skill_id="data_cleaning", check_id=check_id, weight=25)
+            for check_id in (
+                "unique_orders",
+                "standard_dates",
+                "valid_numeric_values",
+                "complete_customer_records",
+            )
+        ],
         content_hash="b" * 64,
     )
     dump_fixture("task-version-clean-sales.json", TaskVersion, **task_version.model_dump())
@@ -66,7 +74,22 @@ def main() -> None:
         "task_version_id": task_version_id,
         "passed": True,
         "score": 100,
-        "checks": [EvaluationCheck(check_id="clean_data", passed=True, weight=100)],
+        "checks": [
+            EvaluationCheck(
+                check_id=check_id,
+                passed=True,
+                weight=25,
+                details_ar="تم اجتياز الفحص.",
+                details_en="Check passed.",
+                diagnostic_code=f"{check_id}_passed",
+            )
+            for check_id in (
+                "unique_orders",
+                "standard_dates",
+                "valid_numeric_values",
+                "complete_customer_records",
+            )
+        ],
         "errors": [],
         "summary_ar": "نجاح",
         "summary_en": "Success",
@@ -81,7 +104,18 @@ def main() -> None:
             "score": 0,
             "checks": [
                 EvaluationCheck(
-                    check_id="clean_data", passed=False, weight=100, details="Missing rows"
+                    check_id=check_id,
+                    passed=False,
+                    weight=25,
+                    details_ar="لم يتم اجتياز الفحص.",
+                    details_en="Check failed.",
+                    diagnostic_code=f"{check_id}_failed",
+                )
+                for check_id in (
+                    "unique_orders",
+                    "standard_dates",
+                    "valid_numeric_values",
+                    "complete_customer_records",
                 )
             ],
             "errors": [EvaluationError(code="missing_data", message="Data is incomplete")],

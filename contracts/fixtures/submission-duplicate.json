@@ -4,10 +4,36 @@
   "evaluation": {
     "checks": [
       {
-        "check_id": "clean_data",
-        "details": null,
+        "check_id": "unique_orders",
+        "details_ar": "تم اجتياز الفحص.",
+        "details_en": "Check passed.",
+        "diagnostic_code": "unique_orders_passed",
         "passed": true,
-        "weight": 100
+        "weight": 25
+      },
+      {
+        "check_id": "standard_dates",
+        "details_ar": "تم اجتياز الفحص.",
+        "details_en": "Check passed.",
+        "diagnostic_code": "standard_dates_passed",
+        "passed": true,
+        "weight": 25
+      },
+      {
+        "check_id": "valid_numeric_values",
+        "details_ar": "تم اجتياز الفحص.",
+        "details_en": "Check passed.",
+        "diagnostic_code": "valid_numeric_values_passed",
+        "passed": true,
+        "weight": 25
+      },
+      {
+        "check_id": "complete_customer_records",
+        "details_ar": "تم اجتياز الفحص.",
+        "details_en": "Check passed.",
+        "diagnostic_code": "complete_customer_records_passed",
+        "passed": true,
+        "weight": 25
       }
     ],
     "duration_ms": 1500,
