@@ -175,6 +175,16 @@ def test_forward_migration_has_deterministic_recovery_contract() -> None:
     assert positions == sorted(positions)
 
 
+def test_rls_fixture_matches_retention_recovery_columns() -> None:
+    sql = (ROOT / "supabase/tests/database/rls.sql").read_text()
+    assert "select plan(49);" in sql
+    assert "identity_id, learner_id, provider, provider_subject, is_anonymous" in sql
+    assert "audit_id, requested_learner_id, learner_id, action, actor_id" in sql
+    assert "request_id, learner_id, requested_learner_id, auth_user_id, requested_by" in sql
+    assert sql.count("'web', '00000000-0000-0000-0000-0000000000a1', true") == 1
+    assert sql.count("'web', '00000000-0000-0000-0000-0000000000b2', true") == 1
+
+
 def test_script_bounds_and_reports_failures(monkeypatch) -> None:
     script_path = ROOT / "services/api/scripts/purge_expired_artifacts.py"
     spec = importlib.util.spec_from_file_location("purge_expired_artifacts", script_path)

@@ -15,12 +15,14 @@ insert into public.learners (
 ) values
     ('00000000-0000-0000-0000-000000000001', 'RLS learner A', 'en', 'READY', '1'),
     ('00000000-0000-0000-0000-000000000002', 'RLS learner B', 'en', 'READY', '1');
-insert into public.external_identities (identity_id, learner_id, provider, provider_subject)
+insert into public.external_identities (
+    identity_id, learner_id, provider, provider_subject, is_anonymous
+)
 values
     ('00000000-0000-0000-0000-000000000011',
-     '00000000-0000-0000-0000-000000000001', 'web', '00000000-0000-0000-0000-0000000000a1'),
+     '00000000-0000-0000-0000-000000000001', 'web', '00000000-0000-0000-0000-0000000000a1', true),
     ('00000000-0000-0000-0000-000000000012',
-     '00000000-0000-0000-0000-000000000002', 'web', '00000000-0000-0000-0000-0000000000b2');
+     '00000000-0000-0000-0000-000000000002', 'web', '00000000-0000-0000-0000-0000000000b2', true);
 insert into public.tasks (task_id, title)
 values ('rls-test-task', 'RLS test task');
 insert into public.task_versions (
@@ -121,14 +123,28 @@ insert into public.outbox_events (event_id, event_type, aggregate_id)
 values
     ('00000000-0000-0000-0000-000000000801', 'rls.test', '00000000-0000-0000-0000-000000000001'),
     ('00000000-0000-0000-0000-000000000802', 'rls.test', '00000000-0000-0000-0000-000000000002');
-insert into public.retention_audit (audit_id, learner_id, action, actor_id)
+insert into public.retention_audit (
+    audit_id, requested_learner_id, learner_id, action, actor_id
+)
 values
-    ('00000000-0000-0000-0000-000000000901', '00000000-0000-0000-0000-000000000001', 'PURGED', 'rls'),
-    ('00000000-0000-0000-0000-000000000902', '00000000-0000-0000-0000-000000000002', 'PURGED', 'rls');
-insert into public.learner_deletion_requests (request_id, learner_id, requested_by)
+    ('00000000-0000-0000-0000-000000000901',
+     '00000000-0000-0000-0000-000000000001',
+     '00000000-0000-0000-0000-000000000001', 'PURGED', 'rls'),
+    ('00000000-0000-0000-0000-000000000902',
+     '00000000-0000-0000-0000-000000000002',
+     '00000000-0000-0000-0000-000000000002', 'PURGED', 'rls');
+insert into public.learner_deletion_requests (
+    request_id, learner_id, requested_learner_id, auth_user_id, requested_by
+)
 values
-    ('00000000-0000-0000-0000-000000001001', '00000000-0000-0000-0000-000000000001', 'rls'),
-    ('00000000-0000-0000-0000-000000001002', '00000000-0000-0000-0000-000000000002', 'rls');
+    ('00000000-0000-0000-0000-000000001001',
+     '00000000-0000-0000-0000-000000000001',
+     '00000000-0000-0000-0000-000000000001',
+     '00000000-0000-0000-0000-0000000000a1', 'rls'),
+    ('00000000-0000-0000-0000-000000001002',
+     '00000000-0000-0000-0000-000000000002',
+     '00000000-0000-0000-0000-000000000002',
+     '00000000-0000-0000-0000-0000000000b2', 'rls');
 insert into public.artifact_cleanup_queue (
     cleanup_id, learner_id, artifact_id, object_path, sha256, size_bytes, reason
 ) values
