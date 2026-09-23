@@ -84,3 +84,8 @@ class TransactionReuse(PersistenceError):
 class SubmissionMismatch(PersistenceError):
     def __init__(self, message: str = "Submission does not match reservation") -> None:
         super().__init__("submission_mismatch", message)
+
+
+class TaskNotCurrent(PersistenceError):
+    def __init__(self) -> None:
+        super().__init__("task_not_current", "Submission task is not the learner's current task")

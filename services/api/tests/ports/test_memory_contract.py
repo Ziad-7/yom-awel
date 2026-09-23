@@ -226,7 +226,10 @@ async def test_learner_identity_uniqueness_scope_and_progress_cas(
             update={"version": 2, "current_status": LearnerStatus.READY}
         )
         await uow.learners.save_progress(progress_v2, expected_version=1)
-        assert await uow.learners.get_by_external_identity("telegram", "42") == first
+        identity_learner = await uow.learners.get_by_external_identity("telegram", "42")
+        assert identity_learner is not None
+        assert identity_learner.learner_id == first.learner_id
+        assert identity_learner.status == LearnerStatus.READY
         await uow.commit()
 
 

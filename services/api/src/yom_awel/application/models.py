@@ -20,6 +20,9 @@ class UploadAuthorizationResult(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     artifact_id: UUID
     expires_in_seconds: int
+    upload_url: str | None = None
+    upload_token: str | None = None
+    headers: dict[str, str] = Field(default_factory=dict)
 
 
 class CurrentTaskResult(BaseModel):

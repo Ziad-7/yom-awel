@@ -22,7 +22,7 @@ from yom_awel.domain.entities import (
     SubmissionReservation,
     Task,
 )
-from yom_awel.domain.enums import Channel, SubmissionStatus
+from yom_awel.domain.enums import Channel, LearnerStatus, SubmissionStatus
 from yom_awel.domain.errors import (
     FinalizationConflict,
     IdempotencyConflict,
@@ -35,6 +35,7 @@ from yom_awel.domain.errors import (
     TransactionReuse,
     UniqueConstraintViolation,
 )
+from yom_awel.ports.artifacts import ArtifactUploadAuthorization
 from yom_awel.ports.clock import Clock
 from yom_awel.ports.repositories import MAX_SUBMISSION_LEASE_SECONDS
 
@@ -58,7 +59,7 @@ class FrozenClock:
 @dataclass
 class _StoredArtifact:
     metadata: Artifact
-    content: bytes
+    content: bytes | None
 
 
 @dataclass
@@ -145,6 +146,10 @@ class _Learners(_MemoryRepository):
         elif current.version != expected_version or progress.version != expected_version + 1:
             raise OptimisticConflict("learner_progress")
         self._state.progress[progress.learner_id] = _copy(progress)
+        learner = self._state.learners[progress.learner_id]
+        self._state.learners[progress.learner_id] = learner.model_copy(
+            update={"status": progress.current_status, "updated_at": progress.updated_at}
+        )
 
 
 class _Tasks(_MemoryRepository):
@@ -228,6 +233,19 @@ class _Submissions(_MemoryRepository):
 
         if task_version_id not in state.tasks:
             raise NotFound("task_version")
+        progress = state.progress.get(learner_id)
+        if progress is not None:
+            if (
+                progress.current_task_id is not None
+                and progress.current_task_id != state.tasks[task_version_id].task_id
+            ):
+                raise SubmissionMismatch("Submission task is not the learner's current task")
+            if progress.current_status not in (
+                LearnerStatus.IN_TASK,
+                LearnerStatus.PROCESSING,
+                LearnerStatus.NEEDS_RETRY,
+            ):
+                raise SubmissionMismatch("Learner is not eligible for task submission")
         artifact = state.artifacts.get(artifact_id)
         if artifact is None:
             raise NotFound("artifact")
@@ -459,7 +477,27 @@ class _Artifacts(_MemoryRepository):
         stored = self._state.artifacts.get(artifact_id)
         if stored is None or stored.metadata.learner_id != learner_id:
             return None
-        return bytes(stored.content)
+        return None if stored.content is None else bytes(stored.content)
+
+    async def authorize_upload(
+        self, artifact: Artifact, *, expires_in_seconds: int = 300
+    ) -> ArtifactUploadAuthorization:
+        if expires_in_seconds < 1:
+            raise ValueError("expires_in_seconds must be positive")
+        existing = self._state.artifacts.get(artifact.artifact_id)
+        if existing is not None:
+            if existing.metadata != artifact:
+                raise UniqueConstraintViolation("artifacts.id")
+        else:
+            if artifact.learner_id not in self._state.learners:
+                raise LearnerScopeViolation("artifact.learner_id")
+            self._state.artifacts[artifact.artifact_id] = _StoredArtifact(_copy(artifact), None)
+        return ArtifactUploadAuthorization(
+            artifact=_copy(artifact),
+            upload_url=f"/artifacts/{artifact.learner_id}/{artifact.artifact_id}",
+            upload_token=None,
+            expires_in_seconds=expires_in_seconds,
+        )
 
     async def put(self, artifact: Artifact, content: bytes) -> Artifact:
         if len(content) != artifact.size_bytes:
@@ -468,8 +506,14 @@ class _Artifacts(_MemoryRepository):
             raise ValueError("content sha256 does not match artifact metadata")
         if artifact.learner_id not in self._state.learners:
             raise LearnerScopeViolation("artifact.learner_id")
-        if artifact.artifact_id in self._state.artifacts:
-            raise UniqueConstraintViolation("artifacts.id")
+        existing = self._state.artifacts.get(artifact.artifact_id)
+        if existing is not None:
+            if existing.metadata != artifact or existing.content is not None:
+                raise UniqueConstraintViolation("artifacts.id")
+            self._state.artifacts[artifact.artifact_id] = _StoredArtifact(
+                _copy(artifact), bytes(content)
+            )
+            return _copy(artifact)
         self._state.artifacts[artifact.artifact_id] = _StoredArtifact(
             _copy(artifact), bytes(content)
         )
@@ -546,6 +590,16 @@ class MemoryArtifactStore:
     async def get(self, artifact_id: UUID, learner_id: UUID) -> Artifact | None:
         async with self._factory() as uow:
             return await uow.artifacts.get(artifact_id, learner_id)
+
+    async def authorize_upload(
+        self, artifact: Artifact, *, expires_in_seconds: int = 300
+    ) -> ArtifactUploadAuthorization:
+        async with self._factory() as uow:
+            result = await uow.artifacts.authorize_upload(
+                artifact, expires_in_seconds=expires_in_seconds
+            )
+            await uow.commit()
+            return result
 
     async def download(self, artifact_id: UUID, learner_id: UUID) -> bytes | None:
         async with self._factory() as uow:

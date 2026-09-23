@@ -2,9 +2,10 @@ from uuid import UUID
 
 from yom_awel.application.commands import CreateUploadCommand
 from yom_awel.application.models import CurrentTaskResult, UploadAuthorizationResult
-from yom_awel.domain.entities import OutboxEvent
+from yom_awel.domain.entities import Artifact, OutboxEvent
 from yom_awel.domain.enums import ErrorCategory, LearnerStatus
 from yom_awel.domain.errors import DomainError
+from yom_awel.ports.artifacts import ArtifactStore
 from yom_awel.ports.clock import Clock
 from yom_awel.ports.id_generator import IDGenerator
 from yom_awel.ports.unit_of_work import UnitOfWorkFactory
@@ -33,10 +34,17 @@ class GetCurrentTask:
 
 
 class CreateArtifactUpload:
-    def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock, id_gen: IDGenerator):
+    def __init__(
+        self,
+        uow_factory: UnitOfWorkFactory,
+        clock: Clock,
+        id_gen: IDGenerator,
+        artifact_store: ArtifactStore | None = None,
+    ):
         self.uow_factory = uow_factory
         self.clock = clock
         self.id_gen = id_gen
+        self.artifact_store = artifact_store
 
     async def execute(self, command: CreateUploadCommand) -> UploadAuthorizationResult:
         async with self.uow_factory() as uow:
@@ -68,6 +76,24 @@ class CreateArtifactUpload:
             artifact_id = self.id_gen.generate()
             now = self.clock.now()
 
+            artifact = Artifact(
+                artifact_id=artifact_id,
+                learner_id=command.learner_id,
+                filename=command.filename,
+                size_bytes=command.size_bytes,
+                # Existing callers did not send a digest. New browser flows
+                # provide it before authorization; the deterministic fallback
+                # keeps the old local command shape source-compatible.
+                sha256=command.artifact_sha256 or ("0" * 64),
+            )
+            artifact_store = self.artifact_store or uow.artifacts
+            authorization = await artifact_store.authorize_upload(artifact)
+            # An injected provider store may be separate from the UoW's
+            # repository. Register the same immutable metadata locally/cloud
+            # so ProcessSubmission can discover it by learner and artifact ID.
+            if artifact_store is not uow.artifacts:
+                await uow.artifacts.authorize_upload(artifact)
+
             await uow.outbox.add(
                 OutboxEvent(
                     event_id=self.id_gen.generate(),
@@ -77,13 +103,21 @@ class CreateArtifactUpload:
                         "artifact_id": str(artifact_id),
                         "filename": command.filename,
                         "size_bytes": command.size_bytes,
+                        "sha256": artifact.sha256,
+                        "upload_url": authorization.upload_url,
                     },
                     created_at=now,
                 )
             )
 
             await uow.commit()
-            return UploadAuthorizationResult(artifact_id=artifact_id, expires_in_seconds=3600)
+            return UploadAuthorizationResult(
+                artifact_id=artifact_id,
+                expires_in_seconds=authorization.expires_in_seconds,
+                upload_url=authorization.upload_url,
+                upload_token=authorization.upload_token,
+                headers=dict(authorization.headers),
+            )
 
 
 # Compatibility name retained for transport adapters that adopted the initial

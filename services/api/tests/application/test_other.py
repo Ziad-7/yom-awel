@@ -131,6 +131,9 @@ async def test_authorize_upload():
         assert len(pending) == 1
         assert pending[0].event_type == "artifact.upload_authorized"
         assert pending[0].payload["artifact_id"] == str(res.artifact_id)
+        reserved = await uow.artifacts.get(res.artifact_id, learner_id)
+        assert reserved is not None
+        assert res.upload_url is not None
 
 
 @pytest.mark.asyncio
@@ -241,7 +244,10 @@ async def test_reset_demo_learner():
     await reset.execute(cmd)
 
     async with uow_factory() as uow:
+        learner = await uow.learners.get(learner_id)
         progress = await uow.learners.get_progress(learner_id)
+        assert learner is not None
+        assert learner.status == progress.current_status
         assert progress.current_status == LearnerStatus.ONBOARDING
         assert progress.current_task_id is None
         assert progress.reset_at == clock.now()

@@ -368,6 +368,14 @@ async def test_local_artifact_rpc_helper_accepts_empty_success_body(monkeypatch)
         "urlopen",
         lambda request, timeout: EmptyResponse(),
     )
+
+    async def direct_to_thread(func, /, *args, **kwargs):
+        # Keep this response-fixture unit test deterministic.  The real
+        # helper uses a worker for blocking HTTP, but creating the default
+        # executor here makes pytest-asyncio wait on executor teardown.
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(asyncio, "to_thread", direct_to_thread)
     metadata = LocalArtifactMetadata("http://supabase.invalid", "service-key")
     assert await metadata._rpc("resolve_artifact_cleanup", {}) is None
 
@@ -425,6 +433,37 @@ async def test_put_and_download_use_private_signed_uuid_path_and_hash_metadata()
     assert metadata.activated == [(learner_id, artifact_id, "artifact-uploader")]
     assert metadata.reserved[0]["upload_owner"] == "artifact-uploader"
     assert metadata.reserved[0]["upload_lease_seconds"] == 600
+
+
+@pytest.mark.asyncio
+async def test_authorize_upload_reserves_metadata_and_returns_signed_browser_details() -> None:
+    learner_id, artifact_id, content = uuid4(), uuid4(), b"hello"
+    value = artifact(learner_id, artifact_id, content)
+    row = artifact_row(value)
+    row["purge_status"] = "UPLOADING"
+    metadata = MetadataFake(row)
+    storage = StorageFake()
+    store = SupabaseArtifactStore(metadata, storage, upload_expiry_seconds=180)
+
+    result = await store.authorize_upload(value)
+
+    assert result.artifact == value
+    assert result.upload_url == "https://signed.invalid/upload"
+    assert result.upload_token == "opaque"
+    assert result.expires_in_seconds == 180
+    assert storage.upload_calls == [
+        (
+            PRIVATE_BUCKET,
+            generated_object_path(learner_id, artifact_id),
+            180,
+            {
+                "sha256": value.sha256,
+                "size_bytes": "5",
+                "upsert": "false",
+            },
+        )
+    ]
+    assert storage.content == b""
 
 
 @pytest.mark.asyncio

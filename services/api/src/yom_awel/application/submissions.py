@@ -138,6 +138,12 @@ class ProcessSubmission:
 
         try:
             async with self.uow_factory() as uow:
+                # SQLite uses this optional hook to serialize reservation
+                # snapshots before any learner/task reads. Cloud adapters do
+                # the equivalent locking inside their reservation RPC.
+                acquire_submission_lock = getattr(uow, "acquire_submission_lock", None)
+                if acquire_submission_lock is not None:
+                    await acquire_submission_lock()
                 learner = await uow.learners.get(command.learner_id)
                 if not learner:
                     raise DomainError(
@@ -157,6 +163,44 @@ class ProcessSubmission:
                         category=ErrorCategory.VALIDATION,
                         retryable=False,
                     )
+
+                existing_reservation = await uow.submissions.get_reservation(
+                    command.learner_id, command.idempotency_key
+                )
+                existing_is_replay = existing_reservation is not None and (
+                    existing_reservation.status == SubmissionStatus.COMPLETED
+                    or existing_reservation.lease_expires_at > self.clock.now()
+                )
+                if not existing_is_replay:
+                    progress = await uow.learners.get_progress(command.learner_id)
+                    if progress is None:
+                        raise DomainError(
+                            "progress_not_found",
+                            "Progress not found",
+                            category=ErrorCategory.VALIDATION,
+                            retryable=False,
+                        )
+                    if (
+                        progress.current_task_id is not None
+                        and progress.current_task_id != task_version.task_id
+                    ):
+                        raise DomainError(
+                            "task_not_current",
+                            "Submission task is not the learner's current task",
+                            category=ErrorCategory.VALIDATION,
+                            retryable=False,
+                        )
+                    if progress.current_status not in (
+                        LearnerStatus.IN_TASK,
+                        LearnerStatus.PROCESSING,
+                        LearnerStatus.NEEDS_RETRY,
+                    ):
+                        raise DomainError(
+                            "invalid_status",
+                            "Learner is not eligible for task submission",
+                            category=ErrorCategory.VALIDATION,
+                            retryable=False,
+                        )
 
                 artifact = await uow.artifacts.get(command.artifact_id, command.learner_id)
                 if not artifact:
@@ -236,7 +280,7 @@ class ProcessSubmission:
 
         try:
             eval_result = await self.evaluator.evaluate(task_version, artifact_ref)
-        except Exception as e:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             # Expire lock on evaluation failure
             await _expire_reservation(
                 self.uow_factory,
@@ -247,7 +291,11 @@ class ProcessSubmission:
             )
             raise DomainError(
                 code="evaluation_failed",
-                message=str(e),
+                message=(
+                    "تعذر تقييم الملف حالياً. يرجى المحاولة مرة أخرى."
+                    if lang == "ar-EG"
+                    else "We could not evaluate the file right now. Please try again."
+                ),
                 category=ErrorCategory.EVALUATION,
                 retryable=True,
             )

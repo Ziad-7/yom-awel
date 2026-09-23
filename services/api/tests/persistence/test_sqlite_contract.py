@@ -203,6 +203,9 @@ async def test_rollback_and_progress_cas_parity(factory) -> None:
     async with factory() as uow:
         progress = await uow.learners.get_progress(learner_id)
         assert progress is not None and progress.version == 1
+        learner = await uow.learners.get(learner_id)
+        assert learner is not None
+        assert learner.status == progress.current_status
 
     transient = Learner(
         learner_id=uuid4(),
