@@ -2,6 +2,7 @@ from uuid import UUID
 
 from yom_awel.application.commands import CreateUploadCommand
 from yom_awel.application.models import CurrentTaskResult, UploadAuthorizationResult
+from yom_awel.domain.contracts import MAX_ARTIFACT_BYTES
 from yom_awel.domain.entities import OutboxEvent
 from yom_awel.domain.enums import ErrorCategory, LearnerStatus
 from yom_awel.domain.errors import DomainError
@@ -57,10 +58,18 @@ class AuthorizeUpload:
                     retryable=False,
                 )
 
-            if not command.filename or command.size_bytes > 5 * 1024 * 1024:
+            if not command.filename:
                 raise DomainError(
                     code="invalid_artifact",
                     message="Artifact invalid",
+                    category=ErrorCategory.VALIDATION,
+                    retryable=False,
+                )
+
+            if command.size_bytes > MAX_ARTIFACT_BYTES:
+                raise DomainError(
+                    code="artifact_too_large",
+                    message="Artifact exceeds the upload size limit",
                     category=ErrorCategory.VALIDATION,
                     retryable=False,
                 )

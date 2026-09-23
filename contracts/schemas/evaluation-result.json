@@ -2,23 +2,27 @@
   "$defs": {
     "EvaluationCheck": {
       "additionalProperties": false,
+      "description": "One rubric item. ``detail_ar``/``detail_en`` are learner-safe; ``diagnostic_code``\nis a stable internal code for support and analytics and is never shown to learners.",
       "properties": {
         "check_id": {
           "minLength": 1,
           "title": "Check Id",
           "type": "string"
         },
-        "details": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Details"
+        "detail_ar": {
+          "minLength": 1,
+          "title": "Detail Ar",
+          "type": "string"
+        },
+        "detail_en": {
+          "minLength": 1,
+          "title": "Detail En",
+          "type": "string"
+        },
+        "diagnostic_code": {
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "title": "Diagnostic Code",
+          "type": "string"
         },
         "passed": {
           "title": "Passed",
@@ -33,7 +37,10 @@
       "required": [
         "check_id",
         "passed",
-        "weight"
+        "weight",
+        "detail_ar",
+        "detail_en",
+        "diagnostic_code"
       ],
       "title": "EvaluationCheck",
       "type": "object"

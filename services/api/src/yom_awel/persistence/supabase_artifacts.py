@@ -11,12 +11,12 @@ from uuid import UUID
 
 from pydantic import ValidationError
 
+from yom_awel.domain.contracts import MAX_ARTIFACT_BYTES
 from yom_awel.domain.entities import Artifact
 from yom_awel.domain.errors import PersistenceError
 from yom_awel.persistence.retention import CleanupArtifact, CleanupQueueStore
 from yom_awel.persistence.supabase import SupabaseRpcClient
 
-MAX_ARTIFACT_BYTES = 5 * 1024 * 1024
 PRIVATE_BUCKET = "submissions"
 
 

@@ -10,6 +10,7 @@ import pytest
 from pydantic import BaseModel, ValidationError
 
 from yom_awel.domain.contracts import (
+    MAX_ARTIFACT_BYTES,
     ApplicationError,
     ArtifactRef,
     EvaluationCheck,
@@ -31,7 +32,7 @@ VALID_ARTIFACT_REF = ArtifactRef(
     size_bytes=1024,
     sha256="a" * 64,
 )
-VALID_SKILL_MAPPING = SkillMapping(skill_id="data_cleaning", check_id="clean_data", weight=25)
+VALID_SKILL_MAPPING = SkillMapping(skill_id="data_cleaning", check_id="unique_orders", weight=25)
 VALID_TASK_VERSION = TaskVersion(
     task_version_id=UUID("00000000-0000-0000-0000-000000000001"),
     task_id="clean-sales",
@@ -55,7 +56,7 @@ VALID_TASK_VERSION = TaskVersion(
 VALID_EVALUATION_RESULT = EvaluationResult.model_validate_json(
     (ROOT / "contracts" / "fixtures" / "evaluation-pass.json").read_text(encoding="utf-8")
 )
-VALID_EVALUATION_CHECK = EvaluationCheck(check_id="clean_data", passed=True, weight=100)
+VALID_EVALUATION_CHECK = VALID_EVALUATION_RESULT.checks[0]
 VALID_EVALUATION_ERROR = EvaluationError(code="invalid", message="bad")
 VALID_FEEDBACK_RESULT = FeedbackResult.model_validate_json(
     (ROOT / "contracts" / "fixtures" / "feedback-generated.json").read_text(encoding="utf-8")
@@ -129,7 +130,7 @@ def test_fallback_fixture_matches_member_three_consumer_contract() -> None:
         (VALID_EVALUATION_RESULT, "duration_ms", -1),
         (VALID_FEEDBACK_RESULT, "duration_ms", -1),
         (VALID_ARTIFACT_REF, "size_bytes", -1),
-        (VALID_ARTIFACT_REF, "size_bytes", 5 * 1024 * 1024 + 1),
+        (VALID_ARTIFACT_REF, "size_bytes", MAX_ARTIFACT_BYTES + 1),
         (VALID_ARTIFACT_REF, "sha256", "A" * 64),
         (VALID_TASK_VERSION, "version", ""),
         (VALID_TASK_VERSION, "instructions_ar", ""),
@@ -142,6 +143,10 @@ def test_fallback_fixture_matches_member_three_consumer_contract() -> None:
         (VALID_SKILL_MAPPING, "skill_id", ""),
         (VALID_SKILL_MAPPING, "check_id", ""),
         (VALID_SKILL_MAPPING, "weight", -1),
+        (VALID_EVALUATION_CHECK, "detail_ar", ""),
+        (VALID_EVALUATION_CHECK, "detail_en", ""),
+        (VALID_EVALUATION_CHECK, "diagnostic_code", ""),
+        (VALID_EVALUATION_CHECK, "diagnostic_code", "Unique-Orders"),
     ],
 )
 def test_contract_boundaries_reject_invalid_values(
@@ -160,7 +165,7 @@ def test_artifact_boundary_accepts_zero_and_five_mib() -> None:
         "sha256": "a" * 64,
     }
     assert ArtifactRef(**common, size_bytes=0).size_bytes == 0
-    assert ArtifactRef(**common, size_bytes=5 * 1024 * 1024).size_bytes == 5 * 1024 * 1024
+    assert ArtifactRef(**common, size_bytes=MAX_ARTIFACT_BYTES).size_bytes == MAX_ARTIFACT_BYTES
 
 
 @pytest.mark.parametrize(
@@ -212,8 +217,10 @@ def test_contract_boundaries_reject_coercible_primitives(
         (VALID_EVALUATION_RESULT, ("evaluator_version",), 1),
         (VALID_EVALUATION_RESULT, ("summary_ar",), b"arabic-summary"),
         (VALID_EVALUATION_RESULT, ("summary_en",), 123),
-        (VALID_EVALUATION_CHECK, ("check_id",), b"clean_data"),
-        (VALID_EVALUATION_CHECK, ("details",), 123),
+        (VALID_EVALUATION_CHECK, ("check_id",), b"unique_orders"),
+        (VALID_EVALUATION_CHECK, ("detail_ar",), b"arabic-detail"),
+        (VALID_EVALUATION_CHECK, ("detail_en",), 123),
+        (VALID_EVALUATION_CHECK, ("diagnostic_code",), b"unique_orders_ok"),
         (VALID_EVALUATION_ERROR, ("code",), b"invalid"),
         (VALID_EVALUATION_ERROR, ("message",), 123),
         (VALID_FEEDBACK_RESULT, ("feedback_text",), b"Good job!"),
@@ -306,3 +313,30 @@ def test_generation_scripts_are_root_relative_and_deterministic() -> None:
         subprocess.run([sys.executable, str(script)], cwd=ROOT, check=True, env=environment)
     after_second_run = {path: path.read_bytes() for path in fixture_paths + schema_paths}
     assert after_second_run == original
+
+
+CLEAN_SALES_CHECK_IDS = [
+    "unique_orders",
+    "standard_dates",
+    "valid_numeric_values",
+    "complete_customer_records",
+]
+
+
+def load_fixture(name: str) -> str:
+    return (ROOT / "contracts" / "fixtures" / name).read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("name", ["evaluation-pass.json", "evaluation-fail.json"])
+def test_clean_sales_evaluation_fixtures_use_the_four_rubric_checks(name: str) -> None:
+    result = EvaluationResult.model_validate_json(load_fixture(name))
+    assert [check.check_id for check in result.checks] == CLEAN_SALES_CHECK_IDS
+    assert sum(check.weight for check in result.checks) == 100
+    assert result.score == sum(check.weight for check in result.checks if check.passed)
+    assert result.passed == (result.score >= VALID_TASK_VERSION.pass_threshold)
+
+
+def test_clean_sales_skill_mappings_cover_every_rubric_check() -> None:
+    task_version = TaskVersion.model_validate_json(load_fixture("task-version-clean-sales.json"))
+    assert [mapping.check_id for mapping in task_version.skill_mappings] == (CLEAN_SALES_CHECK_IDS)
+    assert sum(mapping.weight for mapping in task_version.skill_mappings) == 100

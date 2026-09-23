@@ -14,10 +14,10 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from yom_awel.domain.contracts import MAX_ARTIFACT_BYTES
 from yom_awel.domain.entities import Artifact
 from yom_awel.persistence.retention import CleanupArtifact
 from yom_awel.persistence.supabase_artifacts import (
-    MAX_ARTIFACT_BYTES,
     PRIVATE_BUCKET,
     ArtifactReservation,
     SupabaseArtifactError,

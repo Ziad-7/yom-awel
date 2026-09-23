@@ -32,6 +32,43 @@ def dump_fixture(filename: str, model_cls: type[BaseModel], **kwargs: Any) -> No
         f.write("\n")
 
 
+CHECK_WEIGHT = 25
+CLEAN_SALES_CHECK_IDS = (
+    "unique_orders",
+    "standard_dates",
+    "valid_numeric_values",
+    "complete_customer_records",
+)
+FAILED_CHECK_IDS = frozenset({"unique_orders", "standard_dates"})
+CHECK_DETAILS = {
+    "unique_orders": ("كل رقم طلب لازم يظهر مرة واحدة.", "Each order ID must appear once."),
+    "standard_dates": (
+        "كل التواريخ لازم تكون بصيغة YYYY-MM-DD.",
+        "Every date must use YYYY-MM-DD.",
+    ),
+    "valid_numeric_values": (
+        "الكميات والأسعار والإيرادات لازم تكون قيم صحيحة.",
+        "Quantities, prices, and revenue must be valid values.",
+    ),
+    "complete_customer_records": (
+        "كل عميل لازم يكون له بريد أو سبب لغيابه.",
+        "Every customer needs an email or a reason it is missing.",
+    ),
+}
+
+
+def clean_sales_check(check_id: str, *, passed: bool) -> EvaluationCheck:
+    detail_ar, detail_en = CHECK_DETAILS[check_id]
+    return EvaluationCheck(
+        check_id=check_id,
+        passed=passed,
+        weight=CHECK_WEIGHT,
+        detail_ar=detail_ar,
+        detail_en=detail_en,
+        diagnostic_code=f"{check_id}_{'ok' if passed else 'failed'}",
+    )
+
+
 def main() -> None:
     task_version_id = UUID("00000000-0000-0000-0000-000000000001")
     submission_id = UUID("00000000-0000-0000-0000-000000000002")
@@ -55,7 +92,10 @@ def main() -> None:
         evaluator_id="sales-cleaning",
         evaluator_version="1",
         pass_threshold=75,
-        skill_mappings=[SkillMapping(skill_id="data_cleaning", check_id="clean_data", weight=25)],
+        skill_mappings=[
+            SkillMapping(skill_id="data_cleaning", check_id=check_id, weight=CHECK_WEIGHT)
+            for check_id in CLEAN_SALES_CHECK_IDS
+        ],
         content_hash="b" * 64,
     )
     dump_fixture("task-version-clean-sales.json", TaskVersion, **task_version.model_dump())
@@ -66,7 +106,7 @@ def main() -> None:
         "task_version_id": task_version_id,
         "passed": True,
         "score": 100,
-        "checks": [EvaluationCheck(check_id="clean_data", passed=True, weight=100)],
+        "checks": [clean_sales_check(check_id, passed=True) for check_id in CLEAN_SALES_CHECK_IDS],
         "errors": [],
         "summary_ar": "نجاح",
         "summary_en": "Success",
@@ -78,11 +118,10 @@ def main() -> None:
     eval_fail.update(
         {
             "passed": False,
-            "score": 0,
+            "score": 50,
             "checks": [
-                EvaluationCheck(
-                    check_id="clean_data", passed=False, weight=100, details="Missing rows"
-                )
+                clean_sales_check(check_id, passed=check_id not in FAILED_CHECK_IDS)
+                for check_id in CLEAN_SALES_CHECK_IDS
             ],
             "errors": [EvaluationError(code="missing_data", message="Data is incomplete")],
             "summary_ar": "فشل",
@@ -135,7 +174,7 @@ def main() -> None:
             "feedback": FeedbackResult(**feedback_fallback),
             "learner_status": LearnerStatus.NEEDS_RETRY,
             "task_status": TaskStatus.ACTIVE,
-            "skills": [SkillSummary(skill_id="data_cleaning", score=0)],
+            "skills": [SkillSummary(skill_id="data_cleaning", score=50)],
         }
     )
     dump_fixture("submission-fail.json", SubmissionOutcome, **sub_fail)

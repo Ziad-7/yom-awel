@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from yom_awel.domain.contracts import (
+    MAX_ARTIFACT_BYTES,
     EvaluationResult,
     FeedbackResult,
     SkillSummary,
@@ -42,7 +43,7 @@ class Artifact(BaseModel):
     artifact_id: UUID
     learner_id: UUID
     filename: str = Field(strict=True, min_length=1, max_length=255)
-    size_bytes: int = Field(strict=True, ge=0, le=5 * 1024 * 1024)
+    size_bytes: int = Field(strict=True, ge=0, le=MAX_ARTIFACT_BYTES)
     sha256: str = Field(strict=True, pattern=r"^[a-f0-9]{64}$")
     model_config = ConfigDict(frozen=True, extra="forbid")
 

@@ -25,7 +25,22 @@
   "pass_threshold": 75,
   "skill_mappings": [
     {
-      "check_id": "clean_data",
+      "check_id": "unique_orders",
+      "skill_id": "data_cleaning",
+      "weight": 25
+    },
+    {
+      "check_id": "standard_dates",
+      "skill_id": "data_cleaning",
+      "weight": 25
+    },
+    {
+      "check_id": "valid_numeric_values",
+      "skill_id": "data_cleaning",
+      "weight": 25
+    },
+    {
+      "check_id": "complete_customer_records",
       "skill_id": "data_cleaning",
       "weight": 25
     }

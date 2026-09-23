@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -17,7 +18,9 @@ from yom_awel.domain.contracts import (
 from yom_awel.domain.entities import Artifact, Learner, LearnerProgress, TaskVersion
 from yom_awel.domain.enums import Channel, LearnerStatus
 from yom_awel.domain.errors import DomainError
-from yom_awel.persistence.memory import MemoryUnitOfWorkFactory
+from yom_awel.persistence.memory import MemoryUnitOfWorkFactory, _Artifacts
+
+ARTIFACT_CONTENT = b"order_id\n1\n"
 
 
 class FakeClock:
@@ -43,9 +46,11 @@ class FakeEvaluator:
         self.exception = None
         self.started: asyncio.Event | None = None
         self.release: asyncio.Event | None = None
+        self.received_content: bytes | None = None
 
-    async def evaluate(self, task_version, artifact):
+    async def evaluate(self, task_version, artifact, content):
         self.call_count += 1
+        self.received_content = content
         if self.started:
             self.started.set()
         if self.release:
@@ -81,7 +86,7 @@ def base_setup():
 async def seed_data(base_setup):
     uow_factory, evaluator, feedback, clock, id_gen = base_setup
     learner_id, task_id, artifact_id = uuid4(), uuid4(), uuid4()
-    empty_hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    content_hash = hashlib.sha256(ARTIFACT_CONTENT).hexdigest()
 
     async with uow_factory() as uow:
         await uow.learners.add(
@@ -113,11 +118,11 @@ async def seed_data(base_setup):
             Artifact(
                 artifact_id=artifact_id,
                 learner_id=learner_id,
-                filename="a.txt",
-                size_bytes=0,
-                sha256=empty_hash,
+                filename="a.csv",
+                size_bytes=len(ARTIFACT_CONTENT),
+                sha256=content_hash,
             ),
-            b"",
+            ARTIFACT_CONTENT,
         )
         await uow.learners.save_progress(
             LearnerProgress(
@@ -134,7 +139,7 @@ async def seed_data(base_setup):
         learner_id=learner_id,
         task_version_id=task_id,
         artifact_id=artifact_id,
-        artifact_sha256=empty_hash,
+        artifact_sha256=content_hash,
         channel=Channel.WEB,
         idempotency_key="key1",
     )
@@ -156,7 +161,16 @@ async def test_concurrent_same_key(base_setup):
         task_version_id=cmd.task_version_id,
         passed=True,
         score=100,
-        checks=[EvaluationCheck(check_id="c1", passed=True, weight=10, details=None)],
+        checks=[
+            EvaluationCheck(
+                check_id="c1",
+                passed=True,
+                weight=10,
+                detail_ar="ت",
+                detail_en="d",
+                diagnostic_code="c1",
+            )
+        ],
         errors=[],
         summary_ar="ar",
         summary_en="en",
@@ -197,6 +211,7 @@ async def test_concurrent_same_key(base_setup):
     assert res2.submission_id == res1.submission_id
 
     assert evaluator.call_count == 1
+    assert evaluator.received_content == ARTIFACT_CONTENT
     assert feedback.call_count == 1
 
     async with uow_factory() as uow:
@@ -370,7 +385,16 @@ async def test_failed_evaluation_no_skill_evidence(base_setup):
         task_version_id=cmd.task_version_id,
         passed=False,
         score=10,
-        checks=[EvaluationCheck(check_id="c1", passed=True, weight=10, details=None)],
+        checks=[
+            EvaluationCheck(
+                check_id="c1",
+                passed=True,
+                weight=10,
+                detail_ar="ت",
+                detail_en="d",
+                diagnostic_code="c1",
+            )
+        ],
         errors=[],
         summary_ar="ar",
         summary_en="en",
@@ -393,6 +417,28 @@ async def test_failed_evaluation_no_skill_evidence(base_setup):
     async with uow_factory() as uow:
         evidence = await uow.skills.list_evidence(cmd.learner_id)
         assert len(evidence) == 0
+
+
+@pytest.mark.asyncio
+async def test_missing_artifact_content_releases_reservation_without_evaluating(
+    base_setup, monkeypatch
+):
+    cmd, uow_factory, evaluator, feedback, clock, id_gen = await seed_data(base_setup)
+    process = ProcessSubmission(uow_factory, evaluator, feedback, clock, id_gen)
+
+    async def content_purged(self, artifact_id, learner_id):
+        return None
+
+    monkeypatch.setattr(_Artifacts, "download", content_purged)
+
+    with pytest.raises(DomainError) as exc:
+        await process.execute(cmd, "owner1")
+    assert exc.value.code == "artifact_not_found"
+    assert evaluator.call_count == 0
+
+    async with uow_factory() as uow:
+        res = await uow.submissions.get_reservation(cmd.learner_id, cmd.idempotency_key)
+        assert res.lease_expires_at <= clock.now()
 
 
 @pytest.mark.asyncio

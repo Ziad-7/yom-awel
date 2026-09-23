@@ -5,11 +5,15 @@ from pydantic import AfterValidator, BaseModel, ConfigDict, Field, JsonValue
 
 from yom_awel.domain.enums import ErrorCategory, LearnerStatus, TaskStatus
 
+MAX_ARTIFACT_BYTES = 5 * 1024 * 1024
+"""Upload size limit. The upload use case rejects larger files with the stable
+``artifact_too_large`` error, so an oversized file never becomes an ``ArtifactRef``."""
+
 
 class ArtifactRef(BaseModel):
     artifact_id: UUID
     filename: str = Field(strict=True, max_length=255)
-    size_bytes: int = Field(strict=True, ge=0, le=5 * 1024 * 1024)
+    size_bytes: int = Field(strict=True, ge=0, le=MAX_ARTIFACT_BYTES)
     sha256: str = Field(strict=True, pattern=r"^[a-f0-9]{64}$")
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -128,10 +132,15 @@ class TaskVersion(BaseModel):
 
 
 class EvaluationCheck(BaseModel):
+    """One rubric item. ``detail_ar``/``detail_en`` are learner-safe; ``diagnostic_code``
+    is a stable internal code for support and analytics and is never shown to learners."""
+
     check_id: str = Field(strict=True, min_length=1)
     passed: bool = Field(strict=True)
     weight: int = Field(strict=True, ge=0)
-    details: str | None = Field(default=None, strict=True)
+    detail_ar: str = Field(strict=True, min_length=1)
+    detail_en: str = Field(strict=True, min_length=1)
+    diagnostic_code: str = Field(strict=True, pattern=r"^[a-z][a-z0-9_]*$")
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 

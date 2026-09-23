@@ -7,8 +7,10 @@ from yom_awel.application.admin import ResetDemoLearner
 from yom_awel.application.commands import CreateUploadCommand, ResetDemoLearnerCommand
 from yom_awel.application.profiles import GetSkillsProfile
 from yom_awel.application.tasks import AuthorizeUpload, GetCurrentTask
+from yom_awel.domain.contracts import MAX_ARTIFACT_BYTES
 from yom_awel.domain.entities import Learner, LearnerProgress, SkillEvidence, TaskVersion
-from yom_awel.domain.enums import LearnerStatus
+from yom_awel.domain.enums import ErrorCategory, LearnerStatus
+from yom_awel.domain.errors import DomainError
 from yom_awel.persistence.memory import MemoryUnitOfWorkFactory
 
 
@@ -74,13 +76,8 @@ async def test_get_current_task():
     assert res.task.task_version_id == task_id
 
 
-@pytest.mark.asyncio
-async def test_authorize_upload():
-    uow_factory = MemoryUnitOfWorkFactory()
-    clock = FakeClock()
-    id_gen = FakeIDGenerator()
+async def seed_learner_in_task(uow_factory: MemoryUnitOfWorkFactory, clock: FakeClock):
     learner_id = uuid4()
-
     async with uow_factory() as uow:
         await uow.learners.add(
             Learner(
@@ -102,8 +99,16 @@ async def test_authorize_upload():
             expected_version=0,
         )
         await uow.commit()
+    return learner_id
 
-    auth = AuthorizeUpload(uow_factory, clock, id_gen)
+
+@pytest.mark.asyncio
+async def test_authorize_upload():
+    uow_factory = MemoryUnitOfWorkFactory()
+    clock = FakeClock()
+    learner_id = await seed_learner_in_task(uow_factory, clock)
+
+    auth = AuthorizeUpload(uow_factory, clock, FakeIDGenerator())
     cmd = CreateUploadCommand(learner_id=learner_id, filename="test.txt", size_bytes=100)
     res = await auth.execute(cmd)
 
@@ -115,6 +120,39 @@ async def test_authorize_upload():
         assert len(pending) == 1
         assert pending[0].event_type == "artifact.upload_authorized"
         assert pending[0].payload["artifact_id"] == str(res.artifact_id)
+
+
+@pytest.mark.asyncio
+async def test_authorize_upload_accepts_exactly_the_size_limit():
+    uow_factory = MemoryUnitOfWorkFactory()
+    clock = FakeClock()
+    learner_id = await seed_learner_in_task(uow_factory, clock)
+
+    auth = AuthorizeUpload(uow_factory, clock, FakeIDGenerator())
+    cmd = CreateUploadCommand(
+        learner_id=learner_id, filename="sales.xlsx", size_bytes=MAX_ARTIFACT_BYTES
+    )
+
+    assert (await auth.execute(cmd)).artifact_id is not None
+
+
+@pytest.mark.asyncio
+async def test_authorize_upload_rejects_one_byte_over_the_limit_with_stable_code():
+    uow_factory = MemoryUnitOfWorkFactory()
+    clock = FakeClock()
+    learner_id = await seed_learner_in_task(uow_factory, clock)
+
+    auth = AuthorizeUpload(uow_factory, clock, FakeIDGenerator())
+    cmd = CreateUploadCommand(
+        learner_id=learner_id, filename="sales.xlsx", size_bytes=MAX_ARTIFACT_BYTES + 1
+    )
+
+    with pytest.raises(DomainError) as exc:
+        await auth.execute(cmd)
+    assert exc.value.code == "artifact_too_large"
+    assert exc.value.details == {"category": ErrorCategory.VALIDATION, "retryable": False}
+    async with uow_factory() as uow:
+        assert await uow.outbox.pending() == []
 
 
 @pytest.mark.asyncio

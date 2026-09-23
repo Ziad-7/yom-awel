@@ -200,9 +200,25 @@ class ProcessSubmission:
             task_version = await tmp_uow.tasks.get(command.task_version_id)
             if not task_version:
                 raise RuntimeError("Task vanished")
+            content = await tmp_uow.artifacts.download(command.artifact_id, command.learner_id)
+
+        if content is None:
+            await _expire_reservation(
+                self.uow_factory,
+                command.learner_id,
+                command.idempotency_key,
+                res.version,
+                lease_owner,
+            )
+            raise DomainError(
+                "artifact_not_found",
+                "Artifact not found",
+                category=ErrorCategory.VALIDATION,
+                retryable=False,
+            )
 
         try:
-            eval_result = await self.evaluator.evaluate(task_version, artifact_ref)
+            eval_result = await self.evaluator.evaluate(task_version, artifact_ref, content)
         except Exception as e:  # noqa: BLE001
             # Expire lock on evaluation failure
             await _expire_reservation(

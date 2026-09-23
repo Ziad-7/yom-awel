@@ -4,10 +4,36 @@
   "evaluation": {
     "checks": [
       {
-        "check_id": "clean_data",
-        "details": null,
+        "check_id": "unique_orders",
+        "detail_ar": "كل رقم طلب لازم يظهر مرة واحدة.",
+        "detail_en": "Each order ID must appear once.",
+        "diagnostic_code": "unique_orders_ok",
         "passed": true,
-        "weight": 100
+        "weight": 25
+      },
+      {
+        "check_id": "standard_dates",
+        "detail_ar": "كل التواريخ لازم تكون بصيغة YYYY-MM-DD.",
+        "detail_en": "Every date must use YYYY-MM-DD.",
+        "diagnostic_code": "standard_dates_ok",
+        "passed": true,
+        "weight": 25
+      },
+      {
+        "check_id": "valid_numeric_values",
+        "detail_ar": "الكميات والأسعار والإيرادات لازم تكون قيم صحيحة.",
+        "detail_en": "Quantities, prices, and revenue must be valid values.",
+        "diagnostic_code": "valid_numeric_values_ok",
+        "passed": true,
+        "weight": 25
+      },
+      {
+        "check_id": "complete_customer_records",
+        "detail_ar": "كل عميل لازم يكون له بريد أو سبب لغيابه.",
+        "detail_en": "Every customer needs an email or a reason it is missing.",
+        "diagnostic_code": "complete_customer_records_ok",
+        "passed": true,
+        "weight": 25
       }
     ],
     "duration_ms": 1500,
