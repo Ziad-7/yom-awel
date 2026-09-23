@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from yom_awel.domain.contracts import (
     EvaluationCheck,
     EvaluationError,
@@ -9,6 +11,25 @@ from yom_awel.domain.contracts import (
 )
 from yom_awel.domain.enums import Language
 from yom_awel.feedback.prompt import ProviderRequest, build_provider_request
+
+
+@pytest.mark.parametrize("field", ["check_id", "diagnostic_code", "error_code"])
+@pytest.mark.parametrize("marker", ["ahmed_salary_900", "customer_ahmed", "api_key_private_value"])
+def test_identifier_fields_are_allowlisted_not_just_syntax_checked(
+    task: TaskVersion, failed_evaluation: EvaluationResult, field: str, marker: str
+) -> None:
+    data = failed_evaluation.model_dump(mode="json")
+    if field == "error_code":
+        data["errors"][0]["code"] = marker
+    else:
+        data["checks"][0][field] = marker
+    request = build_provider_request(task, EvaluationResult.model_validate(data), None)
+    assert marker not in request.serialized()
+    if field == "error_code":
+        assert request.structured_evaluation.errors[0].code == "unknown_error"
+    else:
+        expected = "unknown_check" if field == "check_id" else "unknown_diagnostic"
+        assert getattr(request.structured_evaluation.checks[0], field) == expected
 
 
 def test_prompt_redacts_pii_paths_secrets_and_delimits_injection(

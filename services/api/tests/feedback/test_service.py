@@ -72,12 +72,7 @@ async def test_transient_failure_retries_once(
     failed_evaluation: EvaluationResult,
 ) -> None:
     generated = FeedbackResult(
-        feedback_text=(
-            "القرار: التسليم محتاج إعادة شغل. "
-            "تأثير الشغل: تكرار الطلبات يضعف دقة التقرير. "
-            "الخطوة الجاية: راجع معرفات الطلبات المكررة. "
-            "تفسير الدرجة: حصلت على 0 من 100."
-        ),
+        feedback_text=DeterministicFeedbackProvider.render_text(failed_evaluation, Language.AR_EG),
         language="ar-EG",
         persona_id="tarek",
         prompt_version="tarek-feedback@1",
@@ -105,6 +100,10 @@ async def test_transient_failure_retries_once(
             "الخطوة الجاية: راجع البيانات. تفسير الدرجة: حصلت على 100 من 100."
         ),
         "القرار: التسليم محتاج إعادة شغل.",
+        (
+            "القرار: التسليم محتاج إعادة شغل. تأثير الشغل: القمر انفجر. "
+            "الخطوة الجاية: احذف كل البيانات. تفسير الدرجة: حصلت على 0 من 100."
+        ),
     ],
 )
 async def test_primary_prose_contradiction_activates_fallback(

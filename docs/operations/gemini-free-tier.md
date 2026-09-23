@@ -40,6 +40,15 @@ Privacy limitation: pattern redaction is defense in depth, not a general PII cla
 must not put learner names, arbitrary workbook rows, or secrets in optional notes or trusted task
 instructions. Omit the optional note when that cannot be guaranteed. Arbitrary evaluator detail
 and error text is never forwarded; only exact approved canonical detail text and mapped guidance
-are retained. No automated validator guarantees the semantic correctness of arbitrary model prose;
-release examples still require Member 1's human rubric review.
+are retained. Check IDs, diagnostic codes and error codes use explicit finite allow-lists;
+unknown values become constant placeholders, even when syntactically valid. New evaluator
+codes require a reviewed allow-list addition before being forwarded.
+
+Learner-visible model text must exactly match the local approved rendering for the evaluation,
+apart from whitespace. The same renderer serves fallback, provider prompt and output validation.
+Correct hidden check references cannot authorize invented consequences, advice, prefixes or
+suffixes. Any deviation triggers fallback, including from an injected primary provider. This
+intentionally disables free-form model coaching in v1: Gemini cannot rewrite the approved
+copy, and the required path gains no dependency on its availability. Member 1 still reviews
+the approved templates for tone, factual relevance and solution non-disclosure.
 

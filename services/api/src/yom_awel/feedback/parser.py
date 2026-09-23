@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from yom_awel.domain.contracts import EvaluationResult, FeedbackResult
 from yom_awel.domain.enums import Language
 from yom_awel.feedback.errors import ProviderResponseError
+from yom_awel.feedback.fallback import DeterministicFeedbackProvider
 from yom_awel.feedback.policy import ACTIVE_FEEDBACK_POLICY
 
 _ARABIC = re.compile(r"[\u0600-\u06ff]")
@@ -114,3 +115,6 @@ def validate_grounded_feedback(
         raise ProviderResponseError("text_contradiction")
     if not re.search(score_pattern, sections[3]):
         raise ProviderResponseError("text_contradiction")
+    approved = DeterministicFeedbackProvider.render_text(evaluation, language)
+    if text != " ".join(approved.split()):
+        raise ProviderResponseError("unapproved_feedback_text")

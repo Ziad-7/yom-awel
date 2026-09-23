@@ -8,6 +8,22 @@ Prepared description for replacement PR #21; supersedes stale PR #4. GitHub PR m
 and closing #4 returned HTTP 403 (`Resource not accessible by integration`) on 2026-09-23.
 This file records the completed template even while those remote administrative actions are blocked.
 
+### Member 2 follow-up, 2026-09-24
+
+[Review 5295816836](https://github.com/Ziad-7/yom-awel/pull/21#pullrequestreview-5295816836)
+identified two real gaps in `b458d55` despite green CI. Both are fixed forward:
+
+- Identifier fields now use explicit finite allow-lists, not a syntax regex. Unknown check IDs,
+  diagnostic codes and error codes map to constant placeholders. Nine adversarial cases cover
+  syntactically valid synthetic private values in all three fields.
+- Learner-visible text must match the deterministic approved rendering for that evaluation
+  after whitespace normalization. The same pure renderer supplies fallback and the prompt's
+  approved text. Parser and resilient-chain validation reject invented prose even with correct
+  hidden IDs; prefix/suffix injection is rejected too. Free-form model coaching is deliberately
+  disabled in v1; this does not claim a semantic classifier can verify arbitrary prose.
+- This document is the completed PR description. Remote publication is a separate permission
+  check; no approval or review-thread resolution is claimed.
+
 ## Linked issue
 
 - [Canonical consumer coordination #5](https://github.com/Ziad-7/yom-awel/issues/5)
@@ -82,7 +98,7 @@ later milestone, not a feature implemented or approved by this PR.
 
 ## Verification performed
 
-- [x] Focused unit tests pass (78 feedback tests).
+- [x] Focused unit tests pass (91 feedback tests).
 - [x] Contract tests pass as part of the root suite.
 - [x] Available local integration tests pass in the root suite; 13 environment-dependent tests skip.
 - [x] Automated security/privacy regressions pass; limitations documented in the operations guide.
@@ -95,9 +111,9 @@ Commands from repository root:
 
 ```text
 uv run --project services/api pytest services/api/tests/feedback -q
-  78 passed
+  91 passed
 uv run --project services/api pytest -q
-  314 passed, 13 skipped
+  327 passed, 13 skipped
 uv run --project services/api ruff check services/api
   passed
 uv run --project services/api ruff format --check services/api
@@ -137,7 +153,7 @@ request. Evaluator free text is replaced by approved mappings; bounded optional 
 redacted/escaped/delimited. Known identifiers, storage URLs and key patterns are redacted before
 truncation. This is not a universal PII classifier: callers must omit notes if arbitrary personal
 or workbook data cannot be excluded. Logs exclude prompt/response bodies and exception messages.
-Human quality review is still required for semantic grounding and solution non-disclosure.
+Human quality review of the approved templates is still required for tone and solution non-disclosure.
 
 ## Zero-cost impact
 

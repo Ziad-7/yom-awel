@@ -21,12 +21,7 @@ class FakeGeminiClient:
         self.timeout_seconds = timeout_seconds
         return json.dumps(
             {
-                "feedback_text": (
-                    "القرار: التسليم محتاج إعادة شغل. "
-                    "تأثير الشغل: تكرار الطلبات يضخم إجمالي المبيعات. "
-                    "الخطوة الجاية: راجع معرفات الطلبات المكررة قبل إعادة التسليم. "
-                    "تفسير الدرجة: حصلت على 0 من 100."
-                ),
+                "feedback_text": json.loads(prompt)["approved_feedback_text"],
                 "language": "ar-EG",
                 "decision": "retry",
                 "score": 0,

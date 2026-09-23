@@ -45,8 +45,24 @@ class DeterministicFeedbackProvider(FeedbackProvider):
     ) -> FeedbackResult:
         del learner_note
         started = self._clock()
+        text = self.render_text(evaluation, language)
+        duration_ms = max(0, round((self._clock() - started) * 1000))
+        return FeedbackResult(
+            feedback_text=text,
+            language=language.value,
+            persona_id=ACTIVE_FEEDBACK_POLICY.persona_id,
+            prompt_version=ACTIVE_FEEDBACK_POLICY.version,
+            provider="deterministic",
+            model=None,
+            used_fallback=True,
+            duration_ms=duration_ms,
+        )
+
+    @staticmethod
+    def render_text(evaluation: EvaluationResult, language: Language) -> str:
+        """The sole approved learner-visible rendering for this evaluation."""
         if language is Language.EN:
-            text = self._english_text(evaluation)
+            text = DeterministicFeedbackProvider._english_text(evaluation)
         elif evaluation.passed:
             text = (
                 "القرار: التسليم مقبول.\n"
@@ -79,19 +95,9 @@ class DeterministicFeedbackProvider(FeedbackProvider):
                 f"الخطوة الجاية: {'؛ '.join(actions)}.\n"
                 f"تفسير الدرجة: حصلت على {evaluation.score} من 100 حسب الفحوصات المحددة."
             )
-        duration_ms = max(0, round((self._clock() - started) * 1000))
         if len(text) > ACTIVE_FEEDBACK_POLICY.maximum_characters:
-            text = self._short_text(evaluation, language)
-        return FeedbackResult(
-            feedback_text=text,
-            language=language.value,
-            persona_id=ACTIVE_FEEDBACK_POLICY.persona_id,
-            prompt_version=ACTIVE_FEEDBACK_POLICY.version,
-            provider="deterministic",
-            model=None,
-            used_fallback=True,
-            duration_ms=duration_ms,
-        )
+            text = DeterministicFeedbackProvider._short_text(evaluation, language)
+        return text
 
     @staticmethod
     def _english_text(evaluation: EvaluationResult) -> str:

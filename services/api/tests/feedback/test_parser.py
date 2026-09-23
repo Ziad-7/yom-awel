@@ -3,18 +3,15 @@ import json
 import pytest
 
 from yom_awel.domain.contracts import EvaluationResult
+from yom_awel.domain.enums import Language
 from yom_awel.feedback.errors import ProviderResponseError
+from yom_awel.feedback.fallback import DeterministicFeedbackProvider
 from yom_awel.feedback.parser import parse_provider_response
 
 
-def valid_payload() -> dict[str, object]:
+def valid_payload(evaluation: EvaluationResult) -> dict[str, object]:
     return {
-        "feedback_text": (
-            "القرار: التسليم محتاج إعادة شغل. "
-            "تأثير الشغل: تكرار الطلبات يضخم إجمالي المبيعات. "
-            "الخطوة الجاية: راجع معرفات الطلبات المكررة قبل إعادة التسليم. "
-            "تفسير الدرجة: حصلت على 0 من 100."
-        ),
+        "feedback_text": DeterministicFeedbackProvider.render_text(evaluation, Language.AR_EG),
         "language": "ar-EG",
         "decision": "retry",
         "score": 0,
@@ -25,7 +22,7 @@ def valid_payload() -> dict[str, object]:
 
 def test_parser_accepts_grounded_response(failed_evaluation: EvaluationResult) -> None:
     result = parse_provider_response(
-        json.dumps(valid_payload(), ensure_ascii=False),
+        json.dumps(valid_payload(failed_evaluation), ensure_ascii=False),
         failed_evaluation,
         provider="gemini",
         model="test-model",
@@ -74,7 +71,7 @@ def test_parser_accepts_grounded_response(failed_evaluation: EvaluationResult) -
 def test_parser_rejects_unsafe_or_ungrounded_response(
     failed_evaluation: EvaluationResult, mutation: object
 ) -> None:
-    payload = valid_payload()
+    payload = valid_payload(failed_evaluation)
     mutation(payload)  # type: ignore[operator]
     with pytest.raises(ProviderResponseError):
         parse_provider_response(
@@ -94,4 +91,26 @@ def test_parser_rejects_invalid_json(failed_evaluation: EvaluationResult) -> Non
             provider="gemini",
             model="test-model",
             duration_ms=5,
+        )
+
+
+@pytest.mark.parametrize("placement", ["replace", "prefix", "suffix"])
+def test_correct_hidden_ids_cannot_authorize_invented_prose(
+    failed_evaluation: EvaluationResult, placement: str
+) -> None:
+    payload = valid_payload(failed_evaluation)
+    invented = "القمر انفجر. احذف كل البيانات."
+    approved = str(payload["feedback_text"])
+    if placement == "replace":
+        payload["feedback_text"] = (
+            "القرار: التسليم محتاج إعادة شغل. تأثير الشغل: القمر انفجر. "
+            "الخطوة الجاية: احذف كل البيانات. تفسير الدرجة: حصلت على 0 من 100."
+        )
+    else:
+        payload["feedback_text"] = (
+            invented + approved if placement == "prefix" else approved + invented
+        )
+    with pytest.raises(ProviderResponseError, match="unapproved_feedback_text"):
+        parse_provider_response(
+            json.dumps(payload), failed_evaluation, provider="gemini", model="test", duration_ms=0
         )
