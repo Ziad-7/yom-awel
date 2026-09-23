@@ -118,6 +118,15 @@ async def _seed(factory):
 
 
 @pytest.mark.asyncio
+async def test_sqlite_download_validates_and_returns_content(tmp_path: Path) -> None:
+    factory = SQLiteUnitOfWorkFactory(tmp_path / "artifact-download.sqlite", clock=FrozenClock(NOW))
+    learner_id, _, artifact = await _seed(factory)
+
+    async with factory() as uow:
+        assert await uow.artifacts.download(artifact.artifact_id, learner_id) == b"hello"
+
+
+@pytest.mark.asyncio
 async def test_reservation_idempotency_reclaim_and_finalize_parity(factory) -> None:
     learner_id, task, artifact = await _seed(factory)
     async with factory() as uow:
