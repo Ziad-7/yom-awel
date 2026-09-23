@@ -1,0 +1,68 @@
+{
+  "attempt_id": "00000000-0000-0000-0000-000000000003",
+  "attempt_number": 1,
+  "evaluation": {
+    "checks": [
+      {
+        "check_id": "unique_orders",
+        "details_ar": "تم اجتياز الفحص.",
+        "details_en": "Check passed.",
+        "diagnostic_code": "unique_orders_passed",
+        "passed": true,
+        "weight": 25
+      },
+      {
+        "check_id": "standard_dates",
+        "details_ar": "تم اجتياز الفحص.",
+        "details_en": "Check passed.",
+        "diagnostic_code": "standard_dates_passed",
+        "passed": true,
+        "weight": 25
+      },
+      {
+        "check_id": "valid_numeric_values",
+        "details_ar": "تم اجتياز الفحص.",
+        "details_en": "Check passed.",
+        "diagnostic_code": "valid_numeric_values_passed",
+        "passed": true,
+        "weight": 25
+      },
+      {
+        "check_id": "complete_customer_records",
+        "details_ar": "تم اجتياز الفحص.",
+        "details_en": "Check passed.",
+        "diagnostic_code": "complete_customer_records_passed",
+        "passed": true,
+        "weight": 25
+      }
+    ],
+    "duration_ms": 1500,
+    "errors": [],
+    "evaluator_id": "sales-cleaning",
+    "evaluator_version": "1",
+    "passed": true,
+    "score": 100,
+    "summary_ar": "نجاح",
+    "summary_en": "Success",
+    "task_version_id": "00000000-0000-0000-0000-000000000001"
+  },
+  "feedback": {
+    "duration_ms": 2000,
+    "feedback_text": "Good job!",
+    "language": "en",
+    "model": "gemini-1.5-flash",
+    "persona_id": "tarek",
+    "prompt_version": "tarek-feedback@1",
+    "provider": "gemini",
+    "used_fallback": false
+  },
+  "learner_status": "TASK_COMPLETED",
+  "skills": [
+    {
+      "score": 100,
+      "skill_id": "data_cleaning"
+    }
+  ],
+  "submission_id": "00000000-0000-0000-0000-000000000002",
+  "task_status": "COMPLETED"
+}

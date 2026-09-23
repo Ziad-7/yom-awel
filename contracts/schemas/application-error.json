@@ -1,0 +1,45 @@
+{
+  "$defs": {
+    "ErrorCategory": {
+      "enum": [
+        "validation",
+        "authorization",
+        "evaluation",
+        "provider",
+        "persistence",
+        "external_channel",
+        "infrastructure",
+        "domain"
+      ],
+      "title": "ErrorCategory",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "category": {
+      "$ref": "#/$defs/ErrorCategory"
+    },
+    "code": {
+      "minLength": 1,
+      "title": "Code",
+      "type": "string"
+    },
+    "message": {
+      "title": "Message",
+      "type": "string"
+    },
+    "retryable": {
+      "title": "Retryable",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "code",
+    "category",
+    "message",
+    "retryable"
+  ],
+  "title": "ApplicationError",
+  "type": "object"
+}

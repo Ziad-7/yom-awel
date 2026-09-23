@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: UV Lock Check
+        run: cd services/api && uv lock --check
+      - name: Sync dependencies
+        run: cd services/api && uv sync --locked --group dev
+      - name: Pre-commit
+        run: uv run --project services/api pre-commit run --all-files
+      - name: Ruff format
+        run: uv run --project services/api ruff format --check services/api
+      - name: Ruff lint
+        run: uv run --project services/api ruff check services/api
+      - name: Mypy
+        run: uv run --project services/api mypy --config-file services/api/pyproject.toml services/api/src/yom_awel
+      - name: Pytest
+        run: uv run --project services/api pytest
+      - name: Schema Export and diff
+        run: |
+          uv run --project services/api python services/api/scripts/export_schemas.py
+          git diff --exit-code

@@ -1,0 +1,73 @@
+{
+  "attempt_id": "00000000-0000-0000-0000-000000000003",
+  "attempt_number": 1,
+  "evaluation": {
+    "checks": [
+      {
+        "check_id": "unique_orders",
+        "details_ar": "لم يتم اجتياز الفحص.",
+        "details_en": "Check failed.",
+        "diagnostic_code": "unique_orders_failed",
+        "passed": false,
+        "weight": 25
+      },
+      {
+        "check_id": "standard_dates",
+        "details_ar": "لم يتم اجتياز الفحص.",
+        "details_en": "Check failed.",
+        "diagnostic_code": "standard_dates_failed",
+        "passed": false,
+        "weight": 25
+      },
+      {
+        "check_id": "valid_numeric_values",
+        "details_ar": "لم يتم اجتياز الفحص.",
+        "details_en": "Check failed.",
+        "diagnostic_code": "valid_numeric_values_failed",
+        "passed": false,
+        "weight": 25
+      },
+      {
+        "check_id": "complete_customer_records",
+        "details_ar": "لم يتم اجتياز الفحص.",
+        "details_en": "Check failed.",
+        "diagnostic_code": "complete_customer_records_failed",
+        "passed": false,
+        "weight": 25
+      }
+    ],
+    "duration_ms": 1500,
+    "errors": [
+      {
+        "code": "missing_data",
+        "message": "Data is incomplete"
+      }
+    ],
+    "evaluator_id": "sales-cleaning",
+    "evaluator_version": "1",
+    "passed": false,
+    "score": 0,
+    "summary_ar": "فشل",
+    "summary_en": "Failure",
+    "task_version_id": "00000000-0000-0000-0000-000000000001"
+  },
+  "feedback": {
+    "duration_ms": 2000,
+    "feedback_text": "Fallback message",
+    "language": "ar-EG",
+    "model": null,
+    "persona_id": "tarek",
+    "prompt_version": "tarek-feedback@1",
+    "provider": "deterministic",
+    "used_fallback": true
+  },
+  "learner_status": "NEEDS_RETRY",
+  "skills": [
+    {
+      "score": 0,
+      "skill_id": "data_cleaning"
+    }
+  ],
+  "submission_id": "00000000-0000-0000-0000-000000000002",
+  "task_status": "ACTIVE"
+}

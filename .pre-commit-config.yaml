@@ -1,0 +1,27 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: Ruff format check
+        entry: uv run --project services/api ruff format --check
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+      - id: ruff-lint
+        name: Ruff lint
+        entry: uv run --project services/api ruff check
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+      - id: mypy
+        name: strict mypy
+        entry: uv run --project services/api mypy --config-file services/api/pyproject.toml services/api/src/yom_awel
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+      - id: pytest
+        name: full pytest
+        entry: uv run --project services/api pytest
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
