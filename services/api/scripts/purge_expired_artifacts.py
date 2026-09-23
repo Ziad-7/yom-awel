@@ -15,12 +15,16 @@ import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from urllib.error import HTTPError
-from urllib.parse import quote
-from urllib.request import Request, urlopen
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from yom_awel.persistence.retention import ArtifactCleanupService, CleanupRun, ObjectDeleter
+from yom_awel.persistence.retention import (
+    ArtifactCleanupService,
+    CleanupRun,
+    RetentionService,
+    SupabaseAuthAdminClient,
+    SupabaseObjectDeleter,
+    SupabaseRetentionStore,
+)
 from yom_awel.persistence.supabase_artifacts import SupabaseCleanupQueue
 
 
@@ -59,47 +63,49 @@ class _HttpRpc:
         return await asyncio.to_thread(request)
 
 
-class _HttpStorageDeleter(ObjectDeleter):
-    def __init__(self, base_url: str, service_key: str) -> None:
-        self._base_url = base_url.rstrip("/")
-        self._service_key = service_key
-
-    async def delete(self, object_path: str) -> None:
-        # Queue rows are server-produced UUID/UUID paths. Revalidate before
-        # constructing a URL so a compromised row cannot target another key.
-        parts = object_path.split("/")
-        if len(parts) != 2:
-            raise ValueError("invalid queued artifact path")
-        UUID(parts[0])
-        UUID(parts[1])
-
-        def request() -> None:
-            http_request = Request(
-                f"{self._base_url}/storage/v1/object/submissions/{quote(object_path, safe='/')}",
-                headers={
-                    "apikey": self._service_key,
-                    "Authorization": f"Bearer {self._service_key}",
-                },
-                method="DELETE",
-            )
-            try:
-                with urlopen(http_request, timeout=15):
-                    return
-            except HTTPError as error:
-                error.read()
-                if error.code == 404:
-                    raise FileNotFoundError(object_path) from error
-                raise OSError("storage deletion failed") from error
-
-        await asyncio.to_thread(request)
-
-
 async def _run_cleanup(
     base_url: str, service_key: str, owner: str, limit: int, lease: int
 ) -> CleanupRun:
-    queue = SupabaseCleanupQueue(_HttpRpc(base_url, service_key))
-    worker = ArtifactCleanupService(queue, _HttpStorageDeleter(base_url, service_key))
-    return await worker.run_once(datetime.now(UTC), owner, limit, lease)
+    rpc = _HttpRpc(base_url, service_key)
+    queue = SupabaseCleanupQueue(rpc)
+    object_deleter = SupabaseObjectDeleter(base_url, service_key)
+    now = datetime.now(UTC)
+
+    # Keep the order explicit: orphan queue first, then normal expired rows.
+    orphan_result = await ArtifactCleanupService(queue, object_deleter).run_once(
+        now, owner, limit, lease
+    )
+    retention = SupabaseRetentionStore(rpc)
+    expired_result = await RetentionService(
+        retention, object_deleter
+    ).run_once(now, owner, limit, lease)
+
+    # Auth deletion is deliberately last.  The RPC erases application data
+    # only after locking the request/identity and proving no unresolved rows.
+    auth = SupabaseAuthAdminClient(base_url, service_key)
+    auth_failed = 0
+    claims = await retention.claim_deletion_requests(owner, limit)
+    for request_id, learner_id, auth_user_id in claims:
+        try:
+            reconciled = await retention.reconcile_anonymous(learner_id, owner, now)
+            if not reconciled:
+                auth_failed += 1
+                await retention.finalize_deletion_request(request_id, owner, False)
+                continue
+            await auth.delete_user(auth_user_id)
+            await retention.finalize_deletion_request(request_id, owner, True)
+        except Exception:  # noqa: BLE001
+            auth_failed += 1
+            try:
+                await retention.finalize_deletion_request(request_id, owner, False)
+            except Exception:  # noqa: BLE001
+                pass
+
+    return CleanupRun(
+        claimed=orphan_result.claimed + expired_result.claimed,
+        resolved=orphan_result.resolved + expired_result.purged,
+        failed=orphan_result.failed + expired_result.failed + auth_failed,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -119,13 +125,25 @@ def main(argv: list[str] | None = None) -> int:
     if args.dry_run or not base_url or not service_key:
         print("retention cleanup: safe no-op; server-only backend is not configured")
         return 0
-    owner = os.getenv("RETENTION_WORKER_ID", "github-retention")
-    result = asyncio.run(_run_cleanup(base_url, service_key, owner, args.limit, args.lease_seconds))
+    configured_owner = os.getenv("RETENTION_WORKER_ID")
+    try:
+        owner = str(UUID(configured_owner)) if configured_owner else str(uuid4())
+    except ValueError:
+        parser.error("RETENTION_WORKER_ID must be a UUID")
+    try:
+        result = asyncio.run(
+            _run_cleanup(base_url, service_key, owner, args.limit, args.lease_seconds)
+        )
+    except Exception:  # noqa: BLE001
+        # Keep provider details and credentials out of CI logs; the non-zero
+        # status is the operational alert and causes a retry/manual recovery.
+        print("retention cleanup failed")
+        return 1
     print(
         "retention cleanup completed: "
         f"claimed={result.claimed} resolved={result.resolved} failed={result.failed}"
     )
-    return 0
+    return 1 if result.failed else 0
 
 
 if __name__ == "__main__":

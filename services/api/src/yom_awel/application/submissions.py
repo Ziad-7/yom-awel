@@ -1,4 +1,7 @@
 import hashlib
+import logging
+from collections.abc import Awaitable, Callable
+from datetime import datetime
 from typing import Literal, cast
 from uuid import UUID
 
@@ -38,6 +41,8 @@ from yom_awel.ports.evaluation import Evaluator
 from yom_awel.ports.feedback import FeedbackProvider
 from yom_awel.ports.id_generator import IDGenerator
 from yom_awel.ports.unit_of_work import UnitOfWorkFactory
+
+logger = logging.getLogger(__name__)
 
 
 def generate_fingerprint(command: ProcessSubmissionCommand) -> str:
@@ -98,12 +103,14 @@ class ProcessSubmission:
         feedback: FeedbackProvider,
         clock: Clock,
         id_gen: IDGenerator,
+        post_commit_cleanup: Callable[[datetime], Awaitable[None]] | None = None,
     ):
         self.uow_factory = uow_factory
         self.evaluator = evaluator
         self.feedback = feedback
         self.clock = clock
         self.id_gen = id_gen
+        self.post_commit_cleanup = post_commit_cleanup
 
     async def execute(
         self, command: ProcessSubmissionCommand, lease_owner: str
@@ -357,6 +364,18 @@ class ProcessSubmission:
                     outcome=outcome,
                 )
                 await uow_fin.commit()
+                # The submission is accepted once its transaction commits.
+                # Retention is bounded opportunistic maintenance and must
+                # never turn a successful submission into a failed request.
+                if self.post_commit_cleanup is not None:
+                    try:
+                        await self.post_commit_cleanup(now)
+                    except Exception as error:  # noqa: BLE001
+                        # Log only the exception type: provider messages may
+                        # contain sensitive infrastructure details.
+                        logger.warning(
+                            "post_commit_retention_cleanup_failed: %s", type(error).__name__
+                        )
                 return outcome
 
         except (
