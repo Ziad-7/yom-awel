@@ -15,11 +15,39 @@ from yom_awel.domain.contracts import (
 )
 from yom_awel.domain.entities import Artifact, Learner, LearnerProgress
 from yom_awel.domain.enums import Channel, LearnerStatus, TaskStatus
-from yom_awel.domain.errors import IdempotencyConflict, OptimisticConflict
+from yom_awel.domain.errors import (
+    ArtifactIntegrityFailure,
+    ArtifactNotReady,
+    IdempotencyConflict,
+    LearnerNotEligible,
+    OptimisticConflict,
+    TaskNotCurrent,
+)
+from yom_awel.persistence.memory import MemoryUnitOfWorkFactory
 from yom_awel.persistence.sqlite import SQLiteUnitOfWorkFactory
 from yom_awel.persistence.supabase import SupabaseSubmissionRepository
 
 NOW = datetime(2026, 9, 23, 12, tzinfo=UTC)
+
+
+def test_forward_reservation_migration_replays_before_progress_gate() -> None:
+    root = Path(__file__).resolve().parents[4]
+    sql = (root / "supabase/migrations/20260923170000_reservation_replay_order.sql").read_text(
+        encoding="utf-8"
+    )
+
+    existing_lookup = sql.index(
+        "from public.submissions\n"
+        "    where learner_id = p_learner_id and idempotency_key = p_idempotency_key\n"
+        "    for update;"
+    )
+    completed_replay = sql.index("if current_row.status = 'COMPLETED'")
+    progress_gate = sql.index(
+        "if progress_row.current_status not in ('IN_TASK', 'PROCESSING', 'NEEDS_RETRY')"
+    )
+
+    assert existing_lookup < completed_replay < progress_gate
+    assert "raise exception 'idempotency fingerprint conflict'" in sql[:progress_gate]
 
 
 def _task(task_version_id: UUID) -> TaskVersion:
@@ -214,3 +242,92 @@ async def test_supabase_finalize_cas_is_shared_domain_conflict() -> None:
         await repository.reserve(
             uuid4(), uuid4(), uuid4(), Channel.WEB, "key", "e" * 64, 60, "worker"
         )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("message", "expected"),
+    [
+        ("submission task is not learner current task", TaskNotCurrent),
+        ("learner is not eligible for task submission", LearnerNotEligible),
+    ],
+)
+async def test_supabase_reserve_maps_task_state_errors_to_domain_validation(
+    message: str, expected: type[Exception]
+) -> None:
+    from dataclasses import dataclass
+
+    @dataclass
+    class Response:
+        data: object
+        error: object | None = None
+
+    class Rpc:
+        async def rpc(self, function: str, params: dict[str, object]) -> Response:
+            return Response(None, {"code": "22023", "message": message})
+
+    repository = SupabaseSubmissionRepository(Rpc())
+    with pytest.raises(expected):
+        await repository.reserve(
+            uuid4(), uuid4(), uuid4(), Channel.WEB, "key", "e" * 64, 60, "worker"
+        )
+
+
+@pytest.mark.asyncio
+async def test_memory_upload_must_be_complete_before_artifact_is_visible() -> None:
+    factory = MemoryUnitOfWorkFactory()
+    learner_id, artifact_id = uuid4(), uuid4()
+    content = b"browser upload"
+    import hashlib
+
+    artifact = Artifact(
+        artifact_id=artifact_id,
+        learner_id=learner_id,
+        filename="upload.txt",
+        size_bytes=len(content),
+        sha256=hashlib.sha256(content).hexdigest(),
+    )
+    async with factory() as uow:
+        await uow.learners.add(
+            Learner(
+                learner_id=learner_id,
+                display_name="Learner",
+                preferred_language="en",
+                status=LearnerStatus.IN_TASK,
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        )
+        await uow.artifacts.authorize_upload(artifact)
+        await uow.commit()
+
+    async with factory() as uow:
+        assert await uow.artifacts.get(artifact_id, learner_id) is None
+        with pytest.raises(ArtifactNotReady):
+            await uow.artifacts.complete_upload(artifact_id, learner_id)
+        await uow.artifacts.put(artifact, content)
+        await uow.commit()
+
+    async with factory() as uow:
+        assert await uow.artifacts.complete_upload(artifact_id, learner_id) == artifact
+        assert await uow.artifacts.get(artifact_id, learner_id) == artifact
+
+    other_factory = MemoryUnitOfWorkFactory()
+    async with other_factory() as uow:
+        await uow.learners.add(
+            Learner(
+                learner_id=learner_id,
+                display_name="Learner",
+                preferred_language="en",
+                status=LearnerStatus.IN_TASK,
+                created_at=NOW,
+                updated_at=NOW,
+            )
+        )
+        await uow.artifacts.authorize_upload(artifact)
+        assert uow._snapshot is not None
+        uow._snapshot.artifacts[artifact_id].content = b"tampered"
+        await uow.commit()
+    async with other_factory() as uow:
+        with pytest.raises(ArtifactIntegrityFailure):
+            await uow.artifacts.complete_upload(artifact_id, learner_id)

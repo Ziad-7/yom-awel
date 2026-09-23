@@ -1,7 +1,11 @@
 from uuid import UUID
 
 from yom_awel.application.commands import CreateUploadCommand
-from yom_awel.application.models import CurrentTaskResult, UploadAuthorizationResult
+from yom_awel.application.models import (
+    CurrentTaskResult,
+    UploadAuthorizationResult,
+    UploadCompletionResult,
+)
 from yom_awel.domain.entities import Artifact, OutboxEvent
 from yom_awel.domain.enums import ErrorCategory, LearnerStatus
 from yom_awel.domain.errors import DomainError
@@ -81,10 +85,7 @@ class CreateArtifactUpload:
                 learner_id=command.learner_id,
                 filename=command.filename,
                 size_bytes=command.size_bytes,
-                # Existing callers did not send a digest. New browser flows
-                # provide it before authorization; the deterministic fallback
-                # keeps the old local command shape source-compatible.
-                sha256=command.artifact_sha256 or ("0" * 64),
+                sha256=command.artifact_sha256,
             )
             artifact_store = self.artifact_store or uow.artifacts
             authorization = await artifact_store.authorize_upload(artifact)
@@ -104,7 +105,6 @@ class CreateArtifactUpload:
                         "filename": command.filename,
                         "size_bytes": command.size_bytes,
                         "sha256": artifact.sha256,
-                        "upload_url": authorization.upload_url,
                     },
                     created_at=now,
                 )
@@ -118,6 +118,25 @@ class CreateArtifactUpload:
                 upload_token=authorization.upload_token,
                 headers=dict(authorization.headers),
             )
+
+
+class CompleteArtifactUpload:
+    """Verify one browser upload and make it eligible for submission."""
+
+    def __init__(
+        self,
+        uow_factory: UnitOfWorkFactory,
+        artifact_store: ArtifactStore | None = None,
+    ):
+        self.uow_factory = uow_factory
+        self.artifact_store = artifact_store
+
+    async def execute(self, learner_id: UUID, artifact_id: UUID) -> UploadCompletionResult:
+        async with self.uow_factory() as uow:
+            store = self.artifact_store or uow.artifacts
+            artifact = await store.complete_upload(artifact_id, learner_id)
+            await uow.commit()
+            return UploadCompletionResult(artifact_id=artifact.artifact_id)
 
 
 # Compatibility name retained for transport adapters that adopted the initial

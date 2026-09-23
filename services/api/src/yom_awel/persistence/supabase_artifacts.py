@@ -12,7 +12,7 @@ from uuid import UUID
 from pydantic import ValidationError
 
 from yom_awel.domain.entities import Artifact
-from yom_awel.domain.errors import PersistenceError
+from yom_awel.domain.errors import ArtifactIntegrityFailure, ArtifactNotReady, PersistenceError
 from yom_awel.persistence.retention import CleanupArtifact, CleanupQueueStore
 from yom_awel.persistence.supabase import SupabaseRpcClient
 from yom_awel.ports.artifacts import ArtifactUploadAuthorization
@@ -299,7 +299,7 @@ class SupabaseArtifactStore:
             raise SupabaseArtifactError("supabase_provider_error") from exc
         if row is None:
             return None
-        if row.get("purge_status") not in {"ACTIVE", "UPLOADING", "PURGE_FAILED"}:
+        if row.get("purge_status") != "ACTIVE":
             return None
         return map_artifact_row(row, learner_id)
 
@@ -362,6 +362,46 @@ class SupabaseArtifactStore:
             raise
         except Exception as exc:
             raise SupabaseArtifactError("supabase_provider_error") from exc
+
+    async def complete_upload(self, artifact_id: UUID, learner_id: UUID) -> Artifact:
+        """Verify the browser-uploaded object before activating its metadata."""
+
+        try:
+            row = await self._metadata.select_artifact(artifact_id, learner_id)
+        except Exception as exc:
+            raise SupabaseArtifactError("supabase_provider_error") from exc
+        if row is None:
+            raise ArtifactNotReady()
+        status = row.get("purge_status")
+        artifact = map_artifact_row(row, learner_id)
+        if status == "ACTIVE":
+            return artifact
+        if status != "UPLOADING":
+            raise ArtifactNotReady()
+
+        path = generated_object_path(learner_id, artifact_id)
+        try:
+            signed = await self._storage.create_signed_download_url(
+                PRIVATE_BUCKET, path, self._download_expiry
+            )
+            content = await self._storage.download_with_signed_url(signed)
+        except Exception as exc:
+            raise SupabaseArtifactError("supabase_provider_error") from exc
+        if (
+            len(content) != artifact.size_bytes
+            or hashlib.sha256(content).hexdigest() != artifact.sha256
+        ):
+            raise ArtifactIntegrityFailure()
+        try:
+            await self._metadata.activate_artifact(learner_id, artifact_id, self._upload_owner)
+        except Exception as exc:
+            raise SupabaseArtifactError("supabase_provider_error") from exc
+        await self._best_effort_resolve(learner_id, artifact_id)
+        activated_row = dict(row)
+        activated_row["purge_status"] = "ACTIVE"
+        activated_row["purge_lease_owner"] = None
+        activated_row["purge_lease_expires_at"] = None
+        return map_artifact_row(activated_row, learner_id)
 
     async def put(self, artifact: Artifact, content: bytes) -> Artifact:
         if len(content) != artifact.size_bytes or len(content) > MAX_ARTIFACT_BYTES:

@@ -1,3 +1,4 @@
+import hashlib
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -6,8 +7,12 @@ import pytest
 from yom_awel.application.admin import ResetDemoLearner
 from yom_awel.application.commands import CreateUploadCommand, ResetDemoLearnerCommand
 from yom_awel.application.profiles import GetSkillsProfile
-from yom_awel.application.tasks import CreateArtifactUpload, GetCurrentTask
-from yom_awel.domain.entities import Learner, LearnerProgress, SkillEvidence, TaskVersion
+from yom_awel.application.tasks import (
+    CompleteArtifactUpload,
+    CreateArtifactUpload,
+    GetCurrentTask,
+)
+from yom_awel.domain.entities import Artifact, Learner, LearnerProgress, SkillEvidence, TaskVersion
 from yom_awel.domain.enums import LearnerStatus
 from yom_awel.persistence.memory import MemoryUnitOfWorkFactory
 
@@ -120,7 +125,14 @@ async def test_authorize_upload():
         await uow.commit()
 
     auth = CreateArtifactUpload(uow_factory, clock, id_gen)
-    cmd = CreateUploadCommand(learner_id=learner_id, filename="test.txt", size_bytes=100)
+    content = b"x" * 100
+    digest = hashlib.sha256(content).hexdigest()
+    cmd = CreateUploadCommand(
+        learner_id=learner_id,
+        filename="test.txt",
+        size_bytes=len(content),
+        artifact_sha256=digest,
+    )
     res = await auth.execute(cmd)
 
     assert res.artifact_id is not None
@@ -131,9 +143,26 @@ async def test_authorize_upload():
         assert len(pending) == 1
         assert pending[0].event_type == "artifact.upload_authorized"
         assert pending[0].payload["artifact_id"] == str(res.artifact_id)
-        reserved = await uow.artifacts.get(res.artifact_id, learner_id)
-        assert reserved is not None
+        assert "upload_url" not in pending[0].payload
+        assert "upload_token" not in pending[0].payload
+        assert await uow.artifacts.get(res.artifact_id, learner_id) is None
+        await uow.artifacts.put(
+            Artifact(
+                artifact_id=res.artifact_id,
+                learner_id=learner_id,
+                filename=cmd.filename,
+                size_bytes=cmd.size_bytes,
+                sha256=cmd.artifact_sha256,
+            ),
+            content,
+        )
+        await uow.commit()
         assert res.upload_url is not None
+
+    completed = await CompleteArtifactUpload(uow_factory).execute(learner_id, res.artifact_id)
+    assert completed.artifact_id == res.artifact_id
+    async with uow_factory() as uow:
+        assert await uow.artifacts.get(res.artifact_id, learner_id) is not None
 
 
 @pytest.mark.asyncio

@@ -25,6 +25,11 @@ class UploadAuthorizationResult(BaseModel):
     headers: dict[str, str] = Field(default_factory=dict)
 
 
+class UploadCompletionResult(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    artifact_id: UUID
+
+
 class CurrentTaskResult(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     status: str

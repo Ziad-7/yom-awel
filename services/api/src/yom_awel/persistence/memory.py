@@ -24,6 +24,8 @@ from yom_awel.domain.entities import (
 )
 from yom_awel.domain.enums import Channel, LearnerStatus, SubmissionStatus
 from yom_awel.domain.errors import (
+    ArtifactIntegrityFailure,
+    ArtifactNotReady,
     FinalizationConflict,
     IdempotencyConflict,
     LearnerScopeViolation,
@@ -467,17 +469,27 @@ class _Outbox(_MemoryRepository):
 
 
 class _Artifacts(_MemoryRepository):
+    @staticmethod
+    def _complete(stored: _StoredArtifact) -> bool:
+        return (
+            stored.content is not None
+            and len(stored.content) == stored.metadata.size_bytes
+            and hashlib.sha256(stored.content).hexdigest() == stored.metadata.sha256
+        )
+
     async def get(self, artifact_id: UUID, learner_id: UUID) -> Artifact | None:
         stored = self._state.artifacts.get(artifact_id)
-        if stored is None or stored.metadata.learner_id != learner_id:
+        if stored is None or stored.metadata.learner_id != learner_id or not self._complete(stored):
             return None
         return _copy(stored.metadata)
 
     async def download(self, artifact_id: UUID, learner_id: UUID) -> bytes | None:
         stored = self._state.artifacts.get(artifact_id)
-        if stored is None or stored.metadata.learner_id != learner_id:
+        if stored is None or stored.metadata.learner_id != learner_id or not self._complete(stored):
             return None
-        return None if stored.content is None else bytes(stored.content)
+        content = stored.content
+        assert content is not None
+        return bytes(content)
 
     async def authorize_upload(
         self, artifact: Artifact, *, expires_in_seconds: int = 300
@@ -498,6 +510,16 @@ class _Artifacts(_MemoryRepository):
             upload_token=None,
             expires_in_seconds=expires_in_seconds,
         )
+
+    async def complete_upload(self, artifact_id: UUID, learner_id: UUID) -> Artifact:
+        stored = self._state.artifacts.get(artifact_id)
+        if stored is None or stored.metadata.learner_id != learner_id:
+            raise ArtifactNotReady()
+        if stored.content is None:
+            raise ArtifactNotReady()
+        if not self._complete(stored):
+            raise ArtifactIntegrityFailure()
+        return _copy(stored.metadata)
 
     async def put(self, artifact: Artifact, content: bytes) -> Artifact:
         if len(content) != artifact.size_bytes:
@@ -598,6 +620,12 @@ class MemoryArtifactStore:
             result = await uow.artifacts.authorize_upload(
                 artifact, expires_in_seconds=expires_in_seconds
             )
+            await uow.commit()
+            return result
+
+    async def complete_upload(self, artifact_id: UUID, learner_id: UUID) -> Artifact:
+        async with self._factory() as uow:
+            result = await uow.artifacts.complete_upload(artifact_id, learner_id)
             await uow.commit()
             return result
 

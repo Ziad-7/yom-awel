@@ -32,10 +32,12 @@ from yom_awel.domain.errors import (
     DomainError,
     FinalizationConflict,
     IdempotencyConflict,
+    LearnerNotEligible,
     OptimisticConflict,
     ReservationExpired,
     ReservationOwnerConflict,
     SubmissionMismatch,
+    TaskNotCurrent,
 )
 from yom_awel.ports.clock import Clock
 from yom_awel.ports.evaluation import Evaluator
@@ -445,6 +447,16 @@ class ProcessSubmission:
                     await _run_post_commit_cleanup(self.post_commit_cleanup, now)
                 return outcome
 
+        except (
+            TaskNotCurrent,
+            LearnerNotEligible,
+        ) as validation_error:
+            raise DomainError(
+                code=validation_error.code,
+                message=validation_error.message,
+                category=ErrorCategory.VALIDATION,
+                retryable=False,
+            ) from None
         except (
             OptimisticConflict,
             FinalizationConflict,

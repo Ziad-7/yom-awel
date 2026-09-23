@@ -89,3 +89,20 @@ class SubmissionMismatch(PersistenceError):
 class TaskNotCurrent(PersistenceError):
     def __init__(self) -> None:
         super().__init__("task_not_current", "Submission task is not the learner's current task")
+
+
+class LearnerNotEligible(PersistenceError):
+    def __init__(self) -> None:
+        super().__init__("invalid_status", "Learner is not eligible for task submission")
+
+
+class ArtifactNotReady(PersistenceError):
+    def __init__(self) -> None:
+        super().__init__("artifact_not_ready", "Artifact upload is not complete")
+
+
+class ArtifactIntegrityFailure(PersistenceError):
+    def __init__(self) -> None:
+        super().__init__(
+            "artifact_integrity_failure", "Artifact content does not match its metadata"
+        )

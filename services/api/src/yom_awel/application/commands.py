@@ -18,11 +18,10 @@ class CreateUploadCommand(BaseModel):
     learner_id: UUID
     filename: str = Field(..., min_length=1)
     size_bytes: int = Field(..., ge=0)
-    # Browsers calculate this before requesting a signed upload.  ``None`` is
-    # retained for older local callers; such callers receive a reservation
-    # with a deterministic placeholder and must submit the real hash later.
-    artifact_sha256: str | None = Field(
-        default=None,
+    # Browsers calculate this before requesting a signed upload.  The server
+    # reserves only immutable metadata that it can verify after upload.
+    artifact_sha256: str = Field(
+        ...,
         min_length=64,
         max_length=64,
         pattern=r"^[a-f0-9]{64}$",

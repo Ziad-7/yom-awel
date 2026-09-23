@@ -10,7 +10,12 @@ from pathlib import Path
 from uuid import UUID
 
 from yom_awel.domain.entities import Artifact
-from yom_awel.domain.errors import LearnerScopeViolation, UniqueConstraintViolation
+from yom_awel.domain.errors import (
+    ArtifactIntegrityFailure,
+    ArtifactNotReady,
+    LearnerScopeViolation,
+    UniqueConstraintViolation,
+)
 from yom_awel.ports.artifacts import ArtifactUploadAuthorization
 
 
@@ -63,6 +68,15 @@ class LocalArtifactStore:
             return None
         if artifact.learner_id != learner_id or artifact.artifact_id != artifact_id:
             return None
+        try:
+            content = data_path.read_bytes()
+        except OSError:
+            return None
+        if (
+            len(content) != artifact.size_bytes
+            or hashlib.sha256(content).hexdigest() != artifact.sha256
+        ):
+            return None
         return artifact
 
     async def authorize_upload(
@@ -98,14 +112,39 @@ class LocalArtifactStore:
             expires_in_seconds=expires_in_seconds,
         )
 
+    async def complete_upload(self, artifact_id: UUID, learner_id: UUID) -> Artifact:
+        data_path = self._data_path(artifact_id, learner_id)
+        meta_path = self._meta_path(data_path)
+        if not meta_path.is_file() or not data_path.is_file():
+            raise ArtifactNotReady()
+        try:
+            artifact = self._read_metadata(meta_path)
+            content = data_path.read_bytes()
+        except (OSError, ValueError, TypeError) as exc:
+            raise ArtifactNotReady() from exc
+        if artifact.learner_id != learner_id or artifact.artifact_id != artifact_id:
+            raise LearnerScopeViolation("artifact.learner_id")
+        if (
+            len(content) != artifact.size_bytes
+            or hashlib.sha256(content).hexdigest() != artifact.sha256
+        ):
+            raise ArtifactIntegrityFailure()
+        return artifact
+
     async def download(self, artifact_id: UUID, learner_id: UUID) -> bytes | None:
         artifact = await self.get(artifact_id, learner_id)
         if artifact is None:
             return None
         try:
-            return self._data_path(artifact).read_bytes()
+            content = self._data_path(artifact).read_bytes()
         except OSError:
             return None
+        if (
+            len(content) != artifact.size_bytes
+            or hashlib.sha256(content).hexdigest() != artifact.sha256
+        ):
+            return None
+        return content
 
     async def put(self, artifact: Artifact, content: bytes) -> Artifact:
         if len(content) != artifact.size_bytes:

@@ -20,11 +20,13 @@ from yom_awel.domain.enums import Channel, SubmissionStatus
 from yom_awel.domain.errors import (
     FinalizationConflict,
     IdempotencyConflict,
+    LearnerNotEligible,
     OptimisticConflict,
     PersistenceError,
     ReservationExpired,
     ReservationOwnerConflict,
     SubmissionMismatch,
+    TaskNotCurrent,
 )
 from yom_awel.ports.repositories import MAX_SUBMISSION_LEASE_SECONDS
 
@@ -85,6 +87,10 @@ def _provider_error_code(error: object) -> str | None:
             return "reservation_owner_conflict"
     if code == "22023":
         message = str(error.get("message") or "").lower()
+        if "learner current task" in message or "not the learner current task" in message:
+            return "task_not_current"
+        if "not eligible for task submission" in message:
+            return "invalid_status"
         if "submission mismatch" in message or "task version mismatch" in message:
             return "submission_mismatch"
     return None
@@ -225,6 +231,8 @@ class SupabaseSubmissionRepository:
                         raise IdempotencyConflict(key) from None
                     return raced
                 raise OptimisticConflict("submission_reservation") from None
+            if exc.code in {"task_not_current", "invalid_status"}:
+                _raise_shared_reservation_error(exc)
             raise
         except Exception as exc:
             raise SupabasePersistenceError("supabase_provider_error") from exc
@@ -441,4 +449,8 @@ def _raise_shared_reservation_error(error: SupabasePersistenceError) -> None:
         raise FinalizationConflict("Reservation is already finalized") from None
     if error.code == "submission_mismatch":
         raise SubmissionMismatch() from None
+    if error.code == "task_not_current":
+        raise TaskNotCurrent() from None
+    if error.code == "invalid_status":
+        raise LearnerNotEligible() from None
     raise error

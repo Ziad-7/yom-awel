@@ -9,6 +9,7 @@ No connection is held while evaluator or provider I/O is in progress.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import sqlite3
 from datetime import UTC, datetime, timedelta
@@ -37,6 +38,8 @@ from yom_awel.domain.entities import (
 )
 from yom_awel.domain.enums import Channel, LearnerStatus, SubmissionStatus
 from yom_awel.domain.errors import (
+    ArtifactIntegrityFailure,
+    ArtifactNotReady,
     FinalizationConflict,
     IdempotencyConflict,
     LearnerScopeViolation,
@@ -427,11 +430,19 @@ class _Tasks(_Repo):
 class _Artifacts(_Repo):
     async def get(self, artifact_id: UUID, learner_id: UUID) -> Artifact | None:
         row = self._one(
-            "SELECT artifact_id, learner_id, filename, size_bytes, sha256 FROM artifacts "
+            "SELECT artifact_id, learner_id, filename, size_bytes, sha256, content FROM artifacts "
             "WHERE artifact_id=? AND learner_id=?",
             (_uuid(artifact_id), _uuid(learner_id)),
         )
-        return _artifact(row) if row else None
+        if row is None:
+            return None
+        content = bytes(row["content"])
+        if (
+            len(content) != int(row["size_bytes"])
+            or hashlib.sha256(content).hexdigest() != row["sha256"]
+        ):
+            return None
+        return _artifact(row)
 
     async def download(self, artifact_id: UUID, learner_id: UUID) -> bytes | None:
         row = self._one(
@@ -441,7 +452,12 @@ class _Artifacts(_Repo):
         if row is None:
             return None
         content = bytes(row["content"])
-        return content if len(content) == int(row["size_bytes"]) else None
+        if (
+            len(content) != int(row["size_bytes"])
+            or hashlib.sha256(content).hexdigest() != row["sha256"]
+        ):
+            return None
+        return content
 
     async def authorize_upload(
         self, artifact: Artifact, *, expires_in_seconds: int = 300
@@ -481,9 +497,22 @@ class _Artifacts(_Repo):
             expires_in_seconds=expires_in_seconds,
         )
 
-    async def put(self, artifact: Artifact, content: bytes) -> Artifact:
-        import hashlib
+    async def complete_upload(self, artifact_id: UUID, learner_id: UUID) -> Artifact:
+        row = self._one(
+            "SELECT artifact_id, learner_id, filename, size_bytes, sha256, content "
+            "FROM artifacts WHERE artifact_id=? AND learner_id=?",
+            (_uuid(artifact_id), _uuid(learner_id)),
+        )
+        if row is None:
+            raise ArtifactNotReady()
+        content = bytes(row["content"])
+        if len(content) != int(row["size_bytes"]):
+            raise ArtifactNotReady()
+        if hashlib.sha256(content).hexdigest() != row["sha256"]:
+            raise ArtifactIntegrityFailure()
+        return _artifact(row)
 
+    async def put(self, artifact: Artifact, content: bytes) -> Artifact:
         if len(content) != artifact.size_bytes:
             raise ValueError("content size does not match artifact metadata")
         if hashlib.sha256(content).hexdigest() != artifact.sha256:

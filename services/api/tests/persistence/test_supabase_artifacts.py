@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from yom_awel.domain.entities import Artifact
+from yom_awel.domain.errors import ArtifactIntegrityFailure
 from yom_awel.persistence.retention import CleanupArtifact
 from yom_awel.persistence.supabase_artifacts import (
     MAX_ARTIFACT_BYTES,
@@ -464,6 +465,38 @@ async def test_authorize_upload_reserves_metadata_and_returns_signed_browser_det
         )
     ]
     assert storage.content == b""
+
+
+@pytest.mark.asyncio
+async def test_complete_upload_verifies_object_before_activation() -> None:
+    learner_id, artifact_id, content = uuid4(), uuid4(), b"hello"
+    value = artifact(learner_id, artifact_id, content)
+    row = artifact_row(value)
+    row["purge_status"] = "UPLOADING"
+    metadata = MetadataFake(row)
+    storage = StorageFake(content)
+    store = SupabaseArtifactStore(metadata, storage)
+
+    assert await store.get(artifact_id, learner_id) is None
+    completed = await store.complete_upload(artifact_id, learner_id)
+
+    assert completed == value
+    assert metadata.activated == [(learner_id, artifact_id, "artifact-uploader")]
+    assert metadata.resolved == [(learner_id, artifact_id)]
+
+
+@pytest.mark.asyncio
+async def test_complete_upload_rejects_hash_or_size_mismatch_without_activation() -> None:
+    learner_id, artifact_id, content = uuid4(), uuid4(), b"hello"
+    value = artifact(learner_id, artifact_id, content)
+    row = artifact_row(value)
+    row["purge_status"] = "UPLOADING"
+    metadata = MetadataFake(row)
+    store = SupabaseArtifactStore(metadata, StorageFake(b"tampered"))
+
+    with pytest.raises(ArtifactIntegrityFailure):
+        await store.complete_upload(artifact_id, learner_id)
+    assert metadata.activated == []
 
 
 @pytest.mark.asyncio
