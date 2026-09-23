@@ -90,7 +90,8 @@ class LocalSupabase:
             )
             try:
                 with urlopen(response_request, timeout=10) as response:
-                    return json.loads(response.read().decode()), False
+                    body = response.read()
+                    return (None if not body else json.loads(body.decode())), False
             except HTTPError as error:
                 error.read()
                 return {"status": error.code}, True

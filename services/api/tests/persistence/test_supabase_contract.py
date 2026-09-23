@@ -394,7 +394,7 @@ async def test_real_supabase_contract_is_opt_in() -> None:
             "learner_id": str(learner_id),
             "display_name": "local-contract",
             "preferred_language": "en",
-            "status": "ONBOARDING",
+            "status": "IN_TASK",
             "state_machine_version": "1",
         },
     )
@@ -433,7 +433,12 @@ async def test_real_supabase_contract_is_opt_in() -> None:
     )
     await rest.insert(
         "learner_progress",
-        {"learner_id": str(learner_id), "current_status": "ONBOARDING", "version": 1},
+        {
+            "learner_id": str(learner_id),
+            "current_status": "IN_TASK",
+            "current_task_id": task_id,
+            "version": 1,
+        },
     )
     repository = SupabaseSubmissionRepository(LocalRpc(base_url, service_key), rest)
     reservation = await repository.reserve(
@@ -469,7 +474,9 @@ async def test_real_supabase_contract_is_opt_in() -> None:
             300,
             "second-worker",
         )
-    base_outcome = outcome(task_version_id, reservation.submission_id)
+    base_outcome = outcome(task_version_id, reservation.submission_id).model_copy(
+        update={"learner_status": LearnerStatus.TASK_COMPLETED}
+    )
     final = base_outcome.model_copy(
         update={
             "evaluation": base_outcome.evaluation.model_copy(

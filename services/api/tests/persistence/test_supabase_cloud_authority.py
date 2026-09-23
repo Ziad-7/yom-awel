@@ -393,7 +393,8 @@ async def test_cloud_authority_real_rpc_rollback_published_only_nullable_owner_a
     _, failed = await rpc.call("finalize_submission", params)
     assert failed
     assert await rest.rows("evaluation_results", {"submission_id": str(reservation["submission_id"])}) == []
-    assert await rest.rows("learner_progress", {"learner_id": str(fixture["learner_id"])})[0]["version"] == 1
+    progress_rows = await rest.rows("learner_progress", {"learner_id": str(fixture["learner_id"])})
+    assert progress_rows[0]["version"] == 1
 
     null_owner = dict(params, p_progress_expected_version=1, p_lease_owner=None)
     _, failed = await rpc.call("finalize_submission", null_owner)
