@@ -1,0 +1,96 @@
+task_id: "clean-sales"
+version: "1"
+intended_learner_level: "junior"
+workplace_context:
+  company_name: "Nile Distribution & Trading Co."
+  industry: "Distribution & Retail"
+  supervisor: "Tarek (Operations Lead)"
+  scenario: "Daily sales transaction log cleanup for automated reporting"
+
+required_artifacts:
+  input:
+    filename: "sales_dirty.csv"
+    format: ["csv", "xlsx"]
+    max_bytes: 5242880
+  output:
+    filename_pattern: "sales_cleaned.*"
+    format: ["csv", "xlsx"]
+    required_columns:
+      - "order_id"
+      - "customer_email"
+      - "order_date"
+      - "quantity"
+      - "unit_price"
+      - "revenue"
+      - "missing_email_reason"
+
+learning_objectives:
+  - id: "obj-deduplicate-orders"
+    title: "Order Primary Key Deduplication"
+    description: "Identify and resolve repeated transaction records to ensure single-instance integrity per order_id."
+    skill_id: "data_cleaning"
+    check_ids:
+      - "unique_orders"
+    points: 25
+
+  - id: "obj-normalize-dates"
+    title: "Standardize Transaction Dates"
+    description: "Convert heterogeneous date representations into standard ISO 8601 YYYY-MM-DD format."
+    skill_id: "data_cleaning"
+    check_ids:
+      - "standard_dates"
+    points: 25
+
+  - id: "obj-validate-numerics"
+    title: "Audit Numeric Consistency and Revenue Integrity"
+    description: "Validate quantities and unit prices against negative entry defects and guarantee revenue equals quantity times price."
+    skill_id: "data_cleaning"
+    check_ids:
+      - "valid_numeric_values"
+    points: 25
+
+  - id: "obj-handle-missing-emails"
+    title: "Document Missing Customer Attributes"
+    description: "Annotate transactions lacking customer emails with unavailable reason code rather than dropping sales records."
+    skill_id: "data_cleaning"
+    check_ids:
+      - "complete_customer_records"
+    points: 25
+
+transformations:
+  allowed:
+    - "Deduplicating rows based on unique order_id"
+    - "Converting date values to YYYY-MM-DD"
+    - "Replacing negative values with positive corrected values"
+    - "Recalculating revenue column as quantity * unit_price"
+    - "Filling missing customer email reasons with 'unavailable'"
+  forbidden:
+    - "Deleting rows simply because customer email is missing"
+    - "Renaming or reordering required column headers arbitrarily"
+    - "Inserting extraneous text notes or summary rows inside data range"
+    - "Altering order_id identifiers"
+
+pass_policy:
+  evaluator_id: "sales-cleaning"
+  evaluator_version: "1"
+  total_points: 100
+  pass_threshold: 75
+  critical_checks:
+    - "unique_orders"
+
+misconception_catalog:
+  - misconception_id: "misc-delete-missing-email"
+    description: "Learner deletes the entire row when customer email is absent."
+    remediation_hint: "Deleting rows loses sales revenue data. Annotate with 'unavailable' instead."
+  - misconception_id: "misc-ignore-negative-typos"
+    description: "Learner assumes negative quantities are return entries rather than input typos."
+    remediation_hint: "Physical quantities must be positive for this daily sales sheet."
+  - misconception_id: "misc-date-locale-confusion"
+    description: "Learner leaves month and day inverted (e.g. MM/DD/YYYY)."
+    remediation_hint: "Standardize all dates strictly to ISO 8601 YYYY-MM-DD format."
+
+content_manifest:
+  brief_ar: "content/brief.ar-EG.md"
+  brief_en: "content/brief.en.md"
+  hints_ar: "content/hints.ar-EG.md"
+  hints_en: "content/hints.en.md"

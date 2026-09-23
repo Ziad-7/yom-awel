@@ -1,0 +1,43 @@
+from pathlib import Path
+
+import yaml
+
+from tools.quality.validate_learning_objectives import validate_objectives_manifest
+
+
+ROOT = Path(__file__).resolve().parents[3]
+MANIFEST_PATH = ROOT / "task_packages" / "clean-sales" / "1" / "learning-objectives.yaml"
+
+
+def test_learning_objectives_manifest_is_valid() -> None:
+    assert MANIFEST_PATH.exists(), f"Missing manifest at {MANIFEST_PATH}"
+    data = yaml.safe_load(MANIFEST_PATH.read_text(encoding="utf-8"))
+    errors = validate_objectives_manifest(data, root_dir=ROOT)
+    assert errors == [], f"Validation errors: {errors}"
+
+
+def test_learning_content_files_exist_and_are_bilingual() -> None:
+    content_dir = ROOT / "task_packages" / "clean-sales" / "1" / "content"
+    required_files = [
+        "brief.ar-EG.md",
+        "brief.en.md",
+        "hints.ar-EG.md",
+        "hints.en.md",
+    ]
+    for filename in required_files:
+        filepath = content_dir / filename
+        assert filepath.exists(), f"Required content file missing: {filepath}"
+        content = filepath.read_text(encoding="utf-8").strip()
+        assert len(content) > 100, f"Content file {filename} is too short"
+
+
+def test_content_does_not_reveal_internal_ground_truth_answers() -> None:
+    content_dir = ROOT / "task_packages" / "clean-sales" / "1" / "content"
+    forbidden_spoilers = [
+        "ORD-2026-999",  # internal synthetic test artifact IDs
+        "12345.67",
+    ]
+    for filepath in content_dir.glob("*.md"):
+        text = filepath.read_text(encoding="utf-8")
+        for spoiler in forbidden_spoilers:
+            assert spoiler not in text, f"Found leaked answer in {filepath.name}: {spoiler}"
