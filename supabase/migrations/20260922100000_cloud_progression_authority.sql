@@ -52,7 +52,7 @@ declare
     key_name text;
 begin
     if p_value is null or jsonb_typeof(p_value) is distinct from 'object' then
-        raise exception 'invalid % object' using errcode = '22023';
+        raise exception 'invalid % object', p_label using errcode = '22023';
     end if;
     foreach key_name in array p_required loop
         if not (p_value ? key_name) then

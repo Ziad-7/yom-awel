@@ -5,12 +5,23 @@ import json
 import os
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from uuid import NAMESPACE_OID, UUID, uuid4, uuid5
 
 import pytest
+
+
+ROOT = Path(__file__).resolve().parents[4]
+
+
+def test_cloud_require_object_formats_invalid_object_error() -> None:
+    sql = (ROOT / "supabase/migrations/20260922100000_cloud_progression_authority.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "raise exception 'invalid % object', p_label using errcode = '22023';" in sql
 
 
 class LocalRpc:
