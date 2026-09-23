@@ -1,0 +1,146 @@
+version: "1"
+description: "Claim-to-evidence matrix mapping every public product and pitch claim to empirical tests, previews, or authoritative sources."
+
+claims:
+  - id: "claim-stat-youth-unemployment"
+    type: "statistical"
+    wording: "Youth unemployment in Egypt remains significant among educated job seekers, exceeding 25% for graduates."
+    source_id: "src-capmas-labor-2023"
+    usage_locations:
+      - "README.md"
+      - "submission/pitch-deck.md"
+      - "submission/application.md"
+    status: "verified"
+    owner: "member-1"
+
+  - id: "claim-stat-skills-gap"
+    type: "statistical"
+    wording: "There is an acute gap between academic learning and applied digital workflow capabilities required by Egyptian employers."
+    source_id: "src-worldbank-egypt-skills-2023"
+    usage_locations:
+      - "submission/pitch-deck.md"
+      - "submission/application.md"
+    status: "verified"
+    owner: "member-1"
+
+  - id: "claim-stat-spreadsheet-demand"
+    type: "statistical"
+    wording: "Spreadsheet hygiene and data validation are among the most frequently cited baseline requirements for entry-level operations roles."
+    source_id: "src-wuzzuf-hiring-report"
+    usage_locations:
+      - "submission/pitch-deck.md"
+      - "submission/application.md"
+    status: "verified"
+    owner: "member-1"
+
+  - id: "claim-cap-state-machine"
+    type: "capability"
+    wording: "Learner state transitions follow an explicit, deterministic state machine preventing out-of-order progression."
+    usage_locations:
+      - "README.md"
+      - "docs/product/journeys/learner-first-task.md"
+    status: "current"
+    owner: "member-2"
+    evidence:
+      automated_tests:
+        - "services/api/tests/domain/test_state_machine.py"
+        - "services/api/tests/domain/test_learner_progress.py"
+      preview_checks:
+        - "Verify learner lifecycle transitions sequentially without skipping states in database session."
+
+  - id: "claim-cap-artifact-upload"
+    type: "capability"
+    wording: "Learner spreadsheet uploads are handled through private, signed URLs ensuring zero public exposure."
+    usage_locations:
+      - "README.md"
+      - "docs/product/journeys/learner-first-task.md"
+    status: "current"
+    owner: "member-2"
+    evidence:
+      automated_tests:
+        - "services/api/tests/persistence/test_local_artifacts.py"
+        - "services/api/tests/persistence/test_supabase_artifacts.py"
+      preview_checks:
+        - "Verify client requests upload authorization and obtains signed URL restricted to learner submission prefix."
+
+  - id: "claim-cap-retry-handling"
+    type: "capability"
+    wording: "Failed evaluations transition state to NEEDS_RETRY and allow safe resubmission with incremented attempt numbers."
+    usage_locations:
+      - "docs/product/journeys/learner-retry.md"
+      - "submission/pitch-deck.md"
+    status: "current"
+    owner: "member-2"
+    evidence:
+      automated_tests:
+        - "services/api/tests/application/test_process_submission.py"
+      preview_checks:
+        - "Verify attempt counter increments on retry and initial attempt history is immutably retained."
+
+  - id: "claim-cap-skills-projection"
+    type: "capability"
+    wording: "Skills profiles are direct, auditable projections of passed deterministic evaluation checks."
+    usage_locations:
+      - "docs/product/journeys/skills-profile.md"
+      - "submission/pitch-deck.md"
+    status: "current"
+    owner: "member-2"
+    evidence:
+      automated_tests:
+        - "services/api/tests/domain/test_skill_evidence.py"
+      preview_checks:
+        - "Verify skill profile aggregation returns only competencies backed by recorded evaluation evidence."
+
+  - id: "claim-cap-deterministic-eval"
+    type: "capability"
+    wording: "Clean-sales evaluator executes pure, reproducible data quality checks with 0 to 100 scoring."
+    usage_locations:
+      - "README.md"
+      - "submission/pitch-deck.md"
+    status: "experimental"
+    owner: "member-4"
+    evidence:
+      automated_tests:
+        - "services/api/tests/evaluation/test_sales_cleaning.py"
+      preview_checks:
+        - "Submit reference clean CSV and verify deterministic score of 100/100 under 500ms."
+
+  - id: "claim-cap-arabic-feedback"
+    type: "capability"
+    wording: "Pedagogical coaching is delivered in authentic Egyptian Arabic with deterministic local fallback."
+    usage_locations:
+      - "README.md"
+      - "submission/pitch-deck.md"
+    status: "experimental"
+    owner: "member-3"
+    evidence:
+      automated_tests:
+        - "services/api/tests/feedback/test_gemini.py"
+        - "services/api/tests/feedback/test_fallback.py"
+      preview_checks:
+        - "Disable Gemini API key in staging and verify structured Arabic fallback feedback is served."
+
+  - id: "claim-cap-web-experience"
+    type: "capability"
+    wording: "Next.js web experience provides accessible RTL Arabic onboarding and task workflow."
+    usage_locations:
+      - "README.md"
+      - "submission/pitch-deck.md"
+    status: "experimental"
+    owner: "member-5"
+    evidence:
+      automated_tests:
+        - "apps/web/tests/e2e/learner-flow.spec.ts"
+      preview_checks:
+        - "Verify incognito browser on Vercel preview completes onboarding and displays Arabic workplace brief."
+
+  - id: "claim-cap-sql-sandbox"
+    type: "capability"
+    wording: "Sandboxed SQL evaluation allows learners to practice relational database queries."
+    usage_locations:
+      - "submission/pitch-deck.md"
+    status: "roadmap"
+    owner: "member-4"
+    evidence:
+      automated_tests: []
+      preview_checks: []

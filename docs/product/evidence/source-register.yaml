@@ -1,0 +1,47 @@
+version: "1"
+description: "Authoritative external sources supporting product problem statements and market claims."
+
+sources:
+  - id: "src-capmas-labor-2023"
+    title: "Annual Bulletin of Labor Force Survey 2023"
+    publisher: "Central Agency for Public Mobilization and Statistics (CAPMAS), Egypt"
+    publication_date: "2024-05"
+    access_date: "2026-09-20"
+    url: "https://www.capmas.gov.eg"
+    supported_claim: "Youth unemployment in Egypt disproportionately affects university and intermediate degree graduates, exceeding 25%."
+    usage_locations:
+      - "submission/pitch-deck.md"
+      - "submission/application.md"
+
+  - id: "src-worldbank-egypt-skills-2023"
+    title: "Egypt Economic Monitor: Digital Jobs and Structural Transformation"
+    publisher: "World Bank Group"
+    publication_date: "2023-11"
+    access_date: "2026-09-20"
+    url: "https://www.worldbank.org/en/country/egypt/publication/egypt-economic-monitor"
+    supported_claim: "Substantial gap exists between academic credentials and applied digital workplace skills required for entry-level data roles."
+    usage_locations:
+      - "submission/pitch-deck.md"
+      - "submission/application.md"
+
+  - id: "src-mcit-indicators-2024"
+    title: "Egypt ICT Indicators Report"
+    publisher: "Ministry of Communications and Information Technology (MCIT), Egypt"
+    publication_date: "2024-03"
+    access_date: "2026-09-20"
+    url: "https://mcit.gov.eg/en/Indicators"
+    supported_claim: "Demand for entry-level digital and administrative data operators is growing rapidly across regional logistics and commerce sectors."
+    usage_locations:
+      - "submission/pitch-deck.md"
+      - "submission/application.md"
+
+  - id: "src-wuzzuf-hiring-report"
+    title: "Egypt Employment & Job Market Annual Report"
+    publisher: "Wuzzuf / BasharSoft"
+    publication_date: "2023-12"
+    access_date: "2026-09-20"
+    url: "https://wuzzuf.net"
+    supported_claim: "Basic data entry hygiene, data verification, and spreadsheet formulas rank among the top essential prerequisites for junior operational positions."
+    usage_locations:
+      - "submission/pitch-deck.md"
+      - "submission/application.md"
