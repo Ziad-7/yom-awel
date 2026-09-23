@@ -17,6 +17,7 @@ from yom_awel.domain.contracts import (
     EvaluationCheck,
     EvaluationResult,
     FeedbackResult,
+    SkillSummary,
     SubmissionOutcome,
 )
 from yom_awel.domain.enums import Channel, LearnerStatus, TaskStatus
@@ -475,7 +476,10 @@ async def test_real_supabase_contract_is_opt_in() -> None:
             "second-worker",
         )
     base_outcome = outcome(task_version_id, reservation.submission_id).model_copy(
-        update={"learner_status": LearnerStatus.TASK_COMPLETED}
+        update={
+            "learner_status": LearnerStatus.TASK_COMPLETED,
+            "skills": [SkillSummary(skill_id=skill_id, score=3)],
+        }
     )
     final = base_outcome.model_copy(
         update={
