@@ -62,7 +62,6 @@ revoke all on table public.outbox_events,
 
 -- Storage is private and backend-only.  There are intentionally no client
 -- policies on storage.objects; signed operations use service_role instead.
-alter table storage.objects enable row level security;
 revoke all on table storage.objects from public, anon, authenticated;
 grant all on table storage.objects to service_role;
 
