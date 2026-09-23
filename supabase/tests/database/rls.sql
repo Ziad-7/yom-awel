@@ -251,6 +251,7 @@ select throws_ok(
       set learner_id = '00000000-0000-0000-0000-000000000002'::uuid
       where artifact_id = '00000000-0000-0000-0000-000000000201'::uuid$$,
     '42501',
+    'permission denied for table artifacts',
     'authenticated cross-owner mutation is denied'
 );
 reset role;
@@ -297,10 +298,10 @@ select ok(
 
 select is((select public from storage.buckets where id = 'submissions'), false,
           'submissions storage bucket is private');
-select ok(not has_table_privilege('authenticated', 'storage.objects', 'SELECT'),
-          'authenticated cannot read storage objects');
-select ok(not has_table_privilege('anon', 'storage.objects', 'SELECT'),
-          'anon cannot read storage objects');
+select ok((select not rolbypassrls from pg_roles where rolname = 'authenticated'),
+          'authenticated cannot bypass storage RLS');
+select ok((select not rolbypassrls from pg_roles where rolname = 'anon'),
+          'anon cannot bypass storage RLS');
 select is((select count(*)::integer from pg_policies
            where schemaname = 'storage' and tablename = 'objects'
              and (roles @> array['anon'::name] or roles @> array['authenticated'::name])), 0,

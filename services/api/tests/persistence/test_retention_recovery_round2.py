@@ -181,6 +181,10 @@ def test_rls_fixture_matches_retention_recovery_columns() -> None:
     assert "identity_id, learner_id, provider, provider_subject, is_anonymous" in sql
     assert "audit_id, requested_learner_id, learner_id, action, actor_id" in sql
     assert "request_id, learner_id, requested_learner_id, auth_user_id, requested_by" in sql
+    assert "'42501'," in sql
+    assert "'permission denied for table artifacts'" in sql
+    assert "not rolbypassrls from pg_roles where rolname = 'authenticated'" in sql
+    assert "not rolbypassrls from pg_roles where rolname = 'anon'" in sql
     assert sql.count("'web', '00000000-0000-0000-0000-0000000000a1', true") == 1
     assert sql.count("'web', '00000000-0000-0000-0000-0000000000b2', true") == 1
 

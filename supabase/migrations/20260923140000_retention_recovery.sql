@@ -142,6 +142,10 @@ create trigger external_identity_deletion_guard
 before update or delete on public.external_identities
 for each row execute function public.prevent_identity_mutation_during_deletion();
 
+revoke all on function public.prevent_identity_mutation_during_deletion()
+    from public, anon, authenticated;
+grant execute on function public.prevent_identity_mutation_during_deletion() to service_role;
+
 create or replace function public.request_learner_deletion(
     p_learner_id uuid,
     p_requested_by text
