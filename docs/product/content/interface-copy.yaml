@@ -1,0 +1,58 @@
+version: "1"
+description: "Authoritative interface strings and accessible copy for Yom Awel web and bot interfaces."
+
+messages:
+  "upload.unsupported_file":
+    ar-EG: "نوع الملف غير مدعوم ({file_name}). الصيغ المقبولة فقط هي CSV أو Excel (.xlsx)."
+    en: "Unsupported file type ({file_name}). Accepted formats are CSV or Excel (.xlsx) only."
+    accessible_label: "تنبيه: نوع الملف المرفوع غير مدعوم، يرجى اختيار ملف CSV أو Excel"
+
+  "upload.oversized_file":
+    ar-EG: "حجم الملف يتعدى الحد المسموح به ({max_size} ميجابايت). برجاء تقليل حجم الملف والمحاولة مرة أخرى."
+    en: "File size exceeds the allowed limit ({max_size} MB). Please reduce file size and try again."
+    accessible_label: "تنبيه: حجم الملف يتجاوز الحد الأقصى المسموح"
+
+  "evaluation.loading":
+    ar-EG: "جاري مراجعة الملف وتدقيق البيانات، برجاء الانتظار ثواني..."
+    en: "Evaluating spreadsheet and auditing data quality, please wait a few seconds..."
+    accessible_label: "حالة النظام: جاري تقييم وفحص الملف"
+
+  "evaluation.processing":
+    ar-EG: "الملف قيد المراجعة حالياً من فريق العمليات."
+    en: "The submission is currently being processed by the operations pipeline."
+    accessible_label: "حالة التكليف: قيد المعالجة"
+
+  "evaluation.success":
+    ar-EG: "تسلم إيدك يا بطل! تم اجتياز التكليف بنجاح بدرجة {score} من 100."
+    en: "Great work! You have successfully passed the assignment with a score of {score} out of 100."
+    accessible_label: "إشعار نجاح: تم قبول التكليف واجتياز المعايير المطلوبة"
+
+  "evaluation.failure":
+    ar-EG: "الملف لم يستوفِ شروط القبول بعد. درجتك الحالية {score} من 100. راجع توجيهات المشرف أدناه لإصلاح الأخطاء."
+    en: "Deliverable did not meet passing requirements yet. Current score: {score} out of 100. Review the supervisor feedback below to fix defects."
+    accessible_label: "تنبيه: التكليف يحتاج مراجعة وتعديل"
+
+  "evaluation.retryable":
+    ar-EG: "تقدر تعدل الملف وترفعه تاني في أي وقت. المحاولة السابقة محفوظة ومفيش أي خصم درجات."
+    en: "You can revise the file and upload again anytime. Previous attempts are preserved with no score penalties."
+    accessible_label: "توجيه: إمكانية إعادة رفع التكليف متاحة بعد تصحيح البيانات"
+
+  "evaluation.evaluation_failed":
+    ar-EG: "حدث خطأ غير متوقع أثناء فحص الملف. برجاء التأكد من سلامة الملف وإعادة المحاولة."
+    en: "An unexpected error occurred while parsing the file. Please verify file integrity and retry."
+    accessible_label: "تنبيه خطأ فني أثناء تقييم الملف"
+
+  "feedback.fallback_feedback":
+    ar-EG: "ملاحظة: تم توليد هذه التوجيهات باستخدام النظام الآلي المحلي المباشر لضمان استمرار الخدمة دون انقطاع."
+    en: "Note: This feedback was generated via the direct local deterministic fallback to ensure uninterrupted service."
+    accessible_label: "إشعار: التوجيهات صادرة من نظام الملاحظات المحلي الاحتياطي"
+
+  "network.offline":
+    ar-EG: "يبدو أن هناك مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك والمحاولة مرة أخرى."
+    en: "There seems to be a network connection problem. Please check your connection and try again."
+    accessible_label: "تنبيه انقطاع الاتصال بالشبكة"
+
+  "profile.empty":
+    ar-EG: "لسه مفيش مهارات مسجلة هنا. لما تخلّص أول تكليف عملي بنجاح، مهاراتك هتنزل هنا بالدليل العملي."
+    en: "No verified skills recorded yet. Complete your first practical assignment to populate verified competency evidence."
+    accessible_label: "معلومات: لا توجد مهارات مسجلة بعد، ابدأ التكليف العملي الأول"
