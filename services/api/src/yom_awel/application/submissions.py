@@ -45,6 +45,19 @@ from yom_awel.ports.unit_of_work import UnitOfWorkFactory
 logger = logging.getLogger(__name__)
 
 
+async def _run_post_commit_cleanup(
+    cleanup: Callable[[datetime], Awaitable[None]], now: datetime
+) -> None:
+    """Run maintenance after commit without changing accepted outcome state."""
+
+    try:
+        await cleanup(now)
+    except Exception as error:  # noqa: BLE001
+        # Log only the exception type: provider messages may contain sensitive
+        # infrastructure details.
+        logger.warning("post_commit_retention_cleanup_failed: %s", type(error).__name__)
+
+
 def generate_fingerprint(command: ProcessSubmissionCommand) -> str:
     raw = f"{command.learner_id}:{command.task_version_id}:{command.artifact_id}:{command.artifact_sha256}:{command.channel.value}:{command.channel_event_id or ''}"
     return hashlib.sha256(raw.encode()).hexdigest()
@@ -368,14 +381,7 @@ class ProcessSubmission:
                 # Retention is bounded opportunistic maintenance and must
                 # never turn a successful submission into a failed request.
                 if self.post_commit_cleanup is not None:
-                    try:
-                        await self.post_commit_cleanup(now)
-                    except Exception as error:  # noqa: BLE001
-                        # Log only the exception type: provider messages may
-                        # contain sensitive infrastructure details.
-                        logger.warning(
-                            "post_commit_retention_cleanup_failed: %s", type(error).__name__
-                        )
+                    await _run_post_commit_cleanup(self.post_commit_cleanup, now)
                 return outcome
 
         except (

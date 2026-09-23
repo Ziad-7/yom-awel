@@ -10,23 +10,77 @@ alter table public.retention_audit
     drop constraint if exists retention_audit_learner_id_fkey;
 alter table public.retention_audit add column if not exists requested_learner_id uuid;
 update public.retention_audit
-set requested_learner_id = coalesce(requested_learner_id, learner_id, gen_random_uuid());
+set requested_learner_id = coalesce(
+    requested_learner_id,
+    learner_id,
+    artifact_id,
+    md5('retention-audit:' || audit_id::text)::uuid
+);
+-- Keep the earliest request tombstone deterministically before adding its
+-- uniqueness index.  Other historical purge/reconcile audit events remain.
+with duplicates as (
+    select audit_id,
+           row_number() over (
+               partition by requested_learner_id order by created_at, audit_id
+           ) as row_number
+    from public.retention_audit
+    where action = 'DELETE_REQUESTED'
+)
+delete from public.retention_audit a
+using duplicates d
+where a.audit_id = d.audit_id and d.row_number > 1;
 alter table public.retention_audit alter column requested_learner_id set not null;
 create unique index if not exists retention_audit_delete_tombstone_unique
     on public.retention_audit(requested_learner_id)
     where action = 'DELETE_REQUESTED';
+
+-- Anonymous Auth ownership is explicit before legacy request backfill.
+alter table public.external_identities
+    add column if not exists is_anonymous boolean not null default false;
 
 -- A deletion request is the durable idempotency tombstone.  Its learner FK is
 -- nulled when erasure succeeds, while requested_learner_id remains unique.
 alter table public.learner_deletion_requests
     add column if not exists requested_learner_id uuid,
     add column if not exists auth_user_id uuid,
+    add column if not exists auth_deleted_at timestamptz,
     add column if not exists lease_owner text,
     add column if not exists lease_expires_at timestamptz;
 update public.learner_deletion_requests
 set requested_learner_id = coalesce(requested_learner_id, learner_id);
+with duplicates as (
+    select request_id,
+           row_number() over (
+               partition by requested_learner_id order by requested_at, request_id
+           ) as row_number
+    from public.learner_deletion_requests
+)
+delete from public.learner_deletion_requests r
+using duplicates d
+where r.request_id = d.request_id and d.row_number > 1;
+
+-- Existing web identities are the anonymous zero-cost path.  Only a strict
+-- UUID subject is eligible for Auth admin deletion; invalid legacy requests
+-- are retained in audit history but cannot become live claims.
+update public.external_identities
+set is_anonymous = (provider = 'web')
+where is_anonymous is distinct from (provider = 'web');
+update public.learner_deletion_requests r
+set auth_user_id = (
+    select i.provider_subject::uuid
+    from public.external_identities i
+    where i.learner_id = r.requested_learner_id
+      and i.is_anonymous
+      and i.provider_subject ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    order by i.identity_id
+    limit 1
+)
+where r.auth_user_id is null;
+delete from public.learner_deletion_requests
+where auth_user_id is null;
 alter table public.learner_deletion_requests
     alter column learner_id drop not null,
+    alter column auth_user_id set not null,
     alter column requested_learner_id set not null;
 alter table public.learner_deletion_requests
     drop constraint if exists learner_deletion_requests_learner_id_fkey;
@@ -45,11 +99,9 @@ create unique index if not exists learner_deletion_requests_requested_learner_un
 alter table public.artifact_cleanup_queue
     drop constraint if exists artifact_cleanup_queue_learner_id_fkey;
 
--- Anonymous Auth ownership is explicit.  Identity mutations and deletes are
--- denied while a deletion claim is active; the erasure RPC changes the claim
--- to RECONCILING while it holds the same rows locked.
-alter table public.external_identities
-    add column if not exists is_anonymous boolean not null default false;
+-- Identity mutations and deletes are denied while a deletion claim is active;
+-- the erasure RPC changes the claim to RECONCILING while it holds the same
+-- rows locked.
 
 create or replace function public.prevent_identity_mutation_during_deletion()
 returns trigger
@@ -112,17 +164,33 @@ begin
     end if;
     perform 1 from public.learners where learner_id = p_learner_id for update;
     if not found then raise exception 'learner not found' using errcode = 'P0002'; end if;
+    -- The learner lock serializes request creators.  Re-check after waiting so
+    -- a concurrent caller returns the durable request instead of racing it.
+    select * into result_row
+    from public.learner_deletion_requests
+    where requested_learner_id = p_learner_id
+    for update;
+    if found then
+        return result_row;
+    end if;
     perform 1 from public.external_identities
     where learner_id = p_learner_id for update;
     select * into identity_row from public.external_identities
     where learner_id = p_learner_id and is_anonymous
     limit 1 for update;
+    if not found
+       or identity_row.provider <> 'web'
+       or identity_row.provider_subject !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then
+        raise exception 'anonymous Auth identity required' using errcode = '22023';
+    end if;
     insert into public.learner_deletion_requests(
         learner_id, requested_learner_id, auth_user_id, requested_by, status
     ) values (
         p_learner_id, p_learner_id, identity_row.provider_subject::uuid,
         p_requested_by, 'REQUESTED'
-    ) returning * into result_row;
+    ) on conflict (requested_learner_id) do update
+        set requested_learner_id = excluded.requested_learner_id
+    returning * into result_row;
     insert into public.retention_audit(
         requested_learner_id, artifact_id, learner_id, action, actor_id, details
     ) values (
@@ -210,8 +278,9 @@ begin
     with candidates as (
         select r.request_id
         from public.learner_deletion_requests r
-        where r.status in ('REQUESTED', 'FAILED')
+        where r.status in ('REQUESTED', 'FAILED', 'RECONCILED')
           and r.auth_user_id is not null
+          and r.auth_deleted_at is null
           and (r.lease_expires_at is null or r.lease_expires_at <= timezone('utc', now()))
         order by r.requested_at, r.request_id
         limit greatest(p_limit, 0) for update skip locked
@@ -238,7 +307,8 @@ begin
     update public.learner_deletion_requests
     set status = case when p_success then 'RECONCILED' else 'FAILED' end,
         lease_owner = null, lease_expires_at = null,
-        reconciled_at = case when p_success then timezone('utc', now()) else null end
+        reconciled_at = case when p_success then timezone('utc', now()) else null end,
+        auth_deleted_at = case when p_success then timezone('utc', now()) else auth_deleted_at end
     where request_id = p_request_id and lease_owner = p_lease_owner;
 end;
 $$;

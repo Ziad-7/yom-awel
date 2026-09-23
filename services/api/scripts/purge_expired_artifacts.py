@@ -15,6 +15,8 @@ import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 from uuid import UUID, uuid4
 
 from yom_awel.persistence.retention import (
@@ -115,8 +117,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--lease-seconds", type=int, default=300)
     args = parser.parse_args(argv)
-    if args.limit < 1 or args.lease_seconds < 1:
-        parser.error("--limit and --lease-seconds must be positive")
+    if args.limit < 1 or args.limit > 100 or args.lease_seconds < 1:
+        parser.error("--limit must be between 1 and 100; --lease-seconds must be positive")
     if not args.cleanup_queue:
         print("retention cleanup: no cleanup queue requested; no objects deleted")
         return 0

@@ -282,7 +282,7 @@ class SupabaseRetentionStore:
 class SupabaseObjectDeleter:
     """Service-role deleter for the private submissions bucket.
 
-    A provider 404 is deliberately normalized to ``FileNotFoundError`` so a
+    A provider 404 is deliberately normalized to a successful no-op so a
     retry after a successful object delete is idempotent.
     """
 
@@ -317,7 +317,9 @@ class SupabaseObjectDeleter:
             except HTTPError as error:
                 error.read()
                 if error.code == 404:
-                    raise FileNotFoundError(object_path) from error
+                    # A retry after a successful object delete is already in
+                    # the desired state; callers must not retry it forever.
+                    return
                 raise SupabaseRetentionError() from error
             except OSError as exc:
                 raise SupabaseRetentionError() from exc
@@ -478,6 +480,8 @@ class InMemoryRetentionStore:
 
     async def request_deletion(self, learner_id: UUID, actor_id: str, now: datetime) -> None:
         async with self._lock:
+            if learner_id in self.deletion_requests:
+                return
             self.deletion_requests[learner_id] = actor_id
             self.audit_log.append(
                 RetentionAudit(
