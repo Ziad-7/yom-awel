@@ -12,10 +12,32 @@
     "score": 0,
     "checks": [
       {
-        "check_id": "clean_data",
+        "check_id": "unique_orders",
         "passed": false,
-        "weight": 100,
-        "details": "توجد مشكلة في تنظيف البيانات"
+        "weight": 25,
+        "diagnostic_code": "unique_orders_failed",
+        "safe_detail": "معرفات الطلبات المكررة تحتاج مراجعة"
+      },
+      {
+        "check_id": "standard_dates",
+        "passed": false,
+        "weight": 25,
+        "diagnostic_code": "standard_dates_failed",
+        "safe_detail": "تنسيق التواريخ يحتاج مراجعة"
+      },
+      {
+        "check_id": "valid_numeric_values",
+        "passed": false,
+        "weight": 25,
+        "diagnostic_code": "valid_numeric_values_failed",
+        "safe_detail": "القيم الرقمية تحتاج مراجعة"
+      },
+      {
+        "check_id": "complete_customer_records",
+        "passed": false,
+        "weight": 25,
+        "diagnostic_code": "complete_customer_records_failed",
+        "safe_detail": "سجلات العملاء الناقصة تحتاج مراجعة"
       }
     ],
     "errors": [

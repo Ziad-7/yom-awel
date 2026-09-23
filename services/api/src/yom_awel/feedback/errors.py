@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass
 class FeedbackProviderError(Exception):
     code: str
     retryable: bool = False

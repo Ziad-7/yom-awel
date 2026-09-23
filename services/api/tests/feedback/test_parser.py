@@ -11,14 +11,14 @@ def valid_payload() -> dict[str, object]:
     return {
         "feedback_text": (
             "القرار: التسليم محتاج إعادة شغل. "
-            "تأثير الشغل: البيانات الناقصة تؤثر على إجمالي المبيعات. "
-            "الخطوة الجاية: راجع البيانات قبل إعادة التسليم. "
+            "تأثير الشغل: تكرار الطلبات يضخم إجمالي المبيعات. "
+            "الخطوة الجاية: راجع معرفات الطلبات المكررة قبل إعادة التسليم. "
             "تفسير الدرجة: حصلت على 0 من 100."
         ),
         "language": "ar-EG",
         "decision": "retry",
         "score": 0,
-        "referenced_check_ids": ["clean_data"],
+        "referenced_check_ids": ["unique_orders"],
         "reveals_reference_solution": False,
     }
 

@@ -12,7 +12,7 @@ class FeedbackPolicy:
 
 ACTIVE_FEEDBACK_POLICY = FeedbackPolicy(
     version="tarek-feedback@1",
-    persona_id="eng-tarek",
+    persona_id="tarek",
     required_sections=("decision", "business_consequence", "next_action", "score_explanation"),
     prohibited_actions=(
         "override_grade",

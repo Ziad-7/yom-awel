@@ -3,12 +3,12 @@ from yom_awel.feedback.policy import ACTIVE_FEEDBACK_POLICY
 
 
 def test_tarek_is_the_only_active_v1_persona() -> None:
-    assert ACTIVE_FEEDBACK_POLICY.persona_id == "eng-tarek"
-    assert PERSONAS["eng-tarek"].language == "ar-EG"
+    assert ACTIVE_FEEDBACK_POLICY.persona_id == "tarek"
+    assert PERSONAS["tarek"].language == "ar-EG"
     assert PERSONAS["hazem"].status == "roadmap"
     assert PERSONAS["mona"].status == "roadmap"
     assert [persona.persona_id for persona in PERSONAS.values() if persona.status == "active"] == [
-        "eng-tarek"
+        "tarek"
     ]
 
 

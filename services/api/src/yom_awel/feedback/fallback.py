@@ -9,9 +9,21 @@ from yom_awel.ports.feedback import FeedbackProvider
 _Guidance = tuple[str, str]
 
 CHECK_GUIDANCE: dict[str, _Guidance] = {
-    "clean_data": (
-        "بيانات المبيعات غير المكتملة تقلل دقة التقرير وقرار الإدارة",
-        "راجع قواعد تنظيف البيانات ورسالة المقيم ثم صحح الملف قبل إعادة التسليم",
+    "unique_orders": (
+        "تكرار الطلبات يضخم إجمالي المبيعات ويشوّه التقرير",
+        "راجع معرفات الطلبات المكررة ونظّفها قبل إعادة التسليم",
+    ),
+    "standard_dates": (
+        "اختلاف تنسيق التواريخ يربك ترتيب المبيعات عبر الفترات",
+        "وحّد تنسيق التواريخ ثم أعد فحص ترتيب السجلات",
+    ),
+    "valid_numeric_values": (
+        "القيم الرقمية غير الصالحة تضعف دقة إجمالي المبيعات",
+        "تحقق من قيم الكميات والأسعار وصحح غير الصالح منها",
+    ),
+    "complete_customer_records": (
+        "سجلات العملاء الناقصة تصعّب متابعة الطلبات",
+        "أكمل بيانات العملاء المطلوبة ثم أعد التسليم",
     ),
 }
 
@@ -55,7 +67,12 @@ class DeterministicFeedbackProvider(FeedbackProvider):
                 consequences = [_GENERIC_GUIDANCE[0]]
                 actions = [_GENERIC_GUIDANCE[1]]
             remaining = len(failures) - len(selected)
-            remainder = f" وفيه {remaining} فحوصات إضافية محتاجة مراجعة." if remaining else ""
+            if remaining == 1:
+                remainder = " وفيه فحص إضافي واحد محتاج مراجعة."
+            elif remaining == 2:
+                remainder = " وفيه فحصان إضافيان محتاجان مراجعة."
+            else:
+                remainder = f" وفيه {remaining} فحوصات إضافية محتاجة مراجعة." if remaining else ""
             text = (
                 "القرار: التسليم محتاج إعادة شغل.\n"
                 f"تأثير الشغل: {'؛ '.join(consequences)}.{remainder}\n"

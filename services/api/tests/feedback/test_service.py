@@ -73,12 +73,12 @@ async def test_transient_failure_retries_once(
     generated = FeedbackResult(
         feedback_text=(
             "القرار: التسليم محتاج إعادة شغل. "
-            "تأثير الشغل: البيانات الناقصة تؤثر على التقرير. "
-            "الخطوة الجاية: راجع فحص تنظيف البيانات. "
+            "تأثير الشغل: تكرار الطلبات يضعف دقة التقرير. "
+            "الخطوة الجاية: راجع معرفات الطلبات المكررة. "
             "تفسير الدرجة: حصلت على 0 من 100."
         ),
         language="ar-EG",
-        persona_id="eng-tarek",
+        persona_id="tarek",
         prompt_version="tarek-feedback@1",
         provider="gemini",
         model="test-model",
@@ -112,7 +112,7 @@ async def test_primary_prose_contradiction_activates_fallback(
     generated = FeedbackResult(
         feedback_text=feedback_text,
         language="ar-EG",
-        persona_id="eng-tarek",
+        persona_id="tarek",
         prompt_version="tarek-feedback@1",
         provider="gemini",
         model="test-model",

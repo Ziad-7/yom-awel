@@ -130,6 +130,11 @@ Maintain fixtures covering pass, near-pass, multiple failures, ambiguous learner
 
 ## Version 1 examples
 
+The canonical `contracts-v1` persona ID is `tarek` (Eng. Tarek is the display persona).
+Feedback consumes `EvaluationCheck.details_ar` or `details_en` according to language and the
+four `clean-sales@1` check IDs. Provider requests use approved check-specific wording rather
+than forwarding evaluator free text or workbook rows.
+
 Passing example: `القرار: التسليم مقبول.` Eng. Tarek then explains why the cleaned report is
 safe to use, gives the next workplace action, and repeats the deterministic score.
 

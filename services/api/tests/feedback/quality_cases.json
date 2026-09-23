@@ -12,15 +12,15 @@
     "fixture": "fail",
     "score_override": null,
     "learner_note": null,
-    "required": ["القرار: التسليم محتاج إعادة شغل", "بيانات المبيعات", "0"],
-    "forbidden": ["التسليم مقبول", "الحل الكامل"]
+    "required": ["القرار: التسليم مقبول", "75"],
+    "forbidden": ["إعادة شغل", "الحل الكامل"]
   },
   {
     "id": "three-failures",
     "fixture": "fail",
-    "score_override": 30,
+    "score_override": null,
     "learner_note": null,
-    "required": ["إعادة شغل", "30"],
+    "required": ["إعادة شغل", "25"],
     "forbidden": ["التسليم مقبول"]
   },
   {
@@ -44,7 +44,7 @@
     "fixture": "fail",
     "score_override": null,
     "learner_note": "راجعت duplicate rows في Excel",
-    "required": ["بيانات المبيعات"],
+    "required": ["تكرار الطلبات"],
     "forbidden": ["duplicate rows في Excel"]
   },
   {

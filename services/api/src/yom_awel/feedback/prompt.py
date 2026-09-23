@@ -2,7 +2,7 @@ import re
 
 from pydantic import BaseModel, ConfigDict
 
-from yom_awel.domain.contracts import EvaluationResult, TaskVersion
+from yom_awel.domain.contracts import EvaluationCheck, EvaluationResult, TaskVersion
 from yom_awel.domain.enums import Language
 from yom_awel.feedback.policy import ACTIVE_FEEDBACK_POLICY
 
@@ -23,8 +23,25 @@ _SAFE_ID = re.compile(r"^[a-z][a-z0-9_-]{0,99}$")
 # Evaluator details and error messages may contain workbook cells. Only published,
 # task-neutral explanations are allowed into the provider request.
 _SAFE_CHECK_DETAILS = {
-    "clean_data": {"ar-EG": "توجد مشكلة في تنظيف البيانات", "en": "Data cleaning needs review"},
+    "unique_orders": {
+        "ar-EG": "معرفات الطلبات المكررة تحتاج مراجعة",
+        "en": "Duplicate order IDs need review",
+    },
+    "standard_dates": {
+        "ar-EG": "تنسيق التواريخ يحتاج مراجعة",
+        "en": "Date formatting needs review",
+    },
+    "valid_numeric_values": {
+        "ar-EG": "القيم الرقمية تحتاج مراجعة",
+        "en": "Numeric values need review",
+    },
+    "complete_customer_records": {
+        "ar-EG": "سجلات العملاء الناقصة تحتاج مراجعة",
+        "en": "Incomplete customer records need review",
+    },
 }
+_GENERIC_CHECK_DETAIL = {"ar-EG": "الفحص يحتاج مراجعة", "en": "The check needs review"}
+_PASSED_CHECK_DETAIL = {"ar-EG": "تم اجتياز الفحص", "en": "The check passed"}
 _SAFE_ERROR_MESSAGES = {
     "missing_data": {"ar-EG": "البيانات غير مكتملة", "en": "Data is incomplete"},
 }
@@ -46,7 +63,8 @@ class SafeCheck(_StrictModel):
     check_id: str
     passed: bool
     weight: int
-    details: str | None
+    diagnostic_code: str
+    safe_detail: str
 
 
 class SafeError(_StrictModel):
@@ -98,6 +116,17 @@ def _safe_id(value: str, fallback: str) -> str:
     return value if _SAFE_ID.fullmatch(value) else fallback
 
 
+def _safe_check_detail(check: EvaluationCheck, language: Language) -> str:
+    # The evaluator supplies language-specific learner text, but it can still
+    # contain workbook rows. Keep only the approved, task-neutral wording.
+    source = check.details_ar if language is Language.AR_EG else check.details_en
+    if not source.strip():
+        return _GENERIC_CHECK_DETAIL[language.value]
+    if check.passed:
+        return _PASSED_CHECK_DETAIL[language.value]
+    return _SAFE_CHECK_DETAILS.get(check.check_id, _GENERIC_CHECK_DETAIL)[language.value]
+
+
 def build_provider_request(
     task: TaskVersion,
     evaluation: EvaluationResult,
@@ -117,11 +146,8 @@ def build_provider_request(
             check_id=_safe_id(check.check_id, "unknown_check"),
             passed=check.passed,
             weight=check.weight,
-            details=(
-                _SAFE_CHECK_DETAILS[check.check_id][language.value]
-                if check.details and check.check_id in _SAFE_CHECK_DETAILS
-                else None
-            ),
+            diagnostic_code=_safe_id(check.diagnostic_code, "unknown_diagnostic"),
+            safe_detail=_safe_check_detail(check, language),
         )
         for check in evaluation.checks[:20]
     ]

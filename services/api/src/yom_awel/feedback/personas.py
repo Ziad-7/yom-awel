@@ -15,8 +15,8 @@ class Persona:
 
 
 PERSONAS = {
-    "eng-tarek": Persona(
-        persona_id="eng-tarek",
+    "tarek": Persona(
+        persona_id="tarek",
         name_ar="م. طارق",
         workplace_role="مشرف الفريق",
         language="ar-EG",

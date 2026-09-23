@@ -18,15 +18,20 @@ async def test_deterministic_quality_case(
     failed_evaluation: EvaluationResult,
 ) -> None:
     evaluation = passed_evaluation if case["fixture"] == "pass" else failed_evaluation
+    if case["id"] == "one-failure":
+        checks = [
+            failed_evaluation.checks[0],
+            *passed_evaluation.checks[1:],
+        ]
+        evaluation = evaluation.model_copy(update={"checks": checks, "passed": True, "score": 75})
     if case["id"] == "three-failures":
-        failed_check = next(check for check in evaluation.checks if not check.passed)
         evaluation = evaluation.model_copy(
             update={
                 "checks": [
-                    *evaluation.checks,
-                    failed_check.model_copy(update={"check_id": "date-format"}),
-                    failed_check.model_copy(update={"check_id": "sales-total"}),
-                ]
+                    *failed_evaluation.checks[:3],
+                    passed_evaluation.checks[3],
+                ],
+                "score": 25,
             }
         )
     if case["score_override"] is not None:
