@@ -44,9 +44,18 @@ def test_parser_accepts_grounded_response(failed_evaluation: EvaluationResult) -
         lambda payload: payload.update(language="en"),
         lambda payload: payload.update(decision="pass"),
         lambda payload: payload.update(score=1),
+        lambda payload: payload.update(score="0"),
+        lambda payload: payload.update(score=False),
+        lambda payload: payload.update(reveals_reference_solution="false"),
         lambda payload: payload.update(referenced_check_ids=["invented-check"]),
         lambda payload: payload.update(reveals_reference_solution=True),
         lambda payload: payload.update(feedback_text="English only feedback"),
+        lambda payload: payload.update(
+            feedback_text=(
+                "القرار: التسليم محتاج إعادة شغل. تأثير الشغل: Bad report. "
+                "الخطوة الجاية: Fix duplicates. تفسير الدرجة: حصلت على 0 من 100."
+            )
+        ),
         lambda payload: payload.update(referenced_check_ids=[]),
         lambda payload: payload.update(
             feedback_text=(

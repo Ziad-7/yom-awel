@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 from collections.abc import Awaitable, Callable
 from time import perf_counter
 from uuid import uuid4
@@ -77,10 +78,15 @@ class ResilientFeedbackProvider(FeedbackProvider):
             result = await self._primary.generate(evaluation, language, learner_note)
         except FeedbackProviderError as error:
             elapsed = self._clock() - started
-            if error.code == "quota" and error.retry_after_seconds is None:
-                raise
-            delay = error.retry_after_seconds or 0.0
-            if not error.retryable or elapsed + delay >= self._timeout_seconds:
+            delay = error.retry_after_seconds
+            if (
+                not error.retryable
+                or error.code not in {"network", "quota"}
+                or delay is None
+                or not math.isfinite(delay)
+                or delay < 0
+                or elapsed + delay >= self._timeout_seconds
+            ):
                 raise
             if delay:
                 await self._sleep(delay)

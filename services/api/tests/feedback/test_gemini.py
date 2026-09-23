@@ -1,10 +1,12 @@
 import json
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
 from yom_awel.domain.contracts import EvaluationResult, TaskVersion
 from yom_awel.domain.enums import Language
-from yom_awel.feedback.gemini import GeminiAdapter
+from yom_awel.feedback.gemini import GeminiAdapter, GoogleGenAIClient
 
 
 class FakeGeminiClient:
@@ -75,3 +77,22 @@ def test_adapter_rejects_model_outside_approved_free_tier() -> None:
             model="gemini-2.5-pro",
             task_context_resolver=resolve_task,
         )
+
+
+async def test_sdk_requests_the_same_schema_as_the_parser() -> None:
+    generate = AsyncMock(return_value=SimpleNamespace(text="{}"))
+    wrapper = GoogleGenAIClient("test-key")
+    wrapper._client = SimpleNamespace(
+        aio=SimpleNamespace(models=SimpleNamespace(generate_content=generate))
+    )
+    await wrapper.generate_json(model="gemini-2.5-flash", prompt="{}", timeout_seconds=1)
+    config = generate.call_args.kwargs["config"]
+    assert config["response_mime_type"] == "application/json"
+    assert set(config["response_json_schema"]["required"]) == {
+        "feedback_text",
+        "language",
+        "decision",
+        "score",
+        "referenced_check_ids",
+        "reveals_reference_solution",
+    }

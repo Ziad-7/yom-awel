@@ -14,8 +14,10 @@ _AR_SECTIONS = ("القرار:", "تأثير الشغل:", "الخطوة الج�
 _EN_SECTIONS = ("Decision:", "Business impact:", "Next action:", "Score explanation:")
 
 
-class _ProviderPayload(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class ProviderPayload(BaseModel):
+    """Provider wire format, not a replacement for the canonical FeedbackResult."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     feedback_text: str = Field(min_length=1, max_length=900)
     language: Literal["ar-EG", "en"]
@@ -36,7 +38,7 @@ def parse_provider_response(
 ) -> FeedbackResult:
     try:
         decoded = json.loads(payload)
-        response = _ProviderPayload.model_validate(decoded)
+        response = ProviderPayload.model_validate(decoded)
     except (json.JSONDecodeError, ValidationError, TypeError) as exc:
         raise ProviderResponseError("malformed_response") from exc
 
@@ -97,6 +99,8 @@ def validate_grounded_feedback(
     ]
     if any(not section for section in sections):
         raise ProviderResponseError("empty_feedback_section")
+    if language is Language.AR_EG and any(not _ARABIC.search(section) for section in sections):
+        raise ProviderResponseError("non_arabic_response")
 
     if language is Language.AR_EG:
         expected = "التسليم مقبول" if evaluation.passed else "التسليم محتاج إعادة شغل"

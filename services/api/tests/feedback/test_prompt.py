@@ -114,12 +114,24 @@ def test_prompt_uses_language_specific_safe_check_detail(
     arabic = build_provider_request(task, failed_evaluation, None, Language.AR_EG)
     english = build_provider_request(task, failed_evaluation, None, Language.EN)
     assert arabic.structured_evaluation.checks[0].safe_detail == (
-        "معرفات الطلبات المكررة تحتاج مراجعة"
+        "لم يتم اجتياز الفحص. معرفات الطلبات المكررة تحتاج مراجعة"
     )
     assert english.structured_evaluation.checks[0].safe_detail == (
-        "Duplicate order IDs need review"
+        "Check failed. Duplicate order IDs need review"
     )
     assert english.structured_evaluation.checks[0].diagnostic_code == "unique_orders_failed"
+
+
+def test_only_selected_language_detail_is_consumed(
+    task: TaskVersion, failed_evaluation: EvaluationResult
+) -> None:
+    check = failed_evaluation.checks[0].model_copy(update={"details_en": "raw customer row"})
+    evaluation = failed_evaluation.model_copy(update={"checks": [check]})
+    arabic = build_provider_request(task, evaluation, None, Language.AR_EG)
+    english = build_provider_request(task, evaluation, None, Language.EN)
+    assert arabic.structured_evaluation.checks[0].safe_detail.startswith(check.details_ar)
+    assert english.structured_evaluation.checks[0].safe_detail == "Duplicate order IDs need review"
+    assert "raw customer row" not in english.serialized()
 
 
 def test_learner_note_cannot_close_its_untrusted_delimiter(

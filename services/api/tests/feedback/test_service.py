@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Iterable
 
 import pytest
@@ -134,3 +135,63 @@ async def test_non_retryable_failure_is_not_retried(
     result = await service.generate(failed_evaluation, Language.AR_EG, None)
     assert result.used_fallback is True
     assert primary.calls == 1
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        ProviderNetworkError(),
+        ProviderQuotaError(),
+        ProviderQuotaError(-1),
+        ProviderQuotaError(float("nan")),
+        ProviderQuotaError(float("inf")),
+        ProviderQuotaError(10),
+        FeedbackProviderError("refusal", retryable=True, retry_after_seconds=0),
+    ],
+)
+async def test_retry_requires_valid_transient_delay(
+    failed_evaluation: EvaluationResult, error: FeedbackProviderError
+) -> None:
+    primary = SequenceProvider([error])
+    result = await ResilientFeedbackProvider(primary, DeterministicFeedbackProvider()).generate(
+        failed_evaluation, Language.AR_EG
+    )
+    assert result.used_fallback
+    assert primary.calls == 1
+
+
+@pytest.mark.parametrize("error_type", [ProviderNetworkError, ProviderQuotaError])
+async def test_retry_delay_is_observed_and_attempts_are_bounded(
+    failed_evaluation: EvaluationResult, error_type: type[FeedbackProviderError]
+) -> None:
+    delays: list[float] = []
+
+    async def sleep(delay: float) -> None:
+        delays.append(delay)
+
+    error = error_type(retry_after_seconds=0.1)
+    primary = SequenceProvider([error, error])
+    service = ResilientFeedbackProvider(primary, DeterministicFeedbackProvider(), sleep=sleep)
+    assert (await service.generate(failed_evaluation, Language.AR_EG)).used_fallback
+    assert delays == [0.1]
+    assert primary.calls == 2
+
+
+async def test_actual_hung_provider_is_cancelled_and_falls_back(
+    failed_evaluation: EvaluationResult,
+) -> None:
+    cancelled = asyncio.Event()
+
+    class HangingProvider:
+        async def generate(self, evaluation, language, learner_note):  # type: ignore[no-untyped-def]
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
+
+    service = ResilientFeedbackProvider(
+        HangingProvider(), DeterministicFeedbackProvider(), timeout_seconds=0.01
+    )
+    result = await asyncio.wait_for(service.generate(failed_evaluation, Language.AR_EG), timeout=1)
+    assert result.used_fallback
+    assert cancelled.is_set()

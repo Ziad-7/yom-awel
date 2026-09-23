@@ -15,7 +15,7 @@ from yom_awel.feedback.errors import (
     ProviderResponseError,
     ProviderTimeoutError,
 )
-from yom_awel.feedback.parser import parse_provider_response
+from yom_awel.feedback.parser import ProviderPayload, parse_provider_response
 from yom_awel.feedback.prompt import build_provider_request
 from yom_awel.ports.feedback import FeedbackProvider
 
@@ -44,7 +44,10 @@ class GoogleGenAIClient:
             response = await self._client.aio.models.generate_content(
                 model=model,
                 contents=prompt,
-                config={"response_mime_type": "application/json"},
+                config={
+                    "response_mime_type": "application/json",
+                    "response_json_schema": ProviderPayload.model_json_schema(),
+                },
             )
         text = getattr(response, "text", None)
         if not text:
