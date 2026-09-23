@@ -24,6 +24,22 @@ def test_cloud_require_object_formats_invalid_object_error() -> None:
     assert "raise exception 'invalid % object', p_label using errcode = '22023';" in sql
 
 
+def test_cloud_validators_use_supported_volatility_and_extension_schema() -> None:
+    sql = (ROOT / "supabase/migrations/20260922100000_cloud_progression_authority.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "extensions.uuid_generate_v5(" in sql
+    for function_name in (
+        "_cloud_json_timestamp",
+        "_cloud_validate_attempt",
+        "_cloud_validate_evidence",
+        "_cloud_validate_outcome",
+    ):
+        start = sql.index(f"create or replace function public.{function_name}(")
+        end = sql.index("$$;", start)
+        assert "\nlanguage plpgsql\nstable\n" in sql[start:end]
+
+
 class LocalRpc:
     def __init__(self, base_url: str, service_key: str) -> None:
         self.base_url = base_url.rstrip("/")

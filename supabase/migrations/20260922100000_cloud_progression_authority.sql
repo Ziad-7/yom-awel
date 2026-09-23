@@ -178,7 +178,7 @@ create or replace function public._cloud_json_timestamp(
 )
 returns timestamptz
 language plpgsql
-immutable
+stable
 set search_path = public, pg_temp
 as $$
 declare
@@ -296,7 +296,7 @@ create or replace function public._cloud_validate_attempt(
 )
 returns void
 language plpgsql
-immutable
+stable
 set search_path = public, pg_temp
 as $$
 begin
@@ -316,7 +316,7 @@ create or replace function public._cloud_validate_evidence(
 )
 returns void
 language plpgsql
-immutable
+stable
 set search_path = public, pg_temp
 as $$
 declare
@@ -377,7 +377,7 @@ create or replace function public._cloud_validate_outcome(
 )
 returns void
 language plpgsql
-immutable
+stable
 set search_path = public, pg_temp
 as $$
 declare
@@ -682,7 +682,7 @@ begin
     select coalesce(
         jsonb_agg(
             jsonb_build_object(
-                'evidence_id', uuid_generate_v5(
+                'evidence_id', extensions.uuid_generate_v5(
                     '6ba7b812-9dad-11d1-80b4-00c04fd430c8'::uuid,
                     (public._cloud_json_uuid(p_attempt, 'attempt_id', 'attempt'))::text
                     || ':' || current_row.task_version_id::text || ':'
