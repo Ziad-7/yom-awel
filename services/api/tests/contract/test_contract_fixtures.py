@@ -158,6 +158,10 @@ def test_fallback_fixture_matches_member_three_consumer_contract() -> None:
         (VALID_SKILL_MAPPING, "skill_id", ""),
         (VALID_SKILL_MAPPING, "check_id", ""),
         (VALID_SKILL_MAPPING, "weight", -1),
+        (VALID_EVALUATION_CHECK, "details_ar", ""),
+        (VALID_EVALUATION_CHECK, "details_ar", "   "),
+        (VALID_EVALUATION_CHECK, "details_en", ""),
+        (VALID_EVALUATION_CHECK, "details_en", "   "),
     ],
 )
 def test_contract_boundaries_reject_invalid_values(

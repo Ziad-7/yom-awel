@@ -9,10 +9,14 @@
           "type": "string"
         },
         "details_ar": {
+          "minLength": 1,
+          "pattern": "[^ ]",
           "title": "Details Ar",
           "type": "string"
         },
         "details_en": {
+          "minLength": 1,
+          "pattern": "[^ ]",
           "title": "Details En",
           "type": "string"
         },
