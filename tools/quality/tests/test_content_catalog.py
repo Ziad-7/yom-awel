@@ -5,7 +5,6 @@ import yaml
 
 from tools.quality.validate_content_catalog import validate_content_catalog
 
-
 ROOT = Path(__file__).resolve().parents[3]
 COPY_PATH = ROOT / "docs" / "product" / "content" / "interface-copy.yaml"
 GLOSSARY_PATH = ROOT / "docs" / "product" / "content" / "glossary.yaml"
@@ -40,9 +39,9 @@ def test_interface_copy_covers_all_required_states() -> None:
     ]
 
     for state_key in required_state_keys:
-        assert any(
-            state_key in msg_id for msg_id in messages
-        ), f"Missing coverage for state '{state_key}' in interface-copy.yaml"
+        assert any(state_key in msg_id for msg_id in messages), (
+            f"Missing coverage for state '{state_key}' in interface-copy.yaml"
+        )
 
 
 def test_placeholder_parity_across_languages() -> None:
@@ -58,6 +57,6 @@ def test_placeholder_parity_across_languages() -> None:
         ar_placeholders = set(placeholder_regex.findall(ar_text))
         en_placeholders = set(placeholder_regex.findall(en_text))
 
-        assert (
-            ar_placeholders == en_placeholders
-        ), f"Placeholder mismatch in message '{msg_id}': ar={ar_placeholders} vs en={en_placeholders}"
+        assert ar_placeholders == en_placeholders, (
+            f"Placeholder mismatch in message '{msg_id}': ar={ar_placeholders} vs en={en_placeholders}"
+        )

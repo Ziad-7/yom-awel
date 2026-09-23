@@ -36,7 +36,11 @@ def validate_objectives_manifest(
 
     # Artifacts
     artifacts = data.get("required_artifacts")
-    if not isinstance(artifacts, dict) or not artifacts.get("input") or not artifacts.get("output"):
+    if (
+        not isinstance(artifacts, dict)
+        or not artifacts.get("input")
+        or not artifacts.get("output")
+    ):
         errors.append("Missing or incomplete 'required_artifacts' section.")
 
     # Pass policy
@@ -71,18 +75,24 @@ def validate_objectives_manifest(
                 seen_ids.add(obj_id)
 
             if not obj.get("title") or not obj.get("description"):
-                errors.append(f"Objective '{obj_id or idx}' missing title or description.")
+                errors.append(
+                    f"Objective '{obj_id or idx}' missing title or description."
+                )
 
             if not obj.get("skill_id"):
                 errors.append(f"Objective '{obj_id or idx}' missing 'skill_id'.")
 
             checks = obj.get("check_ids")
             if not isinstance(checks, list) or len(checks) == 0:
-                errors.append(f"Objective '{obj_id or idx}' must map to at least one check_id.")
+                errors.append(
+                    f"Objective '{obj_id or idx}' must map to at least one check_id."
+                )
 
             pts = obj.get("points")
             if not isinstance(pts, int) or pts <= 0:
-                errors.append(f"Objective '{obj_id or idx}' must define positive integer points.")
+                errors.append(
+                    f"Objective '{obj_id or idx}' must define positive integer points."
+                )
             else:
                 points_sum += pts
 
@@ -96,9 +106,15 @@ def validate_objectives_manifest(
     if not isinstance(transforms, dict):
         errors.append("Missing 'transformations' section.")
     else:
-        if not isinstance(transforms.get("allowed"), list) or len(transforms["allowed"]) == 0:
+        if (
+            not isinstance(transforms.get("allowed"), list)
+            or len(transforms["allowed"]) == 0
+        ):
             errors.append("Transformations must define a non-empty 'allowed' list.")
-        if not isinstance(transforms.get("forbidden"), list) or len(transforms["forbidden"]) == 0:
+        if (
+            not isinstance(transforms.get("forbidden"), list)
+            or len(transforms["forbidden"]) == 0
+        ):
             errors.append("Transformations must define a non-empty 'forbidden' list.")
 
     # Misconceptions
@@ -128,7 +144,9 @@ def validate_objectives_manifest(
 
 def main() -> int:
     root = Path(__file__).resolve().parents[2]
-    manifest_path = root / "task_packages" / "clean-sales" / "1" / "learning-objectives.yaml"
+    manifest_path = (
+        root / "task_packages" / "clean-sales" / "1" / "learning-objectives.yaml"
+    )
 
     if len(sys.argv) > 1:
         manifest_path = Path(sys.argv[1])
@@ -140,13 +158,16 @@ def main() -> int:
     try:
         content = manifest_path.read_text(encoding="utf-8")
         data = yaml.safe_load(content)
-    except Exception as exc:
+    except (yaml.YAMLError, OSError) as exc:
         print(f"Error reading YAML file: {exc}", file=sys.stderr)
         return 1
 
     errors = validate_objectives_manifest(data, root_dir=root)
     if errors:
-        print(f"FAILED: Found {len(errors)} error(s) in learning objectives:", file=sys.stderr)
+        print(
+            f"FAILED: Found {len(errors)} error(s) in learning objectives:",
+            file=sys.stderr,
+        )
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         return 1

@@ -6,7 +6,6 @@ import hashlib
 import re
 import sys
 from pathlib import Path
-from typing import Any
 
 import yaml
 
@@ -49,8 +48,10 @@ def validate_submission_package(root_dir: Path | None = None) -> list[str]:
     if claims_path.exists():
         try:
             claims_data = yaml.safe_load(claims_path.read_text(encoding="utf-8"))
-            known_claim_ids = {c["id"] for c in claims_data.get("claims", []) if "id" in c}
-        except Exception as exc:
+            known_claim_ids = {
+                c["id"] for c in claims_data.get("claims", []) if "id" in c
+            }
+        except (yaml.YAMLError, OSError) as exc:
             errors.append(f"Failed to load claim matrix: {exc}")
 
     # 3. Check markdown contents for placeholders and claim references
@@ -73,7 +74,7 @@ def validate_submission_package(root_dir: Path | None = None) -> list[str]:
     if manifest_path.exists():
         try:
             manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
-        except Exception as exc:
+        except (yaml.YAMLError, OSError) as exc:
             errors.append(f"Failed to parse asset manifest: {exc}")
             return errors
 
@@ -86,15 +87,26 @@ def validate_submission_package(root_dir: Path | None = None) -> list[str]:
                     errors.append(f"Asset at index {idx} must be a dictionary.")
                     continue
 
-                for req_key in ["id", "source_path", "export_path", "mime_type", "purpose", "sha256"]:
+                for req_key in [
+                    "id",
+                    "source_path",
+                    "export_path",
+                    "mime_type",
+                    "purpose",
+                    "sha256",
+                ]:
                     if not asset.get(req_key):
-                        errors.append(f"Asset '{asset.get('id', idx)}' missing required field '{req_key}'.")
+                        errors.append(
+                            f"Asset '{asset.get('id', idx)}' missing required field '{req_key}'."
+                        )
 
                 src_rel = asset.get("source_path")
                 if src_rel:
                     src_full = root_dir / src_rel
                     if not src_full.exists():
-                        errors.append(f"Asset '{asset.get('id')}' source_path does not exist: {src_rel}")
+                        errors.append(
+                            f"Asset '{asset.get('id')}' source_path does not exist: {src_rel}"
+                        )
                     else:
                         actual_sha = hashlib.sha256(src_full.read_bytes()).hexdigest()
                         declared_sha = asset.get("sha256")
@@ -106,7 +118,9 @@ def validate_submission_package(root_dir: Path | None = None) -> list[str]:
 
                 for cid in asset.get("claim_ids", []):
                     if known_claim_ids and cid not in known_claim_ids:
-                        errors.append(f"Asset '{asset.get('id')}' references unknown claim_id '{cid}'")
+                        errors.append(
+                            f"Asset '{asset.get('id')}' references unknown claim_id '{cid}'"
+                        )
 
     return errors
 
@@ -115,7 +129,10 @@ def main() -> int:
     root = Path(__file__).resolve().parents[2]
     errors = validate_submission_package(root_dir=root)
     if errors:
-        print(f"FAILED: Found {len(errors)} error(s) in submission package:", file=sys.stderr)
+        print(
+            f"FAILED: Found {len(errors)} error(s) in submission package:",
+            file=sys.stderr,
+        )
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         return 1

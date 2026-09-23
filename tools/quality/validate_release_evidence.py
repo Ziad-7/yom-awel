@@ -45,10 +45,18 @@ def validate_release_evidence(
             else:
                 registered_source_ids.add(src_id)
 
-            for req_field in ["title", "publisher", "publication_date", "url", "supported_claim"]:
+            for req_field in [
+                "title",
+                "publisher",
+                "publication_date",
+                "url",
+                "supported_claim",
+            ]:
                 val = src.get(req_field)
                 if not val or not isinstance(val, str) or not val.strip():
-                    errors.append(f"Source '{src_id or idx}' missing required field '{req_field}'.")
+                    errors.append(
+                        f"Source '{src_id or idx}' missing required field '{req_field}'."
+                    )
 
     # 2. Validate claims
     if not isinstance(claims_data, dict):
@@ -112,7 +120,9 @@ def validate_release_evidence(
         if c_type == "capability" and status == "current":
             evidence = claim.get("evidence")
             if not isinstance(evidence, dict):
-                errors.append(f"Current capability claim '{c_id}' missing 'evidence' dictionary.")
+                errors.append(
+                    f"Current capability claim '{c_id}' missing 'evidence' dictionary."
+                )
             else:
                 tests = evidence.get("automated_tests")
                 if not isinstance(tests, list) or len(tests) == 0:
@@ -149,13 +159,16 @@ def main() -> int:
     try:
         sources_data = yaml.safe_load(sources_path.read_text(encoding="utf-8"))
         claims_data = yaml.safe_load(claims_path.read_text(encoding="utf-8"))
-    except Exception as exc:
+    except (yaml.YAMLError, OSError) as exc:
         print(f"Error reading YAML files: {exc}", file=sys.stderr)
         return 1
 
     errors = validate_release_evidence(sources_data, claims_data)
     if errors:
-        print(f"FAILED: Found {len(errors)} error(s) in release evidence:", file=sys.stderr)
+        print(
+            f"FAILED: Found {len(errors)} error(s) in release evidence:",
+            file=sys.stderr,
+        )
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         return 1

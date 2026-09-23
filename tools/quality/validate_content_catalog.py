@@ -44,7 +44,9 @@ def validate_content_catalog(
 
             acc_label = entry.get("accessible_label")
             if not acc_label or not isinstance(acc_label, str) or not acc_label.strip():
-                errors.append(f"Message '{msg_id}' is missing valid 'accessible_label'.")
+                errors.append(
+                    f"Message '{msg_id}' is missing valid 'accessible_label'."
+                )
 
             if ar_text and en_text:
                 ar_vars = set(PLACEHOLDER_REGEX.findall(ar_text))
@@ -77,10 +79,14 @@ def validate_content_catalog(
                     seen_term_ids.add(term_id)
 
                 if not term.get("en") or not term.get("ar_preferred"):
-                    errors.append(f"Glossary term '{term_id or idx}' missing 'en' or 'ar_preferred'.")
+                    errors.append(
+                        f"Glossary term '{term_id or idx}' missing 'en' or 'ar_preferred'."
+                    )
 
                 if not term.get("definition"):
-                    errors.append(f"Glossary term '{term_id or idx}' missing 'definition'.")
+                    errors.append(
+                        f"Glossary term '{term_id or idx}' missing 'definition'."
+                    )
 
     return errors
 
@@ -106,18 +112,22 @@ def main() -> int:
     try:
         copy_data = yaml.safe_load(copy_path.read_text(encoding="utf-8"))
         glossary_data = yaml.safe_load(glossary_path.read_text(encoding="utf-8"))
-    except Exception as exc:
+    except (yaml.YAMLError, OSError) as exc:
         print(f"Error reading YAML files: {exc}", file=sys.stderr)
         return 1
 
     errors = validate_content_catalog(copy_data, glossary_data)
     if errors:
-        print(f"FAILED: Found {len(errors)} error(s) in content catalog:", file=sys.stderr)
+        print(
+            f"FAILED: Found {len(errors)} error(s) in content catalog:", file=sys.stderr
+        )
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         return 1
 
-    print(f"SUCCESS: Interface copy and glossary at {copy_path} and {glossary_path} are valid.")
+    print(
+        f"SUCCESS: Interface copy and glossary at {copy_path} and {glossary_path} are valid."
+    )
     return 0
 
 

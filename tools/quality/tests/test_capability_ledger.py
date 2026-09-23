@@ -4,7 +4,6 @@ import yaml
 
 from tools.quality.validate_capability_ledger import validate_ledger
 
-
 ROOT = Path(__file__).resolve().parents[3]
 
 

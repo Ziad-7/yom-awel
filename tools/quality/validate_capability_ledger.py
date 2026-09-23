@@ -35,7 +35,9 @@ def validate_ledger(ledger: dict[str, Any]) -> list[str]:
 
         cap_id = item.get("id")
         if not cap_id or not isinstance(cap_id, str) or not cap_id.strip():
-            errors.append(f"Capability at index {idx} is missing a valid non-empty 'id'.")
+            errors.append(
+                f"Capability at index {idx} is missing a valid non-empty 'id'."
+            )
         elif cap_id in seen_ids:
             errors.append(f"Duplicate capability id: '{cap_id}'.")
         else:
@@ -70,7 +72,9 @@ def validate_ledger(ledger: dict[str, Any]) -> list[str]:
 
         evidence = item.get("evidence")
         if not isinstance(evidence, dict):
-            errors.append(f"Capability '{cap_id or idx}' is missing an 'evidence' dictionary.")
+            errors.append(
+                f"Capability '{cap_id or idx}' is missing an 'evidence' dictionary."
+            )
             continue
 
         automated_tests = evidence.get("automated_tests", [])
@@ -103,13 +107,16 @@ def main() -> int:
     try:
         content = target_path.read_text(encoding="utf-8")
         data = yaml.safe_load(content)
-    except Exception as exc:
+    except (yaml.YAMLError, OSError) as exc:
         print(f"Error reading YAML file: {exc}", file=sys.stderr)
         return 1
 
     errors = validate_ledger(data)
     if errors:
-        print(f"FAILED: Found {len(errors)} error(s) in capability ledger:", file=sys.stderr)
+        print(
+            f"FAILED: Found {len(errors)} error(s) in capability ledger:",
+            file=sys.stderr,
+        )
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         return 1

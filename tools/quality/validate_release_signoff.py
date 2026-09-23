@@ -33,7 +33,9 @@ def validate_release_signoff(data: dict[str, Any]) -> list[str]:
 
     sha = data.get("tested_source_sha")
     if not sha or not isinstance(sha, str) or not SHA_REGEX.match(sha):
-        errors.append(f"Invalid or missing tested_source_sha '{sha}'. Must be 40-char lowercase hex.")
+        errors.append(
+            f"Invalid or missing tested_source_sha '{sha}'. Must be 40-char lowercase hex."
+        )
 
     decision = data.get("decision")
     if decision not in ["go", "no-go"]:
@@ -83,13 +85,16 @@ def main() -> int:
 
     try:
         data = yaml.safe_load(signoff_path.read_text(encoding="utf-8"))
-    except Exception as exc:
+    except (yaml.YAMLError, OSError) as exc:
         print(f"Error reading YAML file: {exc}", file=sys.stderr)
         return 1
 
     errors = validate_release_signoff(data)
     if errors:
-        print(f"FAILED: Found {len(errors)} error(s) in release sign-off:", file=sys.stderr)
+        print(
+            f"FAILED: Found {len(errors)} error(s) in release sign-off:",
+            file=sys.stderr,
+        )
         for err in errors:
             print(f"  - {err}", file=sys.stderr)
         return 1

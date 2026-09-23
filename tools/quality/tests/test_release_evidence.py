@@ -4,7 +4,6 @@ import yaml
 
 from tools.quality.validate_release_evidence import validate_release_evidence
 
-
 ROOT = Path(__file__).resolve().parents[3]
 SOURCES_PATH = ROOT / "docs" / "product" / "evidence" / "source-register.yaml"
 CLAIMS_PATH = ROOT / "docs" / "product" / "evidence" / "claim-matrix.yaml"

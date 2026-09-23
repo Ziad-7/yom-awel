@@ -4,9 +4,10 @@ import yaml
 
 from tools.quality.validate_learning_objectives import validate_objectives_manifest
 
-
 ROOT = Path(__file__).resolve().parents[3]
-MANIFEST_PATH = ROOT / "task_packages" / "clean-sales" / "1" / "learning-objectives.yaml"
+MANIFEST_PATH = (
+    ROOT / "task_packages" / "clean-sales" / "1" / "learning-objectives.yaml"
+)
 
 
 def test_learning_objectives_manifest_is_valid() -> None:
@@ -40,4 +41,6 @@ def test_content_does_not_reveal_internal_ground_truth_answers() -> None:
     for filepath in content_dir.glob("*.md"):
         text = filepath.read_text(encoding="utf-8")
         for spoiler in forbidden_spoilers:
-            assert spoiler not in text, f"Found leaked answer in {filepath.name}: {spoiler}"
+            assert spoiler not in text, (
+                f"Found leaked answer in {filepath.name}: {spoiler}"
+            )

@@ -4,7 +4,6 @@ import yaml
 
 from tools.quality.validate_submission_package import validate_submission_package
 
-
 ROOT = Path(__file__).resolve().parents[3]
 SUBMISSION_DIR = ROOT / "submission"
 
@@ -19,7 +18,9 @@ def test_no_placeholders_or_localhost_in_submission_docs() -> None:
     for file in SUBMISSION_DIR.glob("*.md"):
         content = file.read_text(encoding="utf-8")
         for token in forbidden_tokens:
-            assert token not in content, f"Found forbidden token '{token}' in {file.name}"
+            assert token not in content, (
+                f"Found forbidden token '{token}' in {file.name}"
+            )
 
 
 def test_asset_manifest_is_complete() -> None:
