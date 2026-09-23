@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import math
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Literal, cast
@@ -44,6 +45,8 @@ from yom_awel.ports.unit_of_work import UnitOfWorkFactory
 
 logger = logging.getLogger(__name__)
 
+MAX_RETRY_AFTER_SECONDS = 3600
+
 
 async def _run_post_commit_cleanup(
     cleanup: Callable[[datetime], Awaitable[None]], now: datetime
@@ -72,7 +75,7 @@ def _generate_canonical_fallback(language: str) -> FeedbackResult:
     return FeedbackResult(
         feedback_text=text,
         language=cast(Literal["ar-EG", "en"], language),
-        persona_id="eng-tarek",
+        persona_id="tarek",
         prompt_version="tarek-feedback@1",
         provider="deterministic",
         model=None,
@@ -206,7 +209,18 @@ class ProcessSubmission:
             return res.outcome
 
         if res.lease_owner != lease_owner:
-            return ProcessingState(submission_id=res.submission_id, status=res.status)
+            retry_after = max(
+                1,
+                min(
+                    MAX_RETRY_AFTER_SECONDS,
+                    math.ceil((res.lease_expires_at - self.clock.now()).total_seconds()),
+                ),
+            )
+            return ProcessingState(
+                submission_id=res.submission_id,
+                status=res.status,
+                retry_after_seconds=retry_after,
+            )
 
         artifact_ref = ArtifactRef(
             artifact_id=command.artifact_id,

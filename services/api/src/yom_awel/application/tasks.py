@@ -32,7 +32,7 @@ class GetCurrentTask:
             return CurrentTaskResult(status=progress.current_status.value, task=task)
 
 
-class AuthorizeUpload:
+class CreateArtifactUpload:
     def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock, id_gen: IDGenerator):
         self.uow_factory = uow_factory
         self.clock = clock
@@ -84,3 +84,8 @@ class AuthorizeUpload:
 
             await uow.commit()
             return UploadAuthorizationResult(artifact_id=artifact_id, expires_in_seconds=3600)
+
+
+# Compatibility name retained for transport adapters that adopted the initial
+# implementation before the public use-case contract was finalized.
+AuthorizeUpload = CreateArtifactUpload

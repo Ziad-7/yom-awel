@@ -189,6 +189,7 @@ async def test_concurrent_same_key(base_setup):
     from yom_awel.domain.enums import SubmissionStatus
 
     assert res2.status == SubmissionStatus.RECEIVED
+    assert res2.retry_after_seconds == 300
 
     # Now let first request finish.
     evaluator.release.set()
@@ -363,7 +364,7 @@ async def test_fallback_authority(base_setup):
     res = await process.execute(cmd, "owner1")
     assert isinstance(res, SubmissionOutcome)
     assert res.feedback.used_fallback is True
-    assert res.feedback.persona_id == "eng-tarek"
+    assert res.feedback.persona_id == "tarek"
     assert res.feedback.prompt_version == "tarek-feedback@1"
     assert res.feedback.provider == "deterministic"
 

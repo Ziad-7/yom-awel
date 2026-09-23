@@ -110,7 +110,7 @@ def test_fallback_fixture_matches_member_three_consumer_contract() -> None:
     assert payload["provider"] == "deterministic"
     assert payload["model"] is None
     assert payload["used_fallback"] is True
-    assert payload["persona_id"] == "eng-tarek"
+    assert payload["persona_id"] == "tarek"
     assert payload["prompt_version"] == "tarek-feedback@1"
 
     submission = json.loads(

@@ -432,6 +432,29 @@ async def test_real_supabase_contract_is_opt_in() -> None:
         300,
         "local-worker",
     )
+    active_duplicate = await repository.reserve(
+        learner_id,
+        task_version_id,
+        artifact_id,
+        Channel.TELEGRAM,
+        idempotency_key,
+        "c" * 64,
+        300,
+        "second-worker",
+    )
+    assert active_duplicate.submission_id == reservation.submission_id
+    assert active_duplicate.lease_owner == reservation.lease_owner
+    with pytest.raises(SupabasePersistenceError):
+        await repository.reserve(
+            learner_id,
+            task_version_id,
+            artifact_id,
+            Channel.WEB,
+            idempotency_key,
+            "d" * 64,
+            300,
+            "second-worker",
+        )
     base_outcome = outcome(task_version_id, reservation.submission_id)
     final = base_outcome.model_copy(
         update={

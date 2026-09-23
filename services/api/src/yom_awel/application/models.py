@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from yom_awel.domain.contracts import TaskVersion
 from yom_awel.domain.enums import SubmissionStatus
@@ -10,6 +10,9 @@ class ProcessingState(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
     submission_id: UUID
     status: SubmissionStatus
+    # Transport adapters can copy this directly to Retry-After. It is derived
+    # from the committed reservation lease, never guessed locally.
+    retry_after_seconds: int = Field(strict=True, ge=1, le=3600)
 
 
 class UploadAuthorizationResult(BaseModel):

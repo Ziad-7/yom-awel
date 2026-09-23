@@ -6,7 +6,7 @@ import pytest
 from yom_awel.application.admin import ResetDemoLearner
 from yom_awel.application.commands import CreateUploadCommand, ResetDemoLearnerCommand
 from yom_awel.application.profiles import GetSkillsProfile
-from yom_awel.application.tasks import AuthorizeUpload, GetCurrentTask
+from yom_awel.application.tasks import CreateArtifactUpload, GetCurrentTask
 from yom_awel.domain.entities import Learner, LearnerProgress, SkillEvidence, TaskVersion
 from yom_awel.domain.enums import LearnerStatus
 from yom_awel.persistence.memory import MemoryUnitOfWorkFactory
@@ -119,7 +119,7 @@ async def test_authorize_upload():
         )
         await uow.commit()
 
-    auth = AuthorizeUpload(uow_factory, clock, id_gen)
+    auth = CreateArtifactUpload(uow_factory, clock, id_gen)
     cmd = CreateUploadCommand(learner_id=learner_id, filename="test.txt", size_bytes=100)
     res = await auth.execute(cmd)
 

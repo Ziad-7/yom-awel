@@ -30,7 +30,7 @@
     "feedback_text": "Fallback message",
     "language": "ar-EG",
     "model": null,
-    "persona_id": "eng-tarek",
+    "persona_id": "tarek",
     "prompt_version": "tarek-feedback@1",
     "provider": "deterministic",
     "used_fallback": true

@@ -18,6 +18,7 @@ from yom_awel.domain.contracts import SubmissionOutcome
 from yom_awel.domain.entities import SubmissionReservation
 from yom_awel.domain.enums import Channel, SubmissionStatus
 from yom_awel.domain.errors import PersistenceError
+from yom_awel.ports.repositories import MAX_SUBMISSION_LEASE_SECONDS
 
 
 class SupabasePersistenceError(PersistenceError):
@@ -141,6 +142,14 @@ class SupabaseSubmissionRepository:
         lease_seconds: int,
         lease_owner: str,
     ) -> SubmissionReservation:
+        if (
+            lease_seconds <= 0
+            or lease_seconds > MAX_SUBMISSION_LEASE_SECONDS
+            or not lease_owner.strip()
+        ):
+            raise ValueError(
+                "lease_seconds must be between 1 and 3600 and lease_owner must be non-empty"
+            )
         params: dict[str, object] = {
             "p_learner_id": str(learner_id),
             "p_task_version_id": str(task_version_id),

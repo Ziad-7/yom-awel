@@ -48,6 +48,7 @@ from yom_awel.domain.errors import (
     UniqueConstraintViolation,
 )
 from yom_awel.ports.clock import Clock
+from yom_awel.ports.repositories import MAX_SUBMISSION_LEASE_SECONDS
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -478,8 +479,14 @@ class _Submissions(_Repo):
         lease_seconds: int,
         lease_owner: str,
     ) -> SubmissionReservation:
-        if lease_seconds <= 0 or not lease_owner:
-            raise ValueError("lease_seconds must be positive and lease_owner must be non-empty")
+        if (
+            lease_seconds <= 0
+            or lease_seconds > MAX_SUBMISSION_LEASE_SECONDS
+            or not lease_owner.strip()
+        ):
+            raise ValueError(
+                "lease_seconds must be between 1 and 3600 and lease_owner must be non-empty"
+            )
         if not await self._learner_exists(learner_id):
             raise LearnerScopeViolation("submission.learner_id")
         now = self._uow._database.clock.now()
