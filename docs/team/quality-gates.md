@@ -4,7 +4,7 @@ To ensure repository hygiene and contract adherence, this project uses determini
 
 ## Local setup
 
-We use `pre-commit` managed via `uv` to ensure consistent formatting, typing, and tests without requiring global tool installations. 
+We use `pre-commit` managed via `uv` to ensure consistent formatting, typing, and tests without requiring global tool installations.
 
 To install the hooks locally:
 ```bash
@@ -36,8 +36,8 @@ uv run --project services/api ruff format
 ## Continuous Integration (CI)
 
 A GitHub Actions workflow (`ci.yml`) is triggered on **every push to any branch** and **every pull request**.
-It runs with least-privilege `contents: read` permissions on Ubuntu with Python 3.12. 
-It guarantees zero hidden costs (no paid services, no secrets required). 
+It runs with least-privilege `contents: read` permissions on Ubuntu with Python 3.12.
+It guarantees zero hidden costs (no paid services, no secrets required).
 
 In addition to the pre-commit hooks, CI runs:
 - `uv lock --check`: Ensures `uv.lock` is up-to-date with `pyproject.toml`.
