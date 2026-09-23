@@ -75,7 +75,9 @@ async def test_retention_service_drains_orphans_before_expired_rows() -> None:
     await RetentionService(
         Store(),
         deleter=type("D", (), {"delete": lambda *_: None})(),
-        cleanup_worker=ArtifactCleanupService(Queue(), type("D", (), {"delete": lambda *_: None})()),
+        cleanup_worker=ArtifactCleanupService(
+            Queue(), type("D", (), {"delete": lambda *_: None})()
+        ),
     ).run_once(NOW, "worker", 10, 30)
     assert calls == ["orphans", "expired"]
 
@@ -151,6 +153,10 @@ def test_forward_migration_has_deterministic_recovery_contract() -> None:
     assert "anonymous Auth identity required" in sql
     assert "auth_deleted_at timestamptz" in sql
     assert "r.status in ('REQUESTED', 'FAILED', 'RECONCILED')" in sql
+    assert "r.status = 'CLAIMED'" in sql
+    assert "r.lease_expires_at <= timezone('utc', now())" in sql
+    assert "for update skip locked" in sql
+    assert "lease_expires_at > timezone('utc', now())" in sql
     assert "on conflict (requested_learner_id) do update" in sql
     assert "md5('retention-audit:' || audit_id::text)::uuid" in sql
     assert "row_number() over" in sql

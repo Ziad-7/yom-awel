@@ -278,7 +278,13 @@ begin
     with candidates as (
         select r.request_id
         from public.learner_deletion_requests r
-        where r.status in ('REQUESTED', 'FAILED', 'RECONCILED')
+        where (
+            r.status in ('REQUESTED', 'FAILED', 'RECONCILED')
+            or (
+                r.status = 'CLAIMED'
+                and r.lease_expires_at <= timezone('utc', now())
+            )
+        )
           and r.auth_user_id is not null
           and r.auth_deleted_at is null
           and (r.lease_expires_at is null or r.lease_expires_at <= timezone('utc', now()))
@@ -288,7 +294,12 @@ begin
     update public.learner_deletion_requests r
     set status = 'CLAIMED', lease_owner = p_lease_owner,
         lease_expires_at = timezone('utc', now()) + interval '5 minutes'
-    from candidates c where r.request_id = c.request_id
+    from candidates c
+    where r.request_id = c.request_id
+      and (
+          r.status in ('REQUESTED', 'FAILED', 'RECONCILED')
+          or (r.status = 'CLAIMED' and r.lease_expires_at <= timezone('utc', now()))
+      )
     returning r.request_id, r.requested_learner_id, r.auth_user_id;
 end;
 $$;
@@ -309,7 +320,9 @@ begin
         lease_owner = null, lease_expires_at = null,
         reconciled_at = case when p_success then timezone('utc', now()) else null end,
         auth_deleted_at = case when p_success then timezone('utc', now()) else auth_deleted_at end
-    where request_id = p_request_id and lease_owner = p_lease_owner;
+    where request_id = p_request_id
+      and lease_owner = p_lease_owner
+      and lease_expires_at > timezone('utc', now());
 end;
 $$;
 

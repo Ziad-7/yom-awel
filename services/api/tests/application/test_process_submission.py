@@ -216,6 +216,44 @@ async def test_concurrent_same_key(base_setup):
 
 
 @pytest.mark.asyncio
+async def test_committed_submission_survives_post_commit_cleanup_failure(base_setup):
+    cmd, uow_factory, evaluator, feedback, clock, id_gen = await seed_data(base_setup)
+    evaluator.result = EvaluationResult(
+        evaluator_id="e1",
+        evaluator_version="1",
+        task_version_id=cmd.task_version_id,
+        passed=True,
+        score=100,
+        checks=[EvaluationCheck(check_id="c1", passed=True, weight=10, details=None)],
+        errors=[],
+        summary_ar="ar",
+        summary_en="en",
+        duration_ms=1,
+    )
+    feedback.result = FeedbackResult(
+        feedback_text="fb",
+        language="en",
+        persona_id="tarek",
+        prompt_version="1",
+        provider="sys",
+        model=None,
+        used_fallback=False,
+        duration_ms=1,
+    )
+
+    async def cleanup_failure(now):
+        raise RuntimeError("retention provider failure")
+
+    result = await ProcessSubmission(
+        uow_factory, evaluator, feedback, clock, id_gen, cleanup_failure
+    ).execute(cmd, "owner")
+    assert isinstance(result, SubmissionOutcome)
+    async with uow_factory() as uow:
+        reservation = await uow.submissions.get_reservation(cmd.learner_id, cmd.idempotency_key)
+        assert reservation is not None and reservation.outcome == result
+
+
+@pytest.mark.asyncio
 async def test_concurrent_different_keys_same_task_only_one_advances(base_setup):
     """Two successful keys for one learner/task cannot both commit progression."""
 
