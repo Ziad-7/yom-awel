@@ -13,6 +13,7 @@ import json
 import os
 import sys
 from collections.abc import Mapping
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from urllib.error import HTTPError
@@ -78,9 +79,9 @@ async def _run_cleanup(
         now, owner, limit, lease
     )
     retention = SupabaseRetentionStore(rpc)
-    expired_result = await RetentionService(
-        retention, object_deleter
-    ).run_once(now, owner, limit, lease)
+    expired_result = await RetentionService(retention, object_deleter).run_once(
+        now, owner, limit, lease
+    )
 
     # Auth deletion is deliberately last.  The RPC erases application data
     # only after locking the request/identity and proving no unresolved rows.
@@ -98,10 +99,8 @@ async def _run_cleanup(
             await retention.finalize_deletion_request(request_id, owner, True)
         except Exception:  # noqa: BLE001
             auth_failed += 1
-            try:
+            with suppress(Exception):
                 await retention.finalize_deletion_request(request_id, owner, False)
-            except Exception:  # noqa: BLE001
-                pass
 
     return CleanupRun(
         claimed=orphan_result.claimed + expired_result.claimed,

@@ -4,15 +4,14 @@ import asyncio
 import json
 import os
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-from uuid import NAMESPACE_OID, UUID, uuid4, uuid5
+from uuid import NAMESPACE_OID, uuid4, uuid5
 
 import pytest
-
 
 ROOT = Path(__file__).resolve().parents[4]
 
@@ -326,7 +325,10 @@ async def test_cloud_authority_real_rpc_rejects_forged_payloads(forgery: str) ->
         public_evaluation = dict(params["p_evaluation"])
         public_evaluation.pop("evaluation_id")
         params["p_outcome"] = dict(params["p_outcome"], evaluation=public_evaluation)
-        params["p_outbox"] = dict(params["p_outbox"], payload={"submission_id": reservation["submission_id"], "passed": False})
+        params["p_outbox"] = dict(
+            params["p_outbox"],
+            payload={"submission_id": reservation["submission_id"], "passed": False},
+        )
     elif forgery == "evidence":
         params["p_evidence"] = [dict(params["p_evidence"][0], skill_id="forged-skill")]
     elif forgery == "null_required":
@@ -336,17 +338,25 @@ async def test_cloud_authority_real_rpc_rejects_forged_payloads(forgery: str) ->
         feedback.pop("provider")
         params["p_feedback"] = feedback
     else:
-        params["p_outbox"] = dict(params["p_outbox"], payload={"submission_id": reservation["submission_id"], "passed": False})
+        params["p_outbox"] = dict(
+            params["p_outbox"],
+            payload={"submission_id": reservation["submission_id"], "passed": False},
+        )
     _, failed = await rpc.call("finalize_submission", params)
     assert failed
-    assert await rest.rows("evaluation_results", {"submission_id": str(reservation["submission_id"])}) == []
+    assert (
+        await rest.rows("evaluation_results", {"submission_id": str(reservation["submission_id"])})
+        == []
+    )
     assert await rest.rows("attempts", {"submission_id": str(reservation["submission_id"])}) == []
     assert await rest.rows("outbox_events", {"aggregate_id": str(fixture["learner_id"])}) == []
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_cloud_authority_real_rpc_rollback_published_only_nullable_owner_and_concurrency() -> None:
+async def test_cloud_authority_real_rpc_rollback_published_only_nullable_owner_and_concurrency() -> (
+    None
+):
     config = _config()
     if config is None:
         pytest.skip("set SUPABASE_LOCAL_URL and SUPABASE_LOCAL_SERVICE_ROLE_KEY")
@@ -367,7 +377,9 @@ async def test_cloud_authority_real_rpc_rollback_published_only_nullable_owner_a
             "evaluator_id": "eval-1",
             "evaluator_version": "1",
             "pass_threshold": 50,
-            "skill_mappings": [{"skill_id": fixture["skill_id"], "check_id": "clarity", "weight": 3}],
+            "skill_mappings": [
+                {"skill_id": fixture["skill_id"], "check_id": "clarity", "weight": 3}
+            ],
             "content_hash": "d" * 64,
             "status": "DRAFT",
         },
@@ -392,7 +404,10 @@ async def test_cloud_authority_real_rpc_rollback_published_only_nullable_owner_a
     params["p_progress_expected_version"] = 999
     _, failed = await rpc.call("finalize_submission", params)
     assert failed
-    assert await rest.rows("evaluation_results", {"submission_id": str(reservation["submission_id"])}) == []
+    assert (
+        await rest.rows("evaluation_results", {"submission_id": str(reservation["submission_id"])})
+        == []
+    )
     progress_rows = await rest.rows("learner_progress", {"learner_id": str(fixture["learner_id"])})
     assert progress_rows[0]["version"] == 1
 

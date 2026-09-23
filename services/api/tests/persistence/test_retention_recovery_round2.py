@@ -4,7 +4,7 @@ import asyncio
 import importlib.util
 import io
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.error import HTTPError
 from uuid import UUID, uuid4
@@ -19,11 +19,8 @@ from yom_awel.application.submissions import _run_post_commit_cleanup
 from yom_awel.persistence import retention as retention_module
 from yom_awel.persistence.retention import (
     ArtifactCleanupService,
-    CleanupArtifact,
     CleanupRun,
-    InMemoryCleanupQueue,
     InMemoryRetentionStore,
-    RetentionArtifact,
     RetentionService,
     SupabaseAuthAdminClient,
     SupabaseObjectDeleter,
@@ -38,9 +35,7 @@ NOW = datetime(2026, 9, 23, 12, tzinfo=UTC)
 async def test_deletion_request_is_idempotent_under_concurrent_retries() -> None:
     learner_id = uuid4()
     store = InMemoryRetentionStore()
-    await asyncio.gather(
-        *(store.request_deletion(learner_id, "operator", NOW) for _ in range(8))
-    )
+    await asyncio.gather(*(store.request_deletion(learner_id, "operator", NOW) for _ in range(8)))
     assert store.deletion_requests == {learner_id: "operator"}
     assert [event for event in store.audit_log if event.action == "DELETE_REQUESTED"]
     assert sum(event.action == "DELETE_REQUESTED" for event in store.audit_log) == 1

@@ -181,9 +181,7 @@ def test_migration_security_static_contract() -> None:
     root = Path(__file__).resolve().parents[4]
     migration = next((root / "supabase" / "migrations").glob("*_platform_schema.sql"))
     sql = migration.read_text(encoding="utf-8")
-    recovery_migration = next(
-        (root / "supabase" / "migrations").glob("*_retention_recovery.sql")
-    )
+    recovery_migration = next((root / "supabase" / "migrations").glob("*_retention_recovery.sql"))
     recovery_sql = recovery_migration.read_text(encoding="utf-8")
     rls_migration = next((root / "supabase" / "migrations").glob("*_rls_hardening.sql"))
     rls_sql = rls_migration.read_text(encoding="utf-8")

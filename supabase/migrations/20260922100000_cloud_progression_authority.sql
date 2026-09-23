@@ -576,7 +576,6 @@ declare
     mapping jsonb;
     mapping_skill_id text;
     mapping_check_id text;
-    mapping_weight integer;
     passed boolean;
     completed_at timestamptz;
     progress_updated integer;
@@ -656,7 +655,7 @@ begin
         );
         mapping_skill_id := public._cloud_json_string(mapping, 'skill_id', 'task_version.skill_mapping');
         mapping_check_id := public._cloud_json_string(mapping, 'check_id', 'task_version.skill_mapping');
-        mapping_weight := public._cloud_json_integer(mapping, 'weight', 'task_version.skill_mapping', 0, null);
+        perform public._cloud_json_integer(mapping, 'weight', 'task_version.skill_mapping', 0, null);
         if not exists (select 1 from public.skill_definitions where skill_id = mapping_skill_id) then
             raise exception 'task version mapping references unknown skill' using errcode = '22023';
         end if;

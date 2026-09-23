@@ -374,9 +374,7 @@ class _Tasks(_Repo):
     async def get_current_published_version(self, task_id: str) -> TaskVersion | None:
         # SQLite's local contract stores only approved task versions.  Select
         # numeric publication order in Python rather than lexical SQL order.
-        rows = self.db.execute(
-            "SELECT * FROM task_versions WHERE task_id=?", (task_id,)
-        ).fetchall()
+        rows = self.db.execute("SELECT * FROM task_versions WHERE task_id=?", (task_id,)).fetchall()
         if not rows:
             return None
 

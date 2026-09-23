@@ -112,7 +112,7 @@ def _as_datetime(value: object) -> datetime:
     if not isinstance(value, str):
         raise SupabaseRetentionError("provider_payload_invalid")
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value)
     except ValueError as exc:
         raise SupabaseRetentionError("provider_payload_invalid") from exc
     return _utc(parsed)
@@ -135,9 +135,7 @@ def _map_retention_artifact(value: object) -> RetentionArtifact:
                 if row.get("purge_lease_expires_at")
                 else None
             ),
-            purged_at=(
-                _as_datetime(row["purged_at"]) if row.get("purged_at") else None
-            ),
+            purged_at=(_as_datetime(row["purged_at"]) if row.get("purged_at") else None),
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise SupabaseRetentionError("provider_payload_invalid") from exc
@@ -222,9 +220,7 @@ class SupabaseRetentionStore:
         except Exception as exc:
             raise SupabaseRetentionError() from exc
 
-    async def claim_deletion_requests(
-        self, owner: str, limit: int
-    ) -> list[tuple[UUID, UUID, str]]:
+    async def claim_deletion_requests(self, owner: str, limit: int) -> list[tuple[UUID, UUID, str]]:
         """Claim reconciled anonymous deletion requests for Auth cleanup.
 
         The RPC returns only UUIDs and the Auth subject; no provider payload is
@@ -260,9 +256,7 @@ class SupabaseRetentionStore:
         except Exception as exc:
             raise SupabaseRetentionError() from exc
 
-    async def finalize_deletion_request(
-        self, request_id: UUID, owner: str, success: bool
-    ) -> None:
+    async def finalize_deletion_request(self, request_id: UUID, owner: str, success: bool) -> None:
         try:
             response = await self._rpc.rpc(
                 "finalize_learner_deletion_request",

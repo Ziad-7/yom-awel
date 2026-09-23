@@ -107,74 +107,147 @@ async def _seed(rest: LocalSupabase, *, complete: bool = True) -> dict[str, UUID
     ids.update({name: uuid4() for name in ("evaluation", "feedback", "attempt", "event")})
     task_id, skill_id = f"retention-task-{suffix}", f"retention-skill-{suffix}"
     now = datetime.now(UTC).replace(microsecond=0)
-    await rest.insert("learners", {
-        "learner_id": str(ids["learner"]), "display_name": "retention", "preferred_language": "en",
-        "status": "IN_TASK", "state_machine_version": "1",
-    })
-    await rest.insert("external_identities", {
-        "identity_id": str(ids["identity"]), "learner_id": str(ids["learner"]),
-        "provider": "web", "provider_subject": str(uuid4()), "is_anonymous": True,
-    })
+    await rest.insert(
+        "learners",
+        {
+            "learner_id": str(ids["learner"]),
+            "display_name": "retention",
+            "preferred_language": "en",
+            "status": "IN_TASK",
+            "state_machine_version": "1",
+        },
+    )
+    await rest.insert(
+        "external_identities",
+        {
+            "identity_id": str(ids["identity"]),
+            "learner_id": str(ids["learner"]),
+            "provider": "web",
+            "provider_subject": str(uuid4()),
+            "is_anonymous": True,
+        },
+    )
     await rest.insert("tasks", {"task_id": task_id, "title": "Retention"})
-    await rest.insert("task_versions", {
-        "task_version_id": str(ids["task_version"]), "task_id": task_id, "version": "1",
-        "instructions_ar": "تعليمات", "instructions_en": "Instructions", "artifact_schema": {},
-        "evaluator_id": "eval", "evaluator_version": "1", "pass_threshold": 50,
-        "skill_mappings": [{"skill_id": skill_id, "check_id": "c", "weight": 1}],
-        "content_hash": "a" * 64, "status": "PUBLISHED", "published_at": now.isoformat(),
-        "is_current": True,
-    })
+    await rest.insert(
+        "task_versions",
+        {
+            "task_version_id": str(ids["task_version"]),
+            "task_id": task_id,
+            "version": "1",
+            "instructions_ar": "تعليمات",
+            "instructions_en": "Instructions",
+            "artifact_schema": {},
+            "evaluator_id": "eval",
+            "evaluator_version": "1",
+            "pass_threshold": 50,
+            "skill_mappings": [{"skill_id": skill_id, "check_id": "c", "weight": 1}],
+            "content_hash": "a" * 64,
+            "status": "PUBLISHED",
+            "published_at": now.isoformat(),
+            "is_current": True,
+        },
+    )
     await rest.insert(
         "skill_definitions",
         {"skill_id": skill_id, "title": "Retention", "description": "Retention"},
     )
-    await rest.insert("artifacts", {
-        "artifact_id": str(ids["artifact"]), "learner_id": str(ids["learner"]),
-        "object_path": f"{ids['learner']}/{ids['artifact']}", "filename": "answer.txt",
-        "size_bytes": 1, "sha256": "b" * 64, "purge_status": "PURGED" if complete else "ACTIVE",
-    })
+    await rest.insert(
+        "artifacts",
+        {
+            "artifact_id": str(ids["artifact"]),
+            "learner_id": str(ids["learner"]),
+            "object_path": f"{ids['learner']}/{ids['artifact']}",
+            "filename": "answer.txt",
+            "size_bytes": 1,
+            "sha256": "b" * 64,
+            "purge_status": "PURGED" if complete else "ACTIVE",
+        },
+    )
     if complete:
-        await rest.insert("submissions", {
-            "reservation_id": str(uuid4()), "submission_id": str(ids["submission"]),
-            "learner_id": str(ids["learner"]), "task_version_id": str(ids["task_version"]),
-            "artifact_id": str(ids["artifact"]), "channel": "web", "idempotency_key": suffix,
-            "request_fingerprint": "c" * 64, "status": "COMPLETED",
-            "lease_expires_at": (now + timedelta(minutes=5)).isoformat(),
-        })
-        await rest.insert("evaluation_results", {
-            "evaluation_id": str(ids["evaluation"]), "submission_id": str(ids["submission"]),
-            "evaluator_id": "eval",
-            "evaluator_version": "1",
-            "task_version_id": str(ids["task_version"]),
-            "passed": True, "score": 100, "checks": [], "errors": [],
-            "summary_ar": "جيد", "summary_en": "Good", "duration_ms": 1,
-        })
-        await rest.insert("feedback_results", {
-            "feedback_id": str(ids["feedback"]), "submission_id": str(ids["submission"]),
-            "feedback_text": "Good", "language": "en", "persona_id": "tarek",
-            "prompt_version": "1",
-            "provider": "deterministic",
-            "used_fallback": True,
-            "duration_ms": 0,
-        })
-        await rest.insert("attempts", {
-            "attempt_id": str(ids["attempt"]), "learner_id": str(ids["learner"]),
-            "submission_id": str(ids["submission"]), "task_version_id": str(ids["task_version"]),
-            "attempt_number": 1,
-            "evaluation_id": str(ids["evaluation"]),
-            "feedback_id": str(ids["feedback"]),
-            "evaluator_id": "eval", "evaluator_version": "1", "prompt_version": "1",
-            "started_at": now.isoformat(), "completed_at": now.isoformat(),
-        })
-        await rest.insert("skill_evidence", {
-            "learner_id": str(ids["learner"]), "attempt_id": str(ids["attempt"]),
-            "task_version_id": str(ids["task_version"]), "skill_id": skill_id, "check_id": "c",
-            "awarded_points": 1, "available_points": 1,
-        })
-        await rest.insert("outbox_events", {
-            "event_id": str(ids["event"]), "event_type": "retention.test",
-            "aggregate_id": str(ids["learner"]), "payload": {"test": True},
-        })
+        await rest.insert(
+            "submissions",
+            {
+                "reservation_id": str(uuid4()),
+                "submission_id": str(ids["submission"]),
+                "learner_id": str(ids["learner"]),
+                "task_version_id": str(ids["task_version"]),
+                "artifact_id": str(ids["artifact"]),
+                "channel": "web",
+                "idempotency_key": suffix,
+                "request_fingerprint": "c" * 64,
+                "status": "COMPLETED",
+                "lease_expires_at": (now + timedelta(minutes=5)).isoformat(),
+            },
+        )
+        await rest.insert(
+            "evaluation_results",
+            {
+                "evaluation_id": str(ids["evaluation"]),
+                "submission_id": str(ids["submission"]),
+                "evaluator_id": "eval",
+                "evaluator_version": "1",
+                "task_version_id": str(ids["task_version"]),
+                "passed": True,
+                "score": 100,
+                "checks": [],
+                "errors": [],
+                "summary_ar": "جيد",
+                "summary_en": "Good",
+                "duration_ms": 1,
+            },
+        )
+        await rest.insert(
+            "feedback_results",
+            {
+                "feedback_id": str(ids["feedback"]),
+                "submission_id": str(ids["submission"]),
+                "feedback_text": "Good",
+                "language": "en",
+                "persona_id": "tarek",
+                "prompt_version": "1",
+                "provider": "deterministic",
+                "used_fallback": True,
+                "duration_ms": 0,
+            },
+        )
+        await rest.insert(
+            "attempts",
+            {
+                "attempt_id": str(ids["attempt"]),
+                "learner_id": str(ids["learner"]),
+                "submission_id": str(ids["submission"]),
+                "task_version_id": str(ids["task_version"]),
+                "attempt_number": 1,
+                "evaluation_id": str(ids["evaluation"]),
+                "feedback_id": str(ids["feedback"]),
+                "evaluator_id": "eval",
+                "evaluator_version": "1",
+                "prompt_version": "1",
+                "started_at": now.isoformat(),
+                "completed_at": now.isoformat(),
+            },
+        )
+        await rest.insert(
+            "skill_evidence",
+            {
+                "learner_id": str(ids["learner"]),
+                "attempt_id": str(ids["attempt"]),
+                "task_version_id": str(ids["task_version"]),
+                "skill_id": skill_id,
+                "check_id": "c",
+                "awarded_points": 1,
+                "available_points": 1,
+            },
+        )
+        await rest.insert(
+            "outbox_events",
+            {
+                "event_id": str(ids["event"]),
+                "event_type": "retention.test",
+                "aggregate_id": str(ids["learner"]),
+                "payload": {"test": True},
+            },
+        )
     _, failed = await rest.rpc(
         "enqueue_artifact_cleanup",
         {
