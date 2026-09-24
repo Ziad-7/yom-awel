@@ -10,6 +10,7 @@ from yom_awel.domain.enums import Language
 from yom_awel.feedback.errors import FeedbackProviderError, ProviderTimeoutError
 from yom_awel.feedback.fallback import DeterministicFeedbackProvider
 from yom_awel.feedback.parser import validate_grounded_feedback
+from yom_awel.feedback.timeouts import validate_timeout_seconds
 from yom_awel.ports.feedback import FeedbackProvider
 
 _Sleep = Callable[[float], Awaitable[None]]
@@ -31,7 +32,7 @@ class ResilientFeedbackProvider(FeedbackProvider):
     ) -> None:
         self._primary = primary
         self._fallback = fallback
-        self._timeout_seconds = min(timeout_seconds, 10.0)
+        self._timeout_seconds = validate_timeout_seconds(timeout_seconds)
         self._sleep = sleep
         self._clock = clock
         self._correlation_id_factory = correlation_id_factory

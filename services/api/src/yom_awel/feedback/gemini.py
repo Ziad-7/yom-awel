@@ -17,6 +17,7 @@ from yom_awel.feedback.errors import (
 )
 from yom_awel.feedback.parser import ProviderPayload, parse_provider_response
 from yom_awel.feedback.prompt import build_provider_request
+from yom_awel.feedback.timeouts import validate_timeout_seconds
 from yom_awel.ports.feedback import FeedbackProvider
 
 
@@ -71,7 +72,7 @@ class GeminiAdapter(FeedbackProvider):
         self._model = model
         self._task_context_resolver = task_context_resolver
         self._client = client
-        self._timeout_seconds = min(timeout_seconds, 10.0)
+        self._timeout_seconds = validate_timeout_seconds(timeout_seconds)
 
     async def generate(
         self,

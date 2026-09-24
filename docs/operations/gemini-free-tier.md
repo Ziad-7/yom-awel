@@ -23,6 +23,13 @@ The total provider budget is 10 seconds. At most one retry is allowed for a tran
 quota error when its short retry delay fits inside that budget. Diagnose repeated fallback through
 redacted metrics, verify the key and free quota, and keep fallback enabled while investigating.
 
+`FeedbackConfig`, `GeminiAdapter`, and `ResilientFeedbackProvider` apply the same timeout
+validation at construction: NaN, positive/negative infinity, zero, and negative values raise
+`ValueError` with `timeout_seconds must be a finite positive number`. Finite positive values
+above 10 seconds are capped at 10; smaller positive values are preserved. This is a configuration
+error, not a provider failure: correct it before starting the application. Missing API credentials
+remain a normal fallback path when the timeout configuration is valid (issue #24).
+
 ## Composition handoff
 
 Member 5 can call `build_feedback_provider(FeedbackConfig(...), task_context_resolver=resolver,

@@ -4,6 +4,7 @@ from typing import Literal
 from yom_awel.feedback.fallback import DeterministicFeedbackProvider
 from yom_awel.feedback.gemini import AsyncGeminiClient, GeminiAdapter, TaskContextResolver
 from yom_awel.feedback.service import ResilientFeedbackProvider
+from yom_awel.feedback.timeouts import validate_timeout_seconds
 from yom_awel.ports.feedback import FeedbackProvider
 
 
@@ -13,6 +14,9 @@ class FeedbackConfig:
     api_key: str | None = field(default=None, repr=False)
     model: str = "gemini-2.5-flash"
     timeout_seconds: float = 10.0
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "timeout_seconds", validate_timeout_seconds(self.timeout_seconds))
 
 
 def build_feedback_provider(
