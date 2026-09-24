@@ -1,10 +1,10 @@
 version: "1"
 release_version: "1.0.0"
-tested_source_sha: "b36cc6067b5d49729a05a789b157ad36ccb06365"
+tested_source_sha: "682085dc3c9597f7596ff1f8b4a70cbdd1408892"
 deployment:
-  preview_url: "https://yom-awel-preview.vercel.app"
-  production_url: "https://yom-awel.vercel.app"
-  telegram_bot: "@yom_awel_bot"
+  preview_url: null
+  production_url: null
+  telegram_bot: null
 
 quality_gates:
   zero_cost_review:
@@ -15,39 +15,40 @@ quality_gates:
     details: "Educational hackathon prototype qualifying for non-commercial Vercel Hobby tier."
   secret_scan:
     status: "passed"
-    details: "Automated scan confirms zero private tokens, service-role keys, or applicant IDs committed to public repository."
+    details: "Automated scan confirms zero private tokens, service-role keys, or applicant IDs committed to repository."
   automated_tests:
     status: "passed"
-    details: "All quality tests and domain application suites passing with 100% green status."
+    details: "Member 1 quality suite and domain platform contracts passing 100% green."
   browser_acceptance:
-    status: "passed"
-    details: "Fresh incognito browser onboarding, upload, evaluation, retry, and skills profile verified on preview deployment."
+    status: "pending"
+    details: "Awaiting Member 5 web experience merge and live preview deployment verification."
   gemini_fallback_test:
     status: "passed"
-    details: "Simulated Gemini outage verified; deterministic Egyptian Arabic fallback rendered with zero learner interruption."
+    details: "Deterministic Egyptian Arabic fallback verified in unit tests; zero learner interruption under provider outage."
 
 member_approvals:
   member_1:
     role: "Product, Learning Design & Release"
     status: "approved"
-    decision_summary: "All claims verified against empirical tests and authoritative sources; bilingual copy approved."
+    decision_summary: "All claims verified against empirical tests and authoritative sources; bilingual copy and learning contracts frozen."
   member_2:
     role: "Domain, Persistence & Contracts"
-    status: "approved"
-    decision_summary: "Domain entities, state machine transitions, and database idempotency contracts verified."
+    status: "pending_review"
+    decision_summary: "Awaiting cross-owner review on PR #23 head."
   member_3:
     role: "AI Personas & Pedagogical Feedback"
-    status: "approved"
-    decision_summary: "Gemini prompt versioning and local deterministic Arabic fallback validated."
+    status: "pending_review"
+    decision_summary: "Awaiting cross-owner review on PR #23 head."
   member_4:
     role: "Deterministic Evaluation & Task Data"
-    status: "approved"
-    decision_summary: "Clean-sales v1 evaluator reproducibility and boundary limits verified against benchmarks."
+    status: "pending_review"
+    decision_summary: "Awaiting evaluator PR merge and pinned package publication."
   member_5:
     role: "Experience, Transport & Deployment"
-    status: "approved"
-    decision_summary: "Next.js RTL Arabic experience, Telegram webhook, and Vercel preview verified."
+    status: "pending_review"
+    decision_summary: "Awaiting web experience PR merge and live preview verification."
 
-decision: "go"
-decision_timestamp: "2026-09-24T02:00:00Z"
+decision: "no-go"
+decision_timestamp: "2026-09-24T12:00:00Z"
 signoff_lead: "member-1"
+

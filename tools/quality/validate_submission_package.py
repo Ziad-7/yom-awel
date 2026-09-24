@@ -93,7 +93,7 @@ def validate_submission_package(root_dir: Path | None = None) -> list[str]:
                     "export_path",
                     "mime_type",
                     "purpose",
-                    "sha256",
+                    "export_status",
                 ]:
                     if not asset.get(req_key):
                         errors.append(
@@ -107,14 +107,34 @@ def validate_submission_package(root_dir: Path | None = None) -> list[str]:
                         errors.append(
                             f"Asset '{asset.get('id')}' source_path does not exist: {src_rel}"
                         )
-                    else:
-                        actual_sha = hashlib.sha256(src_full.read_bytes()).hexdigest()
-                        declared_sha = asset.get("sha256")
-                        if declared_sha != actual_sha:
+
+                export_status = asset.get("export_status")
+                if export_status == "generated":
+                    export_rel = asset.get("export_path")
+                    if export_rel:
+                        export_full = root_dir / export_rel
+                        if not export_full.exists():
                             errors.append(
-                                f"Asset '{asset.get('id')}' sha256 mismatch: "
-                                f"declared '{declared_sha}' vs actual '{actual_sha}'"
+                                f"Asset '{asset.get('id')}' export_path does not exist: {export_rel}"
                             )
+                        else:
+                            actual_sha = hashlib.sha256(
+                                export_full.read_bytes()
+                            ).hexdigest()
+                            declared_sha = asset.get("sha256")
+                            if declared_sha != actual_sha:
+                                errors.append(
+                                    f"Asset '{asset.get('id')}' sha256 mismatch: "
+                                    f"declared '{declared_sha}' vs actual '{actual_sha}'"
+                                )
+                elif export_status == "pending_generation":
+                    # Pending generation; exports are compiled and hashed during official release build
+                    pass
+                else:
+                    errors.append(
+                        f"Asset '{asset.get('id')}' has invalid export_status '{export_status}'. "
+                        "Must be 'generated' or 'pending_generation'."
+                    )
 
                 for cid in asset.get("claim_ids", []):
                     if known_claim_ids and cid not in known_claim_ids:

@@ -9,7 +9,7 @@ capabilities:
     learner_outcome: "Learners have an unambiguous single active state (ONBOARDING, READY, IN_TASK, PROCESSING, NEEDS_RETRY, TASK_COMPLETED) preventing corrupt states or out-of-order task progression."
     implementation_path:
       - "services/api/src/yom_awel/domain/state_machine.py"
-      - "services/api/src/yom_awel/domain/learner_progress.py"
+      - "services/api/src/yom_awel/domain/entities.py"
     evidence:
       automated_tests:
         - "services/api/tests/domain/test_state_machine.py"
@@ -23,7 +23,8 @@ capabilities:
     status: "current"
     learner_outcome: "Learners securely upload spreadsheet artifacts to private cloud/local storage without public exposure of their files or secrets."
     implementation_path:
-      - "services/api/src/yom_awel/persistence/storage.py"
+      - "services/api/src/yom_awel/persistence/local_artifacts.py"
+      - "services/api/src/yom_awel/persistence/supabase_artifacts.py"
       - "services/api/src/yom_awel/ports/artifacts.py"
     evidence:
       automated_tests:
@@ -38,8 +39,9 @@ capabilities:
     status: "current"
     learner_outcome: "Learners who fail evaluation can inspect structured feedback, review defects, and re-submit a revised file under a new attempt without losing history."
     implementation_path:
-      - "services/api/src/yom_awel/application/services.py"
-      - "services/api/src/yom_awel/domain/submission.py"
+      - "services/api/src/yom_awel/application/submissions.py"
+      - "services/api/src/yom_awel/application/outcome_lookup.py"
+      - "services/api/src/yom_awel/domain/entities.py"
     evidence:
       automated_tests:
         - "services/api/tests/application/test_process_submission.py"
@@ -53,8 +55,8 @@ capabilities:
     status: "current"
     learner_outcome: "Learners see an auditable skills profile where every reported skill links directly to passed evaluation checks rather than arbitrary percentage bars."
     implementation_path:
-      - "services/api/src/yom_awel/domain/skill_evidence.py"
-      - "services/api/src/yom_awel/application/services.py"
+      - "services/api/src/yom_awel/application/profiles.py"
+      - "services/api/src/yom_awel/domain/entities.py"
     evidence:
       automated_tests:
         - "services/api/tests/domain/test_skill_evidence.py"

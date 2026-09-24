@@ -12,12 +12,15 @@ VALID_STATUSES = {"current", "experimental", "roadmap"}
 VALID_OWNERS = {"member-1", "member-2", "member-3", "member-4", "member-5"}
 
 
-def validate_ledger(ledger: dict[str, Any]) -> list[str]:
+def validate_ledger(ledger: dict[str, Any], root_dir: Path | None = None) -> list[str]:
     """Validate a parsed capability ledger dictionary.
 
     Returns a list of human-readable error messages. If empty, the ledger is valid.
     """
     errors: list[str] = []
+
+    if root_dir is None:
+        root_dir = Path(__file__).resolve().parents[2]
 
     if not isinstance(ledger, dict):
         return ["Ledger root must be a YAML dictionary."]
@@ -89,6 +92,20 @@ def validate_ledger(ledger: dict[str, Any]) -> list[str]:
                 errors.append(
                     f"Current capability '{cap_id}' must name at least one preview check in evidence.preview_checks."
                 )
+
+            # Filesystem existence validation for current capabilities
+            if root_dir is not None:
+                paths = [impl_path] if isinstance(impl_path, str) else list(impl_path)
+                for p in paths:
+                    if not (root_dir / p).exists():
+                        errors.append(
+                            f"Current capability '{cap_id}' implementation path does not exist on disk: {p}"
+                        )
+                for t in automated_tests:
+                    if not (root_dir / t).exists():
+                        errors.append(
+                            f"Current capability '{cap_id}' automated test does not exist on disk: {t}"
+                        )
 
     return errors
 

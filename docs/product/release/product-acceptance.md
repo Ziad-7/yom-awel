@@ -1,56 +1,57 @@
-# Yom Awel Product Acceptance Test Suite & Run Log
+# Yom Awel Product Acceptance Protocol & Verification Script
 
 - **Release Target:** Release Candidate v1.0.0
-- **Tested Source Commit:** `b36cc6067b5d49729a05a789b157ad36ccb06365`
-- **Lead Tester:** Member 1 (Product & Release Lead)
-- **Environment:** Clean incognito browser (Web) & Fresh Telegram test account (Bot)
+- **Governing Task:** `clean-sales` (v1)
+- **Owners:** Member 1 (Lead), with Member 4 (Evaluator) & Member 5 (Web Experience)
+- **Status:** Protocol frozen; execution pending Member 4 & 5 branch integration
 
 ---
 
-## 1. Acceptance Test Protocol
+## 1. Acceptance Protocol Overview
 
-Every release candidate must pass this scripted end-to-end acceptance run across both Web and Telegram channels prior to release sign-off.
+This document specifies the exact 8-step scripted end-to-end acceptance run across Web (`apps/web`) and Telegram (`@yom_awel_bot`) channels. It must be executed against the integrated deployment once Member 4 (evaluator) and Member 5 (web experience) PRs are merged to `main`.
 
 ---
 
-## 2. Test Step Execution Log
+## 2. Scripted Acceptance Test Steps
 
 ### Step 1: Web Channel Onboarding (`ONBOARDING` ➔ `READY`)
-- **Action:** Open browser in incognito mode at `/onboarding`. Enter display name "سارة عبد الرحمن", select language "العربية (مصر)". Click "ابدأ أول يوم عمل".
-- **Expected:** Smooth RTL redirect to `/workplace`. Profile initialized with status `READY`.
-- **Observed Result:** PASSED. Header shows "سارة عبد الرحمن" with welcome card from supervisor Tarek.
+- **Route:** `/onboarding`
+- **Action:** Open browser in incognito mode at `/onboarding`. Enter display name "نور الدين", select language "العربية (مصر)". Click "ابدأ أول يوم عمل".
+- **Expected Outcome:** Smooth RTL redirect to `/workplace`. Profile initialized with status `READY`. Header displays "نور الدين" with welcome card from supervisor Tarek. Copy ID: `state.empty`.
 
 ### Step 2: Task Assignment & Data Download (`READY` ➔ `IN_TASK`)
+- **Route:** `/workplace`
 - **Action:** Inspect the workplace briefing card. Download `sales_dirty.csv`.
-- **Expected:** Task ID `clean-sales` version `1` presented. Dataset contains known seeded anomalies (duplicates, unformatted dates, invalid prices).
-- **Observed Result:** PASSED. 44 rows downloaded cleanly; seeded defects present.
+- **Expected Outcome:** Task ID `clean-sales` version `1` presented with 4 business objectives. Dataset contains known seeded anomalies (duplicates, unformatted dates, invalid prices). State: `IN_TASK`.
 
-### Step 3: Invalid File & Size Boundary Rejection
-- **Action:** Upload an invalid file (`test.pdf`) and an oversized file (> 5 MB).
-- **Expected:** Immediate, clear Arabic error message (`نوع الملف غير مدعوم`). State remains `IN_TASK` without creating an attempt record.
-- **Observed Result:** PASSED. Client-side and transport validation rejected both files safely.
+### Step 3: Boundary & Rejection Verification
+- **Route:** `/workplace`
+- **Action:** Upload an invalid file (`test.pdf`) and an oversized file (> 5 MiB).
+- **Expected Outcome:** Immediate, accessible Arabic error banner with `aria-describedby` (Copy IDs: `upload.invalid_type`, `upload.oversize`). State remains `IN_TASK` without creating an attempt record.
 
 ### Step 4: Deterministic Evaluation & Failing Retry (`IN_TASK` ➔ `NEEDS_RETRY`)
-- **Action:** Upload a spreadsheet with dates unformatted and duplicates intact. Click "تسليم الشغل".
-- **Expected:** Score = 50/100 (below 75 pass threshold). State transitions to `NEEDS_RETRY`. Supervisor feedback highlights deduplication and dates in Egyptian Arabic.
-- **Observed Result:** PASSED. Attempt counter = 1. Failed checks marked in red/amber badges; coaching note is constructive.
+- **Route:** `/workplace`
+- **Action:** Upload dirty or partially cleaned spreadsheet (e.g., duplicate order IDs intact). Click "سلّم للمراجعة".
+- **Expected Outcome:** Score = 50/100 (below 75 pass threshold, or `unique_orders` critical failure). State transitions to `NEEDS_RETRY`. Focus shifts to `#result-heading`. Supervisor feedback in Egyptian Arabic highlights deduplication. Copy IDs: `evaluation.failure`, `evaluation.retry`. Attempt counter = 1.
 
 ### Step 5: Revision & Passing Completion (`NEEDS_RETRY` ➔ `TASK_COMPLETED`)
+- **Route:** `/workplace`
 - **Action:** Upload the fully cleaned reference deliverable (`clean_sales_reference.csv`).
-- **Expected:** Score = 100/100. State advances to `TASK_COMPLETED`. Praise feedback rendered.
-- **Observed Result:** PASSED. Attempt counter = 2. Success banner displayed.
+- **Expected Outcome:** Score = 100/100, critical check passed. State advances to `TASK_COMPLETED`. Green success banner rendered (Copy ID: `evaluation.success`). Attempt counter = 2.
 
-### Step 6: Verifiable Skills Profile
-- **Action:** Click "ملف المهارات" or navigate to `/skills`.
-- **Expected:** `data_cleaning` card rendered with 4 verified sub-skills citing task `clean-sales v1`. Zero unverified skills displayed.
-- **Observed Result:** PASSED. Evidence matches passed evaluation checks.
+### Step 6: Verifiable Skills Profile Projection
+- **Route:** `/skills`
+- **Action:** Click "عرض ملف المهارات" or navigate to `/skills`.
+- **Expected Outcome:** `data_cleaning` competency card rendered with 4 verified sub-skills citing task `clean-sales@1` and completion timestamp. Zero unverified skills displayed. Copy ID: `profile.empty` only if 0 tasks completed.
 
-### Step 7: Offline / Gemini-Disabled Fallback
-- **Action:** Run submission with `GEMINI_API_KEY=""`.
-- **Expected:** System falls back immediately to local deterministic feedback. `used_fallback: true` recorded. State progression completes without disruption.
-- **Observed Result:** PASSED. Structured Arabic coaching note rendered instantly.
+### Step 7: Deterministic Local Fallback Contingency
+- **Route:** `/workplace`
+- **Action:** Run submission with `GEMINI_API_KEY=""` or simulated provider timeout.
+- **Expected Outcome:** System falls back immediately to local deterministic Arabic feedback (`used_fallback: true`). Structured Egyptian Arabic coaching note rendered instantly (Copy ID: `feedback.gemini_fallback`). Progression is uninterrupted.
 
-### Step 8: Accessibility & Mobile Viewport
-- **Action:** Test keyboard tab navigation and inspect on mobile viewport (375px width).
-- **Expected:** Full keyboard operability; RTL text flows naturally without horizontal scrolling or distorted English formulas.
-- **Observed Result:** PASSED. WCAG AA compliance verified.
+### Step 8: Accessibility & Mobile Viewport (375 px)
+- **Viewport:** 375 px width (iPhone SE standard)
+- **Action:** Navigate entire flow via keyboard (`Tab`, `Shift+Tab`, `Enter`, `Space`, `Escape`) and test on small mobile screen.
+- **Expected Outcome:** Full keyboard operability, visible 2px focus outlines, zero horizontal overflow, minimum 44x44px touch targets.
+
