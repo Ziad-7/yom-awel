@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission needs rework. The file was not graded: Workbook must contain only the supported active worksheet.
+Business impact: none of the checks could run, so the sales report has no numbers it can rely on yet.
+Next action: keep a single worksheet holding the orders table and delete any other sheets, then upload the file again.
+Score explanation: 0 of 100, because the checks could not run on this file.

@@ -1,0 +1,87 @@
+{
+  "task_id": "clean-sales",
+  "version": "1",
+  "status": "published",
+  "evaluator_id": "sales-cleaning",
+  "evaluator_version": "1",
+  "pass_threshold": 75,
+  "dataset_seed": 20260920,
+  "generator_version": "1",
+  "limits": {
+    "extensions": ["csv", "xlsx"],
+    "max_bytes": 5242880,
+    "max_expanded_bytes": 52428800,
+    "max_sheets": 1,
+    "max_rows": 10000,
+    "max_columns": 20
+  },
+  "policy": {
+    "required_columns": [
+      "order_id",
+      "customer_email",
+      "order_date",
+      "quantity",
+      "unit_price",
+      "revenue",
+      "missing_email_reason"
+    ],
+    "business_key": "order_id",
+    "min_rows": 40,
+    "target_date_format": "%Y-%m-%d",
+    "revenue_tolerance": "0.01",
+    "missing_email_reason_column": "missing_email_reason",
+    "missing_email_reason_value": "unavailable"
+  },
+  "checks": [
+    {
+      "check_id": "unique_orders",
+      "points": 25,
+      "critical": true,
+      "skill_id": "data_cleaning",
+      "hint_ar": "راجع معرفات الطلبات المتكررة ونظّفها قبل إعادة التسليم.",
+      "hint_en": "Review duplicate order IDs and keep exactly one instance per order."
+    },
+    {
+      "check_id": "standard_dates",
+      "points": 25,
+      "critical": false,
+      "skill_id": "data_cleaning",
+      "hint_ar": "وحّد تنسيق التواريخ ثم أعد فحص ترتيب السجلات.",
+      "hint_en": "Standardize all dates to standard ISO YYYY-MM-DD format."
+    },
+    {
+      "check_id": "valid_numeric_values",
+      "points": 25,
+      "critical": false,
+      "skill_id": "data_cleaning",
+      "hint_ar": "تحقق من قيم الكميات والأسعار وصحح غير الصالح منها.",
+      "hint_en": "Verify positive quantities and prices, and ensure revenue equals quantity * unit_price."
+    },
+    {
+      "check_id": "complete_customer_records",
+      "points": 25,
+      "critical": false,
+      "skill_id": "data_cleaning",
+      "hint_ar": "أكمل بيانات العملاء المطلوبة ثم أعد التسليم.",
+      "hint_en": "Every customer without email must have missing_email_reason filled with 'unavailable' instead of deleting rows."
+    }
+  ],
+  "content": [
+    {
+      "path": "content/brief.ar-EG.md",
+      "sha256": "d1258296d68d920339be47e1e3e6200601d8525d2465d149fc1f468b8474b881"
+    },
+    {
+      "path": "content/brief.en.md",
+      "sha256": "7bef0dc4b738cd36bb9aac46d641913d0390867b3ac684efefed4a6a6537e24a"
+    },
+    {
+      "path": "content/hints.ar-EG.md",
+      "sha256": "d8b37c1ab268b61db26b2b62de703a640debca01a5ba3287151aac8465acb69c"
+    },
+    {
+      "path": "content/hints.en.md",
+      "sha256": "d5dbf71c97fc8ba49b950902be45ca8ba9fe99f0aee329fd46bb3daf122ff58a"
+    }
+  ]
+}

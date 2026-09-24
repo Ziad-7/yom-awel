@@ -1,0 +1,36 @@
+title = "yom-awel secret scan"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "google-ai-studio-key"
+description = "Google AI Studio (Gemini) API key"
+regex = '''\bAQ\.[A-Za-z0-9_\-]{30,}'''
+keywords = ["aq."]
+
+[[rules]]
+id = "postgres-url-with-password"
+description = "Postgres connection string with an embedded password"
+regex = '''postgres(?:ql)?://[^:@/\s]+:[^@/\s]{3,}@[^\s'"]+'''
+keywords = ["postgres"]
+
+[[rules]]
+id = "secret-env-assignment"
+description = "A secret environment variable assigned a literal value"
+regex = '''(?m)^\s*(?:export\s+)?(?:GEMINI_API_KEY|DATABASE_URL|AUTH_SECRET|TELEGRAM_BOT_TOKEN|TELEGRAM_WEBHOOK_SECRET|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SECRET_KEY)[ \t]*=[ \t]*\S{8,}'''
+keywords = ["gemini_api_key", "database_url", "auth_secret", "telegram_", "supabase_"]
+
+[[rules.allowlists]]
+description = "Documentation placeholders, not values"
+regexTarget = "match"
+regexes = ['''=[ \t]*["']?(?:your[_-]|<|\$\{|env\()''']
+
+[allowlist]
+description = "Deliberately fake values in tests, and SHA-256 content pins"
+paths = [
+  '''services/api/tests/feedback/test_no_secret_logs\.py''',
+  '''(^|/)uv\.lock$''',
+  '''(^|/)package-lock\.json$''',
+  '''\.secrets\.baseline$''',
+]

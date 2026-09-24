@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission needs rework. The file was not graded: Duplicate column names detected in the header row.
+Business impact: none of the checks could run, so the sales report has no numbers it can rely on yet.
+Next action: make each column name appear once in the header row and remove the repeated column, then upload the file again.
+Score explanation: 0 of 100, because the checks could not run on this file.

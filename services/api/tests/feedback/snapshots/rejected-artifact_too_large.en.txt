@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission needs rework. The file was not graded: File size exceeds the 5 MiB limit.
+Business impact: none of the checks could run, so the sales report has no numbers it can rely on yet.
+Next action: bring the file under 5 MiB by keeping only the orders table, without extra sheets or formatting, then upload the file again.
+Score explanation: 0 of 100, because the checks could not run on this file.

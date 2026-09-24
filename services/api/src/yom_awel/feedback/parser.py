@@ -7,12 +7,10 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from yom_awel.domain.contracts import EvaluationResult, FeedbackResult
 from yom_awel.domain.enums import Language
 from yom_awel.feedback.errors import ProviderResponseError
-from yom_awel.feedback.fallback import DeterministicFeedbackProvider
+from yom_awel.feedback.fallback import SECTION_HEADINGS, DeterministicFeedbackProvider
 from yom_awel.feedback.policy import ACTIVE_FEEDBACK_POLICY
 
 _ARABIC = re.compile(r"[\u0600-\u06ff]")
-_AR_SECTIONS = ("القرار:", "تأثير الشغل:", "الخطوة الجاية:", "تفسير الدرجة:")
-_EN_SECTIONS = ("Decision:", "Business impact:", "Next action:", "Score explanation:")
 
 
 class ProviderPayload(BaseModel):
@@ -86,7 +84,7 @@ def validate_grounded_feedback(
     if language is Language.AR_EG and not _ARABIC.search(text):
         raise ProviderResponseError("non_arabic_response")
 
-    headings = _AR_SECTIONS if language is Language.AR_EG else _EN_SECTIONS
+    headings = SECTION_HEADINGS[language]
     positions = [text.find(heading) for heading in headings]
     if (
         any(position < 0 for position in positions)
