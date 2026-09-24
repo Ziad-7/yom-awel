@@ -193,10 +193,12 @@ claims:
       - "submission/pitch-deck.md"
       - "submission/demo-script.md"
     status: "pending"
-    pending_reason: "The web app (PR #22) and its wiring to the real evaluator are not yet verified end to end on main."
+    pending_reason: "The web app from PR #22 is on main but still grades with a simulated evaluator; the redesigned web flow and its wiring to the real evaluator are not yet verified end to end."
     owner: "member-5"
     evidence:
-      automated_tests: []
+      automated_tests:
+        - "apps/web/tests/e2e/learner-flow.spec.ts"
+        - "services/api/tests/transport/test_journey.py"
       preview_checks:
         - "Complete the demo flow in Arabic and English with CSV and XLSX uploads."
 
@@ -209,7 +211,7 @@ claims:
       - "submission/application.md"
       - "docs/operations/demo-runbook.md"
     status: "pending"
-    pending_reason: "The script depends on the web app and API transport from PR #22; its health checks have not been run on main."
+    pending_reason: "All three health checks passed with this branch merged with the web lane's API_ORIGIN rewrite (demo/lane-b-web); that rewrite is not yet on main, so the proxy check fails on main alone."
     owner: "member-1"
     evidence:
       automated_tests: []

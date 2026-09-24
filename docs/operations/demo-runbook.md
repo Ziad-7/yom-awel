@@ -78,7 +78,7 @@ Status of each fallback on the day of writing:
 | Fallback | Status |
 |---|---|
 | `FEEDBACK_MODE=fallback` switch | Pending: the switch is part of the API lane; not yet verified end to end |
-| Local run | Pending: `demo/run_local.sh` depends on the web app and API transport (PR #22) |
+| Local run | Pending: health checks pass with the web lane's `/api` rewrite; that rewrite is not yet on main |
 | Recorded video | Pending: to be produced by the web lane and linked here |
 
 ## Known limitations / حدود معروفة
