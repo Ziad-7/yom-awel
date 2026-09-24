@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission needs rework. Duplicate orders block passing, whatever the score.
+Business impact: duplicate orders inflate total revenue and distort the sales report.
+Next action: review repeated order IDs and keep exactly one row per order, then upload the file again.
+Score explanation: 75 of 100 reaches the pass mark of 75, but the duplicate orders check is critical, so the submission cannot pass until it does.

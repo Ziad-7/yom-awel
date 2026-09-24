@@ -28,14 +28,15 @@ async def test_failed_checks_have_grounded_consequence_and_tip(
     assert str(failed_evaluation.score) in result.feedback_text
 
 
+@pytest.mark.parametrize("language", list(Language))
 @pytest.mark.parametrize("check_id", sorted(CHECK_GUIDANCE))
 async def test_each_canonical_check_has_targeted_guidance(
-    failed_evaluation: EvaluationResult, check_id: str
+    failed_evaluation: EvaluationResult, check_id: str, language: Language
 ) -> None:
     check = next(item for item in failed_evaluation.checks if item.check_id == check_id)
     evaluation = failed_evaluation.model_copy(update={"checks": [check]})
-    result = await DeterministicFeedbackProvider().generate(evaluation, Language.AR_EG)
-    consequence, action = CHECK_GUIDANCE[check_id]
+    result = await DeterministicFeedbackProvider().generate(evaluation, language)
+    consequence, action = CHECK_GUIDANCE[check_id][language]
     assert consequence in result.feedback_text
     assert action in result.feedback_text
 
@@ -75,7 +76,11 @@ async def test_failure_without_failed_check_still_explains_retry(
 async def test_oversized_guidance_uses_complete_short_template(
     failed_evaluation: EvaluationResult, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setitem(CHECK_GUIDANCE, "unique_orders", ("سبب " * 300, "إجراء " * 300))
+    monkeypatch.setitem(
+        CHECK_GUIDANCE,
+        "unique_orders",
+        {Language.AR_EG: ("سبب " * 300, "إجراء " * 300), Language.EN: ("x " * 300, "y " * 300)},
+    )
     result = await DeterministicFeedbackProvider().generate(failed_evaluation, Language.AR_EG)
     assert len(result.feedback_text) <= 900
     assert "الخطوة الجاية:" in result.feedback_text

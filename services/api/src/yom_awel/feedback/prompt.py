@@ -4,7 +4,11 @@ from pydantic import BaseModel, ConfigDict
 
 from yom_awel.domain.contracts import EvaluationCheck, EvaluationResult, TaskVersion
 from yom_awel.domain.enums import Language
-from yom_awel.feedback.fallback import CHECK_GUIDANCE, DeterministicFeedbackProvider
+from yom_awel.feedback.fallback import (
+    CHECK_GUIDANCE,
+    REJECTION_MESSAGES,
+    DeterministicFeedbackProvider,
+)
 from yom_awel.feedback.policy import ACTIVE_FEEDBACK_POLICY
 
 _EMAIL = re.compile(r"\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b")
@@ -50,8 +54,13 @@ _CANONICAL_DETAIL = {
     True: {"ar-EG": "تم اجتياز الفحص.", "en": "Check passed."},
     False: {"ar-EG": "لم يتم اجتياز الفحص.", "en": "Check failed."},
 }
+# Rejection messages are the published task vocabulary, never the evaluator's raw text.
 _SAFE_ERROR_MESSAGES = {
     "missing_data": {"ar-EG": "البيانات غير مكتملة", "en": "Data is incomplete"},
+    **{
+        code: {language.value: message for language, message in messages.items()}
+        for code, messages in REJECTION_MESSAGES.items()
+    },
 }
 _GENERIC_ERROR = {"ar-EG": "فحص يحتاج مراجعة", "en": "A check needs review"}
 
