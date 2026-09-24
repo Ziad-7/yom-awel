@@ -1,94 +1,106 @@
 # Yom Awel (يوم أول)
 
-Arabic-first workplace simulation for task-based digital skills training.
+Yom Awel ("first day") is an Arabic-first workplace simulation. A learner joins a simulated
+Egyptian company, gets a real assignment from their supervisor Tarek, submits a real file, and
+receives a deterministic grade plus coaching in Egyptian Arabic or English.
 
-## Project status
+## Demo flow
 
-The repository is in the **proposed architecture and delivery-planning stage**. It does not yet contain a working application. Runtime code, datasets, migrations, tests, and deployment configuration will be added only after the architecture branch receives the required reviews and is integrated into `main`.
+1. Pick the **clean-sales** task, in Arabic or English.
+2. Download the dirty sales file: duplicate orders, mixed date formats, negative numbers,
+   missing customer emails.
+3. Upload a cleaned CSV or XLSX.
+4. See a deterministic score for each of the four checks.
+5. Read bilingual feedback from Tarek explaining the result.
+6. See progress update: completed on a pass, retry otherwise.
 
-This status statement is intentional: documentation must not describe planned capabilities as already implemented.
+The presenter kit in [`demo/`](demo/README.md) has ready-made uploads for each outcome (100 in CSV
+and XLSX, 75 retry, 50 retry, rejected), each graded by the real evaluator in a test.
 
-## Product concept
+## Architecture in five lines
 
-Learners join a simulated Egyptian workplace through a web experience or Telegram. They receive realistic work assignments, submit actual artifacts, and receive two complementary forms of assessment:
+- `apps/web`: Next.js web app; the browser only calls relative `/api/v1` URLs, proxied to the API.
+- `services/api`: FastAPI transport over framework-free domain and application layers.
+- `services/api/src/yom_awel/evaluation`: the versioned `sales-cleaning@1` evaluator.
+- `services/api/src/yom_awel/feedback`: the Tarek persona, a Gemini adapter and a deterministic fallback.
+- Persistence: SQLite and local files in local mode; hosted Postgres and private storage in cloud mode.
 
-1. **Deterministic evaluation** checks correctness, schema, data quality, and task-specific rules.
-2. **Generative coaching** explains the deterministic result in culturally authentic Egyptian Arabic and provides targeted guidance.
+## How scoring works
 
-Only deterministic results control task completion and progression. Generative feedback cannot override grades.
+The task package [`task_packages/clean-sales/1`](task_packages/clean-sales/1/task.json) defines
+four checks worth 25 points each:
 
-## Proposed architecture
+| Check | Critical | Passes when |
+|---|---|---|
+| `unique_orders` | yes | no duplicate or blank `order_id` |
+| `standard_dates` | no | every `order_date` is `YYYY-MM-DD` |
+| `valid_numeric_values` | no | positive quantity and price, `revenue = quantity * unit_price` (±0.01) |
+| `complete_customer_records` | no | a valid email, or `missing_email_reason = unavailable` |
 
-The target is a modular Python monolith with ports and adapters:
+**Pass rule:** score >= 75 **and** `unique_orders` passed. A file with only the duplicates left
+scores 75 and is still a retry. Files that cannot be graded (wrong type, too large, missing or
+duplicate columns, fewer than 40 rows, macros, several sheets) are rejected with a coded,
+bilingual reason. CSV and XLSX are read into the same table, so the format never changes the grade.
+The brief and hints are pinned by SHA-256 in `task.json`.
 
-- Next.js web experience on Vercel Hobby;
-- FastAPI application and transport on Vercel Python Functions;
-- Telegram webhook adapter;
-- domain and application services independent of frameworks;
-- versioned deterministic evaluators;
-- provider-neutral pedagogical feedback with Gemini free-tier and deterministic fallback;
-- Supabase Free for Postgres and private artifact storage;
-- SQLite and local files for development and cloud-free fallback.
+## How feedback works
 
-No proposed capability requires a paid plan, billing account, paid add-on, or metered overage.
+After grading, Tarek explains the result in the learner's language. When `GEMINI_API_KEY` is set,
+the Gemini adapter writes the explanation and the output is validated against the evaluation
+before it is shown. On a missing key, timeout, error, or invalid output, the deterministic
+fallback templates are used instead. `FEEDBACK_MODE=fallback` forces the fallback. Feedback never
+changes the score or the pass decision.
 
-Read the complete [platform design](docs/superpowers/specs/2026-09-20-yom-awel-platform-design.md).
+## Security posture
 
-## Five-member team
+- No secret is committed. `detect-secrets` runs in pre-commit and `gitleaks` scans full history
+  in CI. `.env.example` holds names with empty values only.
+- Secrets are read from environment variables at runtime, only by the API. The web app has no
+  secrets and no `NEXT_PUBLIC_` credentials.
+- Uploads are untrusted: size and signature are checked before parsing, XLSX expansion is
+  bounded, and macros, external links and extra sheets are rejected (tested in
+  `services/api/tests/evaluation/test_artifact_validation.py`).
+- API contract (verification pending with the API lane): anonymous sessions use an HttpOnly,
+  SameSite=Lax cookie (Secure in cloud mode); state-changing requests require the
+  `X-Yom-Awel: 1` header; CORS is limited to the web origin; SQL is parameterized; error
+  responses carry codes, never stack traces.
 
-| Member | Responsibility |
-|---|---|
-| 1 | Product, learning design, evidence, submission, and release |
-| 2 | Domain, application services, contracts, persistence, and Supabase |
-| 3 | AI personas, feedback, safety, and deterministic fallback |
-| 4 | Deterministic evaluation, task data, and evaluator QA |
-| 5 | Next.js, FastAPI transport, Telegram, integration, and Vercel |
+## Quickstart (local, no secrets)
 
-Detailed assignments are indexed in [the team guide](docs/team/README.md).
+Requirements: [uv](https://docs.astral.sh/uv/), Python 3.12, Node.js with npm.
 
-## Collaboration
+```bash
+demo/run_local.sh
+```
 
-GitHub issues and pull requests are the technical system of record. Contract changes, reviewer requirements, merge gates, branch rules, database review, integration handoffs, and release sign-off are defined in the [collaboration protocol](docs/team/collaboration-protocol.md).
+It starts the API (`APP_ENV=local`) on port 8000 and the web app on port 3000, waits for both
+health checks, and prints the URL. To use Gemini, put `GEMINI_API_KEY=...` in a git-ignored
+`.env` at the repository root; without it, feedback uses the deterministic fallback.
+See [`.env.example`](.env.example) for every variable.
 
-Every pull request must use the repository template and provide:
+## Quality gate
 
-- acceptance evidence;
-- exact verification commands;
-- contract impact;
-- security and privacy impact;
-- zero-cost impact;
-- required reviewers;
-- preview evidence for user-facing changes.
+```bash
+cd services/api && uv lock --check && cd ../..
+uv run --project services/api pre-commit run --all-files   # secrets, format, lint, strict mypy, pytest
+uv run --project services/api python services/api/scripts/export_schemas.py && git diff --exit-code
+```
 
-## Documentation map
+## What is verified
 
-- [Canonical platform design](docs/superpowers/specs/2026-09-20-yom-awel-platform-design.md)
-- [Architecture guide](docs/architecture/README.md)
-- [Team ownership index](docs/team/README.md)
-- [Pull request and review protocol](docs/team/collaboration-protocol.md)
-- [Member 1 assignment](docs/team/member-1-product-release.md)
-- [Member 2 assignment](docs/team/member-2-domain-persistence.md)
-- [Member 3 assignment](docs/team/member-3-ai-feedback.md)
-- [Member 4 assignment](docs/team/member-4-evaluation.md)
-- [Member 5 assignment](docs/team/member-5-experience-integration.md)
-- [Parallel delivery and implementation plans](docs/superpowers/plans/README.md)
-- [Product journeys](docs/product/journeys/learner-first-task.md)
-- [Capability ledger](docs/product/capability-ledger.yaml)
-- [Learning competency model and scoring](docs/product/learning/scoring-policy.md)
-- [Bilingual content and glossary](docs/product/content/voice-and-tone.md)
-- [Release claim-to-evidence matrix](docs/product/evidence/claim-matrix.yaml)
-- [Competition submission package](submission/application.md)
+Every public claim is tracked in the
+[claim matrix](docs/product/evidence/claim-matrix.yaml) with the test or file that backs it;
+claims not yet verified end to end are marked `pending` with the reason. The
+[demo runbook](docs/operations/demo-runbook.md) lists known limitations and the fallback plan.
 
-Copied hackathon rules, application-form snapshots, and early ideation documents are intentionally not kept in the repository because they become stale and previously conflicted with the canonical product scope. Member 1 must verify current official requirements from the live organizer source and record only claims actually used in the versioned source register.
+## Documentation
 
-## Planned delivery sequence
-
-1. Review and approve the written platform design.
-2. Produce and approve the detailed implementation plan.
-3. Merge the contract baseline and shared fixtures.
-4. Start all five member lanes in parallel.
-5. Integrate real modules through contract-tested ports.
-6. Verify pull-request previews and the complete release candidate.
-7. Promote the exact verified artifact and tag its commit.
-
-Implementation must not begin from the older standalone prompts. After this architecture branch receives its required reviews and is integrated into `main`, the platform design, implementation plans, member assignments, and collaboration protocol become the authoritative sources.
+- [Presenter kit](demo/README.md) and [live demo runbook](docs/operations/demo-runbook.md)
+- [Platform design](docs/superpowers/specs/2026-09-20-yom-awel-platform-design.md) and
+  [architecture guide](docs/architecture/README.md)
+- [Scoring policy](docs/product/learning/scoring-policy.md) and
+  [evaluator v1 report](docs/quality/evaluator-v1-report.md)
+- [Evidence policy](docs/product/evidence/evidence-policy.md) and
+  [release sign-off](docs/product/release/release-signoff.yaml)
+- [Competition submission](submission/application.md)
+- [Team guide](docs/team/README.md) and [collaboration protocol](docs/team/collaboration-protocol.md)

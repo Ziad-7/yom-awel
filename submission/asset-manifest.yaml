@@ -14,10 +14,15 @@ assets:
       - "claim-cap-state-machine"
       - "claim-cap-artifact-upload"
       - "claim-cap-deterministic-eval"
+      - "claim-cap-safe-ingestion"
+      - "claim-cap-bilingual-task"
       - "claim-cap-arabic-feedback"
       - "claim-cap-skills-projection"
       - "claim-cap-retry-handling"
+      - "claim-cap-secret-hygiene"
+      - "claim-cap-demo-kit"
       - "claim-cap-web-experience"
+      - "claim-cap-local-demo"
 
   - id: "asset-pitch-deck"
     source_path: "submission/pitch-deck.md"
@@ -34,6 +39,7 @@ assets:
       - "claim-cap-arabic-feedback"
       - "claim-cap-retry-handling"
       - "claim-cap-skills-projection"
+      - "claim-cap-demo-kit"
       - "claim-cap-web-experience"
       - "claim-cap-sql-sandbox"
 
@@ -49,7 +55,7 @@ assets:
       - "claim-cap-web-experience"
       - "claim-cap-deterministic-eval"
       - "claim-cap-arabic-feedback"
-      - "claim-cap-skills-projection"
+      - "claim-cap-demo-kit"
 
   - id: "asset-demo-contingency"
     source_path: "submission/demo-contingency.md"
@@ -58,12 +64,72 @@ assets:
     mime_type: "text/plain"
     max_bytes: 1048576
     sha256: null
-    purpose: "Contingency demonstration guide for Gemini offline and local deterministic fallback"
+    purpose: "Contingency demonstration with Gemini disabled and the deterministic feedback fallback"
     claim_ids:
       - "claim-cap-arabic-feedback"
       - "claim-cap-deterministic-eval"
       - "claim-cap-retry-handling"
+      - "claim-cap-demo-kit"
 
+  - id: "asset-demo-cleaned-csv"
+    source_path: "demo/generate_demo_files.py"
+    export_path: "demo/files/sales_cleaned.csv"
+    export_status: "generated"
+    mime_type: "text/csv"
+    max_bytes: 1048576
+    sha256: "a6f31f488c2f7288786fdcf791779f635f2da9f85e0828487f4d74ba015b15e4"  # pragma: allowlist secret
+    purpose: "Presenter upload: 100/100 pass (CSV)"
+    claim_ids:
+      - "claim-cap-demo-kit"
+      - "claim-cap-deterministic-eval"
+
+  - id: "asset-demo-cleaned-xlsx"
+    source_path: "demo/generate_demo_files.py"
+    export_path: "demo/files/sales_cleaned.xlsx"
+    export_status: "generated"
+    mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    max_bytes: 1048576
+    sha256: "a5023f95d1114c11709e9648bded5c64da4611a48fd2fb6b7269ecad7649e0a2"  # pragma: allowlist secret
+    purpose: "Presenter upload: 100/100 pass (XLSX)"
+    claim_ids:
+      - "claim-cap-demo-kit"
+      - "claim-cap-deterministic-eval"
+
+  - id: "asset-demo-retry-duplicates-csv"
+    source_path: "demo/generate_demo_files.py"
+    export_path: "demo/files/sales_retry_duplicates.csv"
+    export_status: "generated"
+    mime_type: "text/csv"
+    max_bytes: 1048576
+    sha256: "db7b9400119bb33d7284f607193f3289cc215036bc932f2c5cf83d7582cb3fdc"  # pragma: allowlist secret
+    purpose: "Presenter upload: 75/100 retry because the critical unique_orders check failed"
+    claim_ids:
+      - "claim-cap-demo-kit"
+      - "claim-cap-deterministic-eval"
+
+  - id: "asset-demo-retry-half-xlsx"
+    source_path: "demo/generate_demo_files.py"
+    export_path: "demo/files/sales_retry_half.xlsx"
+    export_status: "generated"
+    mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    max_bytes: 1048576
+    sha256: "300a8d2b6268e25e84c7f92ceb922437a47efee4c6be242e9a74b9ebac380b75"  # pragma: allowlist secret
+    purpose: "Presenter upload: 50/100 retry"
+    claim_ids:
+      - "claim-cap-demo-kit"
+      - "claim-cap-deterministic-eval"
+
+  - id: "asset-demo-rejected-missing-columns-csv"
+    source_path: "demo/generate_demo_files.py"
+    export_path: "demo/files/sales_rejected_missing_columns.csv"
+    export_status: "generated"
+    mime_type: "text/csv"
+    max_bytes: 1048576
+    sha256: "4fdba9a358c1dad88167b06033911420a44f0d7db567f439e4247bc2733a5c05"  # pragma: allowlist secret
+    purpose: "Presenter upload: rejected with missing_columns"
+    claim_ids:
+      - "claim-cap-demo-kit"
+      - "claim-cap-deterministic-eval"
 
 private_checklist_reference:
   status: "maintained_outside_git"

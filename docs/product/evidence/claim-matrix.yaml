@@ -125,6 +125,8 @@ claims:
     wording: "The presenter kit holds five reproducible uploads whose scores (100 CSV, 100 XLSX, 75 retry, 50 retry, rejected) are asserted against the real evaluator."
     usage_locations:
       - "demo/README.md"
+      - "submission/application.md"
+      - "submission/pitch-deck.md"
       - "submission/demo-script.md"
       - "submission/demo-contingency.md"
       - "docs/operations/demo-runbook.md"
@@ -204,6 +206,7 @@ claims:
     usage_locations:
       - "README.md"
       - "demo/README.md"
+      - "submission/application.md"
       - "docs/operations/demo-runbook.md"
     status: "pending"
     pending_reason: "The script depends on the web app and API transport from PR #22; its health checks have not been run on main."

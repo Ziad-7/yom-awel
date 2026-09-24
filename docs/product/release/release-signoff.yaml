@@ -15,16 +15,16 @@ quality_gates:
     details: "Project owners must confirm current Vercel Hobby eligibility before deployment."
   secret_scan:
     status: "pending"
-    details: "Run and attach a secret-scan report for the final candidate commit."
+    details: "detect-secrets runs in pre-commit and gitleaks in CI (Secret scan workflow); attach the green run for the final candidate commit."
   automated_tests:
     status: "pending"
     details: "Tests must be rerun and attached for the final integrated candidate commit."
   browser_acceptance:
     status: "pending"
-    details: "Awaiting Member 5 web experience merge and live preview deployment verification."
+    details: "Run docs/product/release/product-acceptance.md in Arabic and English with CSV and XLSX from demo/files on the final candidate."
   gemini_fallback_test:
     status: "pending"
-    details: "Unit coverage exists, but integrated outage behavior has not yet been verified."
+    details: "Unit coverage exists; acceptance Step 8 (FEEDBACK_MODE=fallback) has not yet been run end to end."
 
 member_approvals:
   member_1:
@@ -42,12 +42,12 @@ member_approvals:
   member_4:
     role: "Deterministic Evaluation & Task Data"
     status: "pending_review"
-    decision_summary: "Awaiting evaluator PR merge and pinned package publication."
+    decision_summary: "Evaluator and pinned task package are on main; the presenter kit test grades every demo upload with it."
   member_5:
     role: "Experience, Transport & Deployment"
     status: "pending_review"
     decision_summary: "Awaiting web experience PR merge and live preview verification."
 
 decision: "no-go"
-decision_timestamp: "2026-09-24T12:00:00Z"
+decision_timestamp: "2026-09-24T20:00:00Z"
 signoff_lead: "member-1"

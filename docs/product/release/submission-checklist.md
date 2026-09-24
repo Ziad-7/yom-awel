@@ -19,7 +19,10 @@
 ## 2. Platform & Quality Gates
 
 - [ ] **Automated Tests:** Run all suites on the exact final integrated commit.
-- [ ] **Deterministic Evaluation:** Validate reference benchmarks after Member 4 integration.
+- [x] **Deterministic Evaluation:** every presenter upload in `demo/files/` is graded by the real evaluator in `tools/quality/tests/test_demo_kit.py`.
+- [ ] **End-to-End Demo:** run `docs/product/release/product-acceptance.md` in Arabic and English, with CSV and XLSX.
+- [ ] **Local Fallback Run:** start `demo/run_local.sh` and pass both health checks.
+- [ ] **Recorded Video:** record the demo from the verified candidate and link it in `docs/operations/demo-runbook.md`.
 - [ ] **Bilingual Copy:** Verify RTL layout, language, keyboard flow, screen-reader announcements, and contrast in a deployed browser.
 - [ ] **Zero Mandatory Cost:** Confirm eligibility and quotas for Vercel, Supabase, and the selected model without adding a paid or card-backed dependency.
 - [ ] **Five-Member Sign-Off:** Record linked reviews against the exact final candidate commit.

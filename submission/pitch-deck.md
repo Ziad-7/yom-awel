@@ -26,8 +26,9 @@ footer: "Cairo, Egypt • September 2026"
 
 - **No lectures. No multiple-choice tests.**
 - **Authentic Workplace Simulation:** Learners start their "First Workday" at simulated Egyptian companies.
-- **Planned Workplace Tasks:** Receive synthetic, realistic business datasets through an accessible web flow.
-- **Artifact Deliverables:** Download, clean, format, and submit synthetic Excel/CSV spreadsheets after integration is complete.
+- **First task: clean-sales.** Supervisor Tarek hands over a messy sales file: duplicate orders, mixed dates, negative numbers, missing emails.
+- **Real deliverables:** download the file, clean it in any spreadsheet tool, upload CSV or XLSX.
+- **Web flow (pending):** end-to-end browser verification is still in progress.
 
 ---
 
@@ -38,8 +39,10 @@ footer: "Cairo, Egypt • September 2026"
 
 | Layer | Technology | Role |
 |---|---|---|
-| **Evaluation (experimental)** | Deterministic Python Engine | Proposed 0–100 grading with a critical-check gate. |
-| **Coaching (experimental)** | Gemini / local fallback | Explains deterministic results; never sets scores. |
+| **Evaluation (current)** | `sales-cleaning@1`, deterministic Python | Four 25-point checks. Pass = score >= 75 **and** `unique_orders` passed. |
+| **Coaching (pending)** | Gemini with a deterministic fallback | Explains the result in Egyptian Arabic or English; never sets scores. |
+
+**The critical rule:** a file with only the duplicates left scores 75 and is still a retry.
 
 > **Key Invariant:** AI coaches the student, but **only deterministic code grades the student.**
 
@@ -62,7 +65,7 @@ footer: "Cairo, Egypt • September 2026"
 ```
 
 - **No-paid-service target:** Vercel Hobby + Supabase Free + an eligible Gemini free allowance, subject to final eligibility and quota review.
-- **Resilience target:** Local Arabic fallback exists in unit-tested code; integrated outage behavior is pending.
+- **Resilience:** `FEEDBACK_MODE=fallback` forces the deterministic feedback; grading never depends on Gemini. Integrated outage behavior is pending verification.
 
 ---
 
@@ -71,8 +74,10 @@ footer: "Cairo, Egypt • September 2026"
 <!-- claim: claim-cap-retry-handling -->
 <!-- claim: claim-cap-skills-projection -->
 
-- **Current:** Domain state, persistence contracts, retry records, and skill-evidence projection have automated tests.
-- **Experimental:** Clean-sales evaluation, Arabic feedback, and the web experience require integration and end-to-end acceptance.
+<!-- claim: claim-cap-demo-kit -->
+
+- **Current:** domain state, persistence, retry records, skill evidence, the bilingual task package, and the clean-sales evaluator have automated tests. Five demo uploads (100 CSV, 100 XLSX, 75 retry, 50 retry, rejected) are graded by the real evaluator in a test.
+- **Pending:** the web experience, bilingual feedback in the browser, and the one-command local demo, until an end-to-end run is recorded.
 - **Release decision:** `no-go` until the final candidate has passing CI, browser acceptance, deployment evidence, and five-member review.
 
 ---
@@ -81,9 +86,9 @@ footer: "Cairo, Egypt • September 2026"
 
 <!-- claim: claim-cap-sql-sandbox -->
 
-- **Immediate Goal:** Train 10,000 Egyptian job seekers in foundational data operations.
-- **Employer Pipeline:** Connect verified competency profiles directly to regional logistics, retail, and tech employers.
 - **Roadmap:**
+  - More workplace tasks beyond clean-sales.
+  - Employer-facing competency profiles backed by passed checks.
   - Sandboxed SQL Query Evaluation.
   - Interactive Egyptian Dialect Voice Notes on Telegram.
   - Advanced Inventory & Accounting Simulations.

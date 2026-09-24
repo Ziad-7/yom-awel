@@ -1,55 +1,52 @@
-# Yom Awel — Official Video Demo Script (Primary Flow)
+# Yom Awel: Video Demo Script (Primary Flow)
 
-- **Total Duration:** 3 Minutes (180 Seconds)
+- **Total Duration:** 3 minutes (180 seconds)
 - **Presenter:** Member 1 (Lead Presenter)
-- **Target Audience:** Hackathon Judges & Educational Evaluators
-- **Environment:** Planned Vercel preview in an incognito browser; do not record until the release candidate passes acceptance.
+- **Audience:** Hackathon judges and educational evaluators
+- **Environment:** a fresh private browser window on the verified deployment, or the local run
+  (`demo/run_local.sh`). Do not record until the web flow is verified end to end (claim
+  `claim-cap-web-experience` is pending).
+- **Uploads:** `demo/files/` (see `demo/README.md`). Every score below is asserted against the
+  real evaluator by `tools/quality/tests/test_demo_kit.py`.
+- **Live version with both languages and timings:** `docs/operations/demo-runbook.md`.
 
 <!-- claim: claim-cap-web-experience -->
 <!-- claim: claim-cap-deterministic-eval -->
 <!-- claim: claim-cap-arabic-feedback -->
-<!-- claim: claim-cap-skills-projection -->
+<!-- claim: claim-cap-demo-kit -->
 
 ---
 
 ## Timeline & Scene Breakdown
 
-### Scene 1: The Problem & Onboarding (0:00 – 0:35)
-- **Speaker:** "مرحباً بكم في يوم أول (Yom Awel). المشكلة اللي بنحلها هي الفجوة الكبيرة بين الدراسة الأكاديمية والمهارات المطلوبة فعلياً في سوق العمل المصري في وظائف البيانات والعمليات."
-- **Screen Action:**
-  - Browser opens to `/onboarding`.
-  - Enter name: "أحمد ممدوح" (Ahmed Mamdouh), language set to `ar-EG`.
-  - Click "ابدأ أول يوم عمل".
-- **Expected Visual State:** RTL transition to the workplace dashboard. Record any mismatch as an acceptance failure.
+### Scene 1: The problem and onboarding (0:00-0:30)
+- **Speaker:** "مرحباً بكم في يوم أول. الخريج بيفهم المفاهيم، بس عمره ما نضف ملف شغل حقيقي ملخبط. يوم أول هو أول يوم شغل ليه في شركة مصرية افتراضية."
+- **Screen:** open the app, choose Arabic, enter a display name.
+- **Expected:** the task list in Arabic (right to left) showing clean-sales as available.
 
-### Scene 2: Task Assignment & Data Hygiene Challenge (0:35 – 1:10)
-- **Speaker:** "المتدرب هنا مش بيشوف كورس نظري، المتدرب استلم أول تكليف عملي من مشرفه أستاذ طارق في شركة النيل للتوزيع: تنظيف ملف مبيعات يومي حقيقي فيه تكرار وتواريخ وأسعار غير منضبطة."
-- **Screen Action:**
-  - Show workplace briefing card with the 4 clear objectives.
-  - Download `sales_dirty.csv`. Open briefly to show the seeded errors (duplicate rows, inverted dates, negative prices).
+### Scene 2: The assignment (0:30-0:55)
+- **Speaker:** "أستاذ طارق المشرف بيدي أول تكليف: ملف مبيعات فيه طلبات مكررة وتواريخ بأشكال مختلفة وأرقام بالسالب وإيميلات ناقصة."
+- **Screen:** start clean-sales, show the brief, download the CSV and open it for a few seconds.
 
-### Scene 3: Artifact Upload & First Evaluation (1:10 – 1:50)
-- **Speaker:** "المتدرب صلح الملف ورفعه. التقييم البرمجي هو اللي بيحدد الدرجة، والذكاء الاصطناعي ما بيغيرش قرار النجاح أو الإعادة."
-- **Screen Action:**
-  - Drag and drop corrected file into the upload zone.
-  - Click "تسليم الشغل".
-  - Show loading indicator (`aria-live="polite"`).
+### Scene 3: The critical rule (0:55-1:40)
+- **Speaker:** "المتدرب صلح التواريخ والأرقام والإيميلات، بس ساب التكرار. ده 75 نقطة، وشكلها نجاح، بس الفحص ده حرج: من غير ما التكرار يتشال مفيش نجاح."
+- **Screen:** upload `demo/files/sales_retry_duplicates.csv`.
+- **Expected:** 75/100, not passed, only `unique_orders` failed (10 rows to fix), Tarek's feedback
+  in Arabic, status retry.
 
-### Scene 4: Supervisor AI Coaching & Feedback (1:50 – 2:25)
-- **Speaker:** "النتيجة طلعت: الدرجة 100 من 100 في كل المعايير! والمشرف بيكلمه باللهجة المصرية الدافئة بيشرح له إيه اللي اتعمل صح ويشجعه."
-- **Screen Action:**
-  - Highlight the 4 green passing badges (Deduplication, Dates, Numeric Integrity, Missing Records).
-  - Highlight the Egyptian Arabic coaching note from supervisor Tarek.
+### Scene 4: Success, from Excel (1:40-2:25)
+- **Speaker:** "الدرجة بيحطها كود ثابت ومتختبر، مش الذكاء الاصطناعي. الذكاء الاصطناعي بيشرح بس. ونفس النتيجة سواء الملف CSV أو Excel."
+- **Screen:** upload `demo/files/sales_cleaned.xlsx`.
+- **Expected:** 100/100, four passed checks, progress shows the task completed.
 
-### Scene 5: Verifiable Skills Profile & Wrap-Up (2:25 – 3:00)
-- **Speaker:** "أهم ميزة: المهارات مش مجرد نسب وهمية؛ كل مهارة في صفحة ملف المهارات مبنية على دليل رقمي موثق من التكليف اللي أنجزه، جاهزة للمشاركة مع الشركات."
-- **Screen Action:**
-  - Navigate to `/skills`.
-  - Show the verified `data_cleaning` card with 4 sub-skills tied to `clean-sales v1`.
-  - Final closing slide with repository link.
+### Scene 5: Bilingual and wrap-up (2:25-3:00)
+- **Speaker:** "وكل ده متاح بالإنجليزي كمان. تصحيح ثابت، تعليق بلغتين، ومفيش أسرار في الكود."
+- **Screen:** switch the language to English and show the result and feedback in English. Close
+  with the repository link.
 
 ---
 
-## Contingency & Recovery Lines
-- **If network latency delays evaluation:** Presenter notes: "النظام بيعمل فحص أمني دقيق للتأكد من بنية الملف وسلامة الأعمدة قبل تأكيد النتيجة."
-- **If Gemini is unavailable:** Follow `submission/demo-contingency.md`; if fallback does not complete, stop and record a failed release gate rather than claiming uninterrupted service.
+## Recovery Lines
+- **If evaluation is slow:** "النظام بيفحص شكل الملف وأمانه الأول قبل ما يصحح."
+- **If Gemini is unavailable:** follow `submission/demo-contingency.md`. The grade does not
+  depend on Gemini.
