@@ -129,7 +129,8 @@ async def test_authorize_upload():
     digest = hashlib.sha256(content).hexdigest()
     cmd = CreateUploadCommand(
         learner_id=learner_id,
-        filename="test.txt",
+        filename="test.csv",
+        content_type="text/csv",
         size_bytes=len(content),
         artifact_sha256=digest,
     )
@@ -143,6 +144,7 @@ async def test_authorize_upload():
         assert len(pending) == 1
         assert pending[0].event_type == "artifact.upload_authorized"
         assert pending[0].payload["artifact_id"] == str(res.artifact_id)
+        assert pending[0].payload["content_type"] == "text/csv"
         assert "upload_url" not in pending[0].payload
         assert "upload_token" not in pending[0].payload
         assert await uow.artifacts.get(res.artifact_id, learner_id) is None
@@ -151,6 +153,7 @@ async def test_authorize_upload():
                 artifact_id=res.artifact_id,
                 learner_id=learner_id,
                 filename=cmd.filename,
+                content_type=cmd.content_type,
                 size_bytes=cmd.size_bytes,
                 sha256=cmd.artifact_sha256,
             ),

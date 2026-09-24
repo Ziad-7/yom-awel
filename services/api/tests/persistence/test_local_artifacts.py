@@ -6,8 +6,9 @@ from uuid import uuid4
 
 import pytest
 
+from yom_awel.domain.contracts import artifact_content_type
 from yom_awel.domain.entities import Artifact
-from yom_awel.domain.errors import UniqueConstraintViolation
+from yom_awel.domain.errors import IdempotencyConflict, UniqueConstraintViolation
 from yom_awel.persistence import local_artifacts
 from yom_awel.persistence.local_artifacts import LocalArtifactStore
 
@@ -19,6 +20,7 @@ def _artifact(root_name: str) -> tuple[Artifact, bytes]:
             artifact_id=uuid4(),
             learner_id=uuid4(),
             filename=root_name,
+            content_type=artifact_content_type(root_name),
             size_bytes=len(content),
             sha256=hashlib.sha256(content).hexdigest(),
         ),
@@ -60,6 +62,34 @@ async def test_repeated_artifact_id_is_unique(tmp_path: Path) -> None:
     await store.put(artifact, content)
     with pytest.raises(UniqueConstraintViolation):
         await store.put(artifact, content)
+
+
+@pytest.mark.asyncio
+async def test_local_round_trip_preserves_authorized_media_type(tmp_path: Path) -> None:
+    store = LocalArtifactStore(tmp_path)
+    artifact, content = _artifact("persisted.csv")
+    await store.put(artifact, content)
+    loaded = await store.get(artifact.artifact_id, artifact.learner_id)
+    assert loaded is not None
+    assert loaded.content_type == "text/csv"
+
+
+@pytest.mark.asyncio
+async def test_second_local_authorization_rejects_different_valid_media_type(
+    tmp_path: Path,
+) -> None:
+    store = LocalArtifactStore(tmp_path)
+    artifact, _ = _artifact("retry.csv")
+    replacement = artifact.model_copy(
+        update={
+            "filename": "retry.xlsx",
+            "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }
+    )
+    await store.authorize_upload(artifact)
+    with pytest.raises(IdempotencyConflict) as error:
+        await store.authorize_upload(replacement)
+    assert error.value.code == "idempotency_conflict"
 
 
 @pytest.mark.asyncio

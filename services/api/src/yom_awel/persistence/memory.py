@@ -499,7 +499,7 @@ class _Artifacts(_MemoryRepository):
         existing = self._state.artifacts.get(artifact.artifact_id)
         if existing is not None:
             if existing.metadata != artifact:
-                raise UniqueConstraintViolation("artifacts.id")
+                raise IdempotencyConflict(str(artifact.artifact_id))
         else:
             if artifact.learner_id not in self._state.learners:
                 raise LearnerScopeViolation("artifact.learner_id")

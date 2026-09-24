@@ -47,10 +47,12 @@ class FakeEvaluator:
         self.started: asyncio.Event | None = None
         self.release: asyncio.Event | None = None
         self.received_content: bytes | None = None
+        self.received_content_type: str | None = None
 
     async def evaluate(self, task_version, artifact):
         self.call_count += 1
         self.received_content = artifact.content
+        self.received_content_type = artifact.content_type
         if self.started:
             self.started.set()
         if self.release:
@@ -119,6 +121,7 @@ async def seed_data(base_setup):
                 artifact_id=artifact_id,
                 learner_id=learner_id,
                 filename="a.csv",
+                content_type="text/csv",
                 size_bytes=len(ARTIFACT_CONTENT),
                 sha256=content_hash,
             ),
@@ -213,6 +216,7 @@ async def test_concurrent_same_key(base_setup):
 
     assert evaluator.call_count == 1
     assert evaluator.received_content == ARTIFACT_CONTENT
+    assert evaluator.received_content_type == "text/csv"
     assert feedback.call_count == 1
 
     async with uow_factory() as uow:

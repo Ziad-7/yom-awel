@@ -75,7 +75,8 @@ def make_artifact(learner_id: UUID, content: bytes = b"hello") -> Artifact:
     return Artifact(
         artifact_id=uuid4(),
         learner_id=learner_id,
-        filename="work.txt",
+        filename="work.csv",
+        content_type="text/csv",
         size_bytes=len(content),
         sha256=sha256(content).hexdigest(),
     )
@@ -240,6 +241,44 @@ async def test_task_version_uniqueness_and_get(factory: MemoryUnitOfWorkFactory)
         assert await uow.tasks.get(task.task_version_id) == task
         with pytest.raises(UniqueConstraintViolation):
             await uow.tasks.add(make_task(task_id=task.task_id))
+
+
+@pytest.mark.asyncio
+async def test_artifact_round_trip_preserves_authorized_media_type(
+    factory: MemoryUnitOfWorkFactory,
+) -> None:
+    learner = make_learner()
+    artifact = make_artifact(learner.learner_id)
+    async with factory() as uow:
+        await uow.learners.add(learner)
+        await uow.artifacts.put(artifact, b"hello")
+        await uow.commit()
+    async with factory() as uow:
+        loaded = await uow.artifacts.get(artifact.artifact_id, learner.learner_id)
+    assert loaded is not None
+    assert loaded.content_type == "text/csv"
+
+
+@pytest.mark.asyncio
+async def test_second_memory_authorization_rejects_different_valid_media_type(
+    factory: MemoryUnitOfWorkFactory,
+) -> None:
+    learner = make_learner()
+    artifact = make_artifact(learner.learner_id)
+    replacement = Artifact(
+        artifact_id=artifact.artifact_id,
+        learner_id=artifact.learner_id,
+        filename="work.xlsx",
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        size_bytes=artifact.size_bytes,
+        sha256=artifact.sha256,
+    )
+    async with factory() as uow:
+        await uow.learners.add(learner)
+        await uow.artifacts.authorize_upload(artifact)
+        with pytest.raises(IdempotencyConflict) as error:
+            await uow.artifacts.authorize_upload(replacement)
+        assert error.value.code == "idempotency_conflict"
 
 
 @pytest.mark.asyncio

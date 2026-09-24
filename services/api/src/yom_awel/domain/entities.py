@@ -4,11 +4,13 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from yom_awel.domain.contracts import (
+    ArtifactContentType,
     EvaluationResult,
     FeedbackResult,
     SkillSummary,
     SubmissionOutcome,
     TaskVersion,
+    validate_artifact_content_type,
 )
 from yom_awel.domain.enums import Channel, Language, LearnerStatus, SubmissionStatus
 
@@ -42,9 +44,15 @@ class Artifact(BaseModel):
     artifact_id: UUID
     learner_id: UUID
     filename: str = Field(strict=True, min_length=1, max_length=255)
+    content_type: ArtifactContentType
     size_bytes: int = Field(strict=True, ge=0, le=5 * 1024 * 1024)
     sha256: str = Field(strict=True, pattern=r"^[a-f0-9]{64}$")
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_content_type(self) -> "Artifact":
+        validate_artifact_content_type(self.filename, self.content_type)
+        return self
 
 
 class SubmissionReservation(BaseModel):

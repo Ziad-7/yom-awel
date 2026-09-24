@@ -222,6 +222,7 @@ class ProcessSubmission:
                     )
 
                 artifact_filename = artifact.filename
+                artifact_content_type = artifact.content_type
                 artifact_size = artifact.size_bytes
                 downloaded = await uow.artifacts.download(command.artifact_id, command.learner_id)
                 if downloaded is None:
@@ -280,6 +281,7 @@ class ProcessSubmission:
         artifact_ref = ArtifactRef(
             artifact_id=command.artifact_id,
             filename=artifact_filename,
+            content_type=artifact_content_type,
             size_bytes=artifact_size,
             sha256=command.artifact_sha256,
             content=artifact_content,

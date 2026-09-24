@@ -87,7 +87,8 @@ async def seed(factory: Factory) -> tuple[Learner, TaskVersion, Artifact]:
     artifact = Artifact(
         artifact_id=uuid4(),
         learner_id=learner.learner_id,
-        filename="work.txt",
+        filename="work.csv",
+        content_type="text/csv",
         size_bytes=len(content),
         sha256=sha256(content).hexdigest(),
     )

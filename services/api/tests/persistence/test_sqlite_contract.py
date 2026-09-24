@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -16,7 +17,10 @@ from yom_awel.domain.contracts import (
 )
 from yom_awel.domain.entities import Artifact, Learner, LearnerProgress
 from yom_awel.domain.enums import Channel, LearnerStatus, TaskStatus
-from yom_awel.domain.errors import IdempotencyConflict, OptimisticConflict
+from yom_awel.domain.errors import (
+    IdempotencyConflict,
+    OptimisticConflict,
+)
 from yom_awel.persistence.memory import FrozenClock, MemoryUnitOfWorkFactory
 from yom_awel.persistence.sqlite import SQLiteUnitOfWorkFactory
 
@@ -88,6 +92,7 @@ async def _seed(factory):
         artifact_id=uuid4(),
         learner_id=learner_id,
         filename="work.csv",
+        content_type="text/csv",
         size_bytes=len(content),
         sha256=sha256(content).hexdigest(),
     )
@@ -124,6 +129,105 @@ async def test_sqlite_download_validates_and_returns_content(tmp_path: Path) -> 
 
     async with factory() as uow:
         assert await uow.artifacts.download(artifact.artifact_id, learner_id) == b"hello"
+
+
+@pytest.mark.asyncio
+async def test_sqlite_round_trip_durably_persists_authorized_media_type(tmp_path: Path) -> None:
+    factory = SQLiteUnitOfWorkFactory(
+        tmp_path / "artifact-media-type.sqlite", clock=FrozenClock(NOW)
+    )
+    learner_id, _, artifact = await _seed(factory)
+
+    connection = factory.database.connection()
+    try:
+        stored = connection.execute(
+            "SELECT content_type FROM artifacts WHERE artifact_id=?", (str(artifact.artifact_id),)
+        ).fetchone()
+    finally:
+        connection.close()
+    assert stored is not None
+    assert stored["content_type"] == "text/csv"
+
+    async with factory() as uow:
+        loaded = await uow.artifacts.get(artifact.artifact_id, learner_id)
+    assert loaded is not None
+    assert loaded.content_type == "text/csv"
+
+
+@pytest.mark.asyncio
+async def test_sqlite_legacy_artifact_schema_is_expanded_and_backfilled(tmp_path: Path) -> None:
+    path = tmp_path / "legacy.sqlite"
+    learner_id, artifact_id = uuid4(), uuid4()
+    content = b"legacy"
+    connection = sqlite3.connect(path)
+    try:
+        connection.execute(
+            "CREATE TABLE artifacts (artifact_id TEXT PRIMARY KEY, learner_id TEXT NOT NULL, "
+            "filename TEXT NOT NULL, size_bytes INTEGER NOT NULL, sha256 TEXT NOT NULL, content BLOB NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                str(artifact_id),
+                str(learner_id),
+                "legacy.csv",
+                len(content),
+                sha256(content).hexdigest(),
+                content,
+            ),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+    factory = SQLiteUnitOfWorkFactory(path, clock=FrozenClock(NOW))
+    async with factory() as uow:
+        loaded = await uow.artifacts.get(artifact_id, learner_id)
+    assert loaded is not None
+    assert loaded.content_type == "text/csv"
+
+
+@pytest.mark.asyncio
+async def test_second_sqlite_authorization_rejects_different_valid_media_type(
+    tmp_path: Path,
+) -> None:
+    factory = SQLiteUnitOfWorkFactory(
+        tmp_path / "artifact-idempotency.sqlite", clock=FrozenClock(NOW)
+    )
+    _, _, artifact = await _seed(factory)
+    replacement = artifact.model_copy(
+        update={
+            "filename": "work.xlsx",
+            "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }
+    )
+    async with factory() as uow:
+        with pytest.raises(IdempotencyConflict) as error:
+            # The public Artifact model permits only filename/type-consistent values;
+            # this is the closest valid retry that changes the immutable media type.
+            await uow.artifacts.authorize_upload(replacement)
+        assert error.value.code == "idempotency_conflict"
+
+
+@pytest.mark.asyncio
+async def test_sqlite_retry_derives_valid_legacy_null_media_type(tmp_path: Path) -> None:
+    factory = SQLiteUnitOfWorkFactory(
+        tmp_path / "artifact-legacy-retry.sqlite", clock=FrozenClock(NOW)
+    )
+    _, _, artifact = await _seed(factory)
+    connection = factory.database.connection()
+    try:
+        connection.execute(
+            "UPDATE artifacts SET content_type=NULL WHERE artifact_id=?",
+            (str(artifact.artifact_id),),
+        )
+    finally:
+        connection.close()
+
+    async with factory() as uow:
+        authorization = await uow.artifacts.authorize_upload(artifact)
+
+    assert authorization.artifact == artifact
 
 
 @pytest.mark.asyncio
