@@ -125,16 +125,39 @@ TASK_COMPLETED ──► READY (or PROGRAM_COMPLETED)
 
 ---
 
-## 7. Analytics-Free Verification Procedure
+## 7. Member 5 Demo Route, Reset Procedure & Scene-by-Scene Contract
 
-To verify this journey without external tracking tools:
-1. Open an incognito browser window at `/onboarding`.
-2. Enter a test name and register.
-3. Verify the assigned task is `clean-sales` and download the sample dataset.
-4. Upload `tests/evaluation/fixtures/clean_sales_reference.csv` (the known passing fixture).
-5. Submit the task.
-6. Verify response within 5 seconds: score = 100, pass banner rendered, Egyptian Arabic feedback present.
-7. Navigate to `/skills` and confirm the `data_cleaning` skill reflects 100% mastery with 4 evidence items.
+To ensure Member 5 can write Playwright browser tests and Axe accessibility assertions deterministically without inventing text or behavior, the demo contract is frozen as follows:
+
+### 7.1 Demo Configuration & Canonical Test Data
+
+- **Primary Web Route:** `/workplace`
+- **Onboarding Route:** `/onboarding`
+- **Skills Profile Route:** `/skills`
+- **Reset Procedure:**
+  - In browser: Clear session via `localStorage.clear()` or click "تسجيل الخروج وفقد الوصول" in the logout modal.
+  - In API backend: Delete `.local/session.key` and reset SQLite test database (`.local/yom_awel.db`).
+- **Canonical Learner Profile:**
+  - Name: `نور الدين` (Noor El-Deen)
+  - Language: `ar-EG`
+  - Canonical Learner ID: `canonical-demo-learner-01`
+- **Canonical Task Data:**
+  - Task ID: `clean-sales`
+  - Version: `1`
+  - Required Artifact: `sales_dirty.csv` (input) / `sales_cleaned.csv` or `.xlsx` (output)
+
+### 7.2 Scene-by-Scene Journey Mapping
+
+| Scene | Route | Trigger / Action | Expected State (`LearnerStatus`) | Expected Screen State & Visible Copy IDs | Action Buttons & Transition |
+|---|---|---|---|---|---|
+| **Scene 1: Onboarding** | `/onboarding` | Learner enters name `"نور الدين"`, selects `ar-EG`, submits | `ONBOARDING` ➔ `READY` | Welcome header, display name input, language selector. | Button: "ابدأ أول يوم عمل" ➔ Navigates to `/workplace` |
+| **Scene 2: Task Delivery & Download** | `/workplace` | Task auto-assigned | `IN_TASK` (`TaskStatus.ACTIVE`) | Supervisor brief from Tarek, 4 business objectives, dirty dataset download link. Copy: `state.empty` (if no task assigned). | Link: "نزّل ملف المبيعات الخام" |
+| **Scene 3: Invalid File Rejection** | `/workplace` | Learner uploads `.pdf` or file > 5 MiB | `IN_TASK` | Upload error banner appears immediately with `aria-describedby`. Copy: `upload.invalid_type` or `upload.oversize`. | Button: "اختيار ملف آخر" ➔ Clears file, stays `IN_TASK` |
+| **Scene 4: Submission Processing** | `/workplace` | Learner uploads `sales_cleaned.csv` and clicks submit | `PROCESSING` (`SubmissionStatus.EVALUATING`) | Upload spinner, progress indicator announced via `aria-live="polite"`. Copy: `state.loading`. | Form disabled while busy |
+| **Scene 5: Failure / Retry** | `/workplace` | Evaluator completes dirty fixture (`score < 75` or `unique_orders` failed) | `NEEDS_RETRY` | Score card with failed badges (`! يحتاج مراجعة`), supervisor coaching text. Focus shifts to `#result-heading`. Copy: `evaluation.failure`, `evaluation.retry`. | Button: "رفع التعديل" ➔ stays `NEEDS_RETRY` |
+| **Scene 6: Success Completion** | `/workplace` | Learner uploads fixed clean fixture (`score = 100`, critical passed) | `TASK_COMPLETED` (`TaskStatus.COMPLETED`) | Green success card (`✓ نجح`), 100/100 score, congratulatory coaching. Copy: `evaluation.success`. | Button: "عرض ملف المهارات" ➔ Navigates to `/skills` |
+| **Scene 7: Skills Profile** | `/skills` | Learner views verified skills | `TASK_COMPLETED` | Competency card for `data_cleaning` with 4 verified checks, audit timestamp. Copy: `profile.empty` (only if 0 tasks completed). | Button: "الذهاب لميدان العمل" |
+| **Scene 8: Offline / Fallback Contingency** | `/workplace` | Network drop or Gemini outage during evaluation | `NEEDS_RETRY` or `TASK_COMPLETED` | Offline notice (`network.offline`) or deterministic fallback coaching banner (`feedback.gemini_fallback`). | Button: "إعادة المحاولة" |
 
 ---
 
@@ -144,3 +167,4 @@ To verify this journey without external tracking tools:
 - **Member 3 (AI Feedback):** Delivers persona-driven Egyptian Arabic feedback prompt and deterministic fallback templates.
 - **Member 4 (Evaluation):** Provides `sales-cleaning` evaluator, boundary validation, and check points.
 - **Member 5 (Web & Transport):** Delivers Next.js onboarding & workplace pages, Telegram webhook, and upload dialogs.
+

@@ -25,22 +25,34 @@ def test_interface_copy_covers_all_required_states() -> None:
     copy_data = yaml.safe_load(COPY_PATH.read_text(encoding="utf-8"))
     messages = copy_data.get("messages", {})
 
-    required_state_keys = [
-        "loading",
-        "empty",
-        "success",
-        "failure",
-        "retryable",
-        "offline",
-        "unsupported_file",
-        "oversized_file",
-        "evaluation_failed",
-        "fallback_feedback",
+    # All 13 explicit Member 5 UI states
+    member5_states = [
+        "state.loading",
+        "state.empty",
+        "network.offline",
+        "upload.invalid_type",
+        "upload.mime_mismatch",
+        "upload.oversize",
+        "upload.unreadable_workbook",
+        "evaluation.failure",
+        "service.failure_retryable",
+        "feedback.gemini_fallback",
+        "evaluation.success",
+        "evaluation.retry",
+        "profile.empty",
     ]
 
-    for state_key in required_state_keys:
-        assert any(state_key in msg_id for msg_id in messages), (
-            f"Missing coverage for state '{state_key}' in interface-copy.yaml"
+    for state_id in member5_states:
+        assert state_id in messages, (
+            f"Missing canonical copy ID '{state_id}' required by Member 5 in interface-copy.yaml"
+        )
+        entry = messages[state_id]
+        assert "retryable" in entry, f"Missing 'retryable' boolean in '{state_id}'"
+        assert "expected_state_after_action" in entry, (
+            f"Missing 'expected_state_after_action' in '{state_id}'"
+        )
+        assert entry.get("accessible_label"), (
+            f"Missing 'accessible_label' in '{state_id}'"
         )
 
 
