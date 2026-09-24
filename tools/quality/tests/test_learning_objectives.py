@@ -44,3 +44,12 @@ def test_content_does_not_reveal_internal_ground_truth_answers() -> None:
             assert spoiler not in text, (
                 f"Found leaked answer in {filepath.name}: {spoiler}"
             )
+
+
+def test_pass_policy_critical_check_and_parity() -> None:
+    data = yaml.safe_load(MANIFEST_PATH.read_text(encoding="utf-8"))
+    pass_policy = data["pass_policy"]
+    assert pass_policy["rule"] == "passed = score >= 75 AND every critical check passed"
+    assert "unique_orders" in pass_policy["critical_checks"]
+    assert data["format_policy"]["supported_formats"] == ["csv", "xlsx"]
+    assert data["format_policy"]["evaluation_parity"] is True

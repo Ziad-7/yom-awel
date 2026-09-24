@@ -54,6 +54,47 @@ def validate_objectives_manifest(
         if not isinstance(threshold, int) or threshold <= 0 or threshold > total_points:
             errors.append(f"Invalid pass_threshold '{threshold}'.")
 
+        rule = pass_policy.get("rule")
+        expected_rule = "passed = score >= 75 AND every critical check passed"
+        if rule != expected_rule:
+            errors.append(f"pass_policy.rule must be '{expected_rule}', got '{rule}'.")
+
+        critical_checks = pass_policy.get("critical_checks")
+        if (
+            not isinstance(critical_checks, list)
+            or "unique_orders" not in critical_checks
+        ):
+            errors.append("pass_policy.critical_checks must list 'unique_orders'.")
+
+    # Format policy
+    format_policy = data.get("format_policy")
+    if not isinstance(format_policy, dict):
+        errors.append("Missing 'format_policy' section.")
+    else:
+        supported = format_policy.get("supported_formats", [])
+        if "csv" not in supported or "xlsx" not in supported:
+            errors.append(
+                "format_policy.supported_formats must support both 'csv' and 'xlsx'."
+            )
+
+    # Diagnostic vocabulary
+    diag_vocab = data.get("diagnostic_vocabulary")
+    if not isinstance(diag_vocab, dict):
+        errors.append("Missing 'diagnostic_vocabulary' section.")
+    else:
+        if (
+            not isinstance(diag_vocab.get("rejections"), list)
+            or len(diag_vocab["rejections"]) == 0
+        ):
+            errors.append("diagnostic_vocabulary must contain non-empty 'rejections'.")
+        if (
+            not isinstance(diag_vocab.get("check_diagnostics"), list)
+            or len(diag_vocab["check_diagnostics"]) == 0
+        ):
+            errors.append(
+                "diagnostic_vocabulary must contain non-empty 'check_diagnostics'."
+            )
+
     # Learning objectives
     objectives = data.get("learning_objectives")
     if not isinstance(objectives, list) or len(objectives) == 0:
