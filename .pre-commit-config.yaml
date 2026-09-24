@@ -1,6 +1,11 @@
 repos:
   - repo: local
     hooks:
+      - id: detect-secrets
+        name: Secret scan (detect-secrets)
+        entry: uv run --project services/api detect-secrets-hook --baseline .secrets.baseline
+        language: system
+        exclude: (^|/)(uv\.lock|package-lock\.json|\.secrets\.baseline)$
       - id: ruff-format
         name: Ruff format check
         entry: uv run --project services/api ruff format --check
