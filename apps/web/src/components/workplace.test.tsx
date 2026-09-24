@@ -53,10 +53,10 @@ describe("Workplace against the typed contract mock", () => {
     expect(screen.getAllByText(/Eng\. Tarek, Team Lead/)).toHaveLength(1);
     expect(screen.getByRole("button", { name: "اعرض بالعربي" })).toBeInTheDocument();
     const posts = api.calls.filter((call) => call.method !== "GET");
-    expect(posts.every((call) => call.headers["X-Yom-Awel"] === "1")).toBe(true);
+    expect(posts.every((call) => call.headers["x-yom-awel"] === "1")).toBe(true);
     expect(api.calls.every((call) => call.path.startsWith("/api/v1/"))).toBe(true);
     const submission = api.calls.find((call) => call.path === "/api/v1/submissions");
-    expect(submission?.headers["Idempotency-Key"]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(submission?.headers["idempotency-key"]).toMatch(/^[0-9a-f-]{36}$/);
     expect(api.calls.some((call) => call.path.includes("feedback?language=en"))).toBe(true);
   });
 

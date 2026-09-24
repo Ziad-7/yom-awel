@@ -13,7 +13,7 @@ import type {
 import type { ApiLanguage } from "../lib/i18n/keys";
 
 /** A typed, in-memory stand-in for the /api/v1 contract used by component tests. */
-export type Call = { method: string; path: string; headers: Record<string, string>; body?: unknown };
+export type Call = { method: string; path: string; headers: Record<string, string>; body?: unknown }; // header names lowercased
 
 const TASK_VERSION = "00000000-0000-4000-8000-00000000000a";
 const SUBMISSION = "00000000-0000-4000-8000-00000000000b";
@@ -157,9 +157,11 @@ export function createMockApi(outcome: EvaluationResult) {
   const fetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = String(input);
     const method = (init.method ?? "GET").toUpperCase();
-    const body = typeof init.body === "string" ? JSON.parse(init.body) : undefined;
-    calls.push({ method, path: url, headers: { ...(init.headers as Record<string, string>) }, body });
-    if (method !== "GET" && (init.headers as Record<string, string>)["X-Yom-Awel"] !== "1")
+    const headers = Object.fromEntries(new Headers(init.headers).entries());
+    const json = typeof init.body === "string" && headers["content-type"] === "application/json";
+    const body = json ? JSON.parse(init.body as string) : undefined;
+    calls.push({ method, path: url, headers, body });
+    if (method !== "GET" && headers["x-yom-awel"] !== "1")
       return new Response(JSON.stringify({ code: "csrf" }), { status: 403 });
     const [code, payload] = route(url, body);
     return new Response(JSON.stringify(payload), { status: code, headers: { "Content-Type": "application/json" } });

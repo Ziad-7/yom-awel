@@ -136,10 +136,10 @@ code {
   flex-direction: column;
   gap: 28px;
   background: #fbfcf8;
-  position: fixed;
-  inset-block: 0;
-  inset-inline-start: 0;
-  z-index: 10;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 .brand {
   display: flex;
@@ -236,8 +236,8 @@ code {
   font-weight: 700;
 }
 .main-wrap {
-  margin-inline-start: 240px;
-  width: calc(100% - 240px);
+  flex: 1;
+  min-width: 0;
 }
 .topbar {
   min-height: 70px;
@@ -1229,10 +1229,6 @@ progress {
     width: 200px;
     padding-inline: 16px;
   }
-  .main-wrap {
-    margin-inline-start: 200px;
-    width: calc(100% - 200px);
-  }
   main {
     padding: 28px;
   }
@@ -1264,6 +1260,7 @@ progress {
   .sidebar {
     position: static;
     width: 100%;
+    height: auto;
     padding: 12px 16px;
     border-inline-end: 0;
     border-bottom: 1px solid var(--line);
@@ -1301,10 +1298,6 @@ progress {
   .sidebar-bottom,
   .crumb {
     display: none;
-  }
-  .main-wrap {
-    margin-inline-start: 0;
-    width: 100%;
   }
   .topbar {
     min-height: 56px;
