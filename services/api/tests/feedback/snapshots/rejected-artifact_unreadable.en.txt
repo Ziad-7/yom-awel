@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission needs rework. The file was not graded: File cannot be parsed as a tabular spreadsheet (e.g. corrupt structure, macro workbook, or password protected).
+Business impact: none of the checks could run, so the sales report has no numbers it can rely on yet.
+Next action: save it again as a plain CSV or XLSX without macros or a password, then upload the file again.
+Score explanation: 0 of 100, because the checks could not run on this file.

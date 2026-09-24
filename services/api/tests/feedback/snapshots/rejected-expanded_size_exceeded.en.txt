@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission needs rework. The file was not graded: Expanded workbook content exceeds the safe processing limit.
+Business impact: none of the checks could run, so the sales report has no numbers it can rely on yet.
+Next action: save a copy with only the orders table and no images or heavy formatting, or export it as CSV, then upload the file again.
+Score explanation: 0 of 100, because the checks could not run on this file.
