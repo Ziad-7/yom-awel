@@ -128,6 +128,23 @@ Maintain fixtures covering pass, near-pass, multiple failures, ambiguous learner
 - Hazem and Mona remain roadmap-only until their flows are integrated and tested.
 - Tests do not require live paid API calls.
 
+## Version 1 examples
+
+The canonical `contracts-v1` persona ID is `tarek` (Eng. Tarek is the display persona).
+Feedback consumes `EvaluationCheck.details_ar` or `details_en` according to language and the
+four `clean-sales@1` check IDs. Provider requests use approved check-specific wording rather
+than forwarding evaluator free text or workbook rows.
+
+Passing example: `القرار: التسليم مقبول.` Eng. Tarek then explains why the cleaned report is
+safe to use, gives the next workplace action, and repeats the deterministic score.
+
+Retry example: `القرار: التسليم محتاج إعادة شغل.` Eng. Tarek names only failed canonical check
+IDs, explains their business consequence, suggests a targeted correction, and repeats the
+deterministic score without exposing the reference workbook.
+
+Rejected example: feedback that claims a passing submission failed, invents a missing column, or
+provides the finished workbook is invalid and must be replaced by deterministic fallback.
+
 ## Required tests and reviews
 
 - Unit tests for prompt construction with redaction.
