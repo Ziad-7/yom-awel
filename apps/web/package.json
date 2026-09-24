@@ -17,7 +17,6 @@
     "api:check": "node scripts/api-types.mjs --check"
   },
   "dependencies": {
-    "@supabase/supabase-js": "2.117.1",
     "next": "16.3.6",
     "react": "19.3.0",
     "react-dom": "19.3.0"
