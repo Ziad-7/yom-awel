@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission accepted, with a small gap left to close.
+Business impact: the file works for the report, but mixed date formats scramble the order of sales across periods.
+Next action: before the next task, convert every order date to the ISO format YYYY-MM-DD.
+Score explanation: 75 of 100 meets the pass mark of 75.

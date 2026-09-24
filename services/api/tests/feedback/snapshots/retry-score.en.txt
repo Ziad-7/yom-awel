@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission needs rework.
+Business impact: invalid quantities or prices make the revenue totals unreliable; incomplete customer records make orders hard to follow up.
+Next action: keep quantities and unit prices positive and make revenue equal quantity times unit price; keep every order and write unavailable in missing_email_reason for each customer without an email, then upload the file again.
+Score explanation: 50 of 100 is below the pass mark of 75; you need 25 more points.
