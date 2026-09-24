@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission needs rework. The file was not graded: Cleaned dataset contains fewer than the required 40 rows.
+Business impact: none of the checks could run, so the sales report has no numbers it can rely on yet.
+Next action: keep every valid order so the cleaned file has at least 40 orders, then upload the file again.
+Score explanation: 0 of 100, because the checks could not run on this file.

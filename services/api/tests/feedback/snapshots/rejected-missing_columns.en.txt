@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission needs rework. The file was not graded: Required column headers are missing.
+Business impact: none of the checks could run, so the sales report has no numbers it can rely on yet.
+Next action: restore the header row with every required column under its original name, as in the task file, then upload the file again.
+Score explanation: 0 of 100, because the checks could not run on this file.

@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission needs rework. The file was not graded: File content does not match its declared CSV or XLSX format.
+Business impact: none of the checks could run, so the sales report has no numbers it can rely on yet.
+Next action: open the file and save it again in the format its extension names instead of renaming the extension, then upload the file again.
+Score explanation: 0 of 100, because the checks could not run on this file.

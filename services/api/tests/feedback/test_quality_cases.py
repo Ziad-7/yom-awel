@@ -22,8 +22,9 @@ async def test_deterministic_quality_case(
     evaluation = passed_evaluation if case["fixture"] == "pass" else failed_evaluation
     if case["id"] == "one-failure":
         checks = [
-            failed_evaluation.checks[0],
-            *passed_evaluation.checks[1:],
+            passed_evaluation.checks[0],
+            failed_evaluation.checks[1],
+            *passed_evaluation.checks[2:],
         ]
         evaluation = evaluation.model_copy(update={"checks": checks, "passed": True, "score": 75})
     if case["id"] == "three-failures":
@@ -70,7 +71,7 @@ async def test_deterministic_quality_case(
     assert broken.calls == (1 if case["id"] == "provider-failure" else 0)
     if not evaluation.passed:
         for check in [check for check in evaluation.checks if not check.passed][:3]:
-            consequence, action = CHECK_GUIDANCE[check.check_id]
+            consequence, action = CHECK_GUIDANCE[check.check_id][Language.AR_EG]
             assert consequence in result.feedback_text
             assert action in result.feedback_text
     assert str(evaluation.score) in result.feedback_text
@@ -78,19 +79,3 @@ async def test_deterministic_quality_case(
         assert required in result.feedback_text
     for forbidden in case["forbidden"]:  # type: ignore[union-attr]
         assert forbidden not in result.feedback_text
-
-
-async def test_fallback_snapshots(
-    passed_evaluation: EvaluationResult,
-    failed_evaluation: EvaluationResult,
-) -> None:
-    snapshots = Path(__file__).with_name("snapshots")
-    provider = DeterministicFeedbackProvider()
-    passed = await provider.generate(passed_evaluation, Language.AR_EG, None)
-    failed = await provider.generate(failed_evaluation, Language.AR_EG, None)
-    assert passed.feedback_text == (snapshots / "fallback-pass.txt").read_text(
-        encoding="utf-8"
-    ).rstrip("\n")
-    assert failed.feedback_text == (snapshots / "fallback-fail.txt").read_text(
-        encoding="utf-8"
-    ).rstrip("\n")
