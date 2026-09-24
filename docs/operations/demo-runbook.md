@@ -6,6 +6,19 @@
 - **Run it on:** the deployed web app if its preview is verified, otherwise the local run
   (`demo/run_local.sh`).
 
+## How the local run is wired / التشغيل المحلي متوصل إزاي
+
+`demo/run_local.sh` starts the API on `127.0.0.1:${API_PORT:-8000}` with `APP_ENV=local` and the
+web app on `127.0.0.1:${WEB_PORT:-3000}` with `API_ORIGIN=http://127.0.0.1:${API_PORT}`.
+`API_ORIGIN` is a server-only variable read by the Next.js `/api` rewrite; the browser calls only
+relative `/api/v1/...` URLs on the web origin. `NEXT_PUBLIC_API_BASE_URL` is no longer used. For a
+deployed web app, set `API_ORIGIN` to the deployed API origin in the web project's server
+environment. The script waits for three health checks: the API directly, the web app, and
+`/api/v1/health` through the web proxy.
+
+السكريبت بيشغّل الـ API والموقع، والموقع بيوصل للـ API عن طريق `API_ORIGIN` من السيرفر بس، والمتصفح
+بيكلم `/api/v1` على نفس الموقع.
+
 ## Before the demo (T-30 min) / قبل العرض
 
 1. Open the app in a fresh private window. Confirm `GET /api/v1/runtime` reports the expected

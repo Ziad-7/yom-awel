@@ -73,8 +73,9 @@ Requirements: [uv](https://docs.astral.sh/uv/), Python 3.12, Node.js with npm.
 demo/run_local.sh
 ```
 
-It starts the API (`APP_ENV=local`) on port 8000 and the web app on port 3000, waits for both
-health checks, and prints the URL. To use Gemini, put `GEMINI_API_KEY=...` in a git-ignored
+It starts the API (`APP_ENV=local`) on port 8000 and the web app on port 3000 with the
+server-only `API_ORIGIN=http://127.0.0.1:8000` for its `/api` rewrite, waits for the health
+checks (API, web, and the API through the web proxy), and prints the URL. To use Gemini, put `GEMINI_API_KEY=...` in a git-ignored
 `.env` at the repository root; without it, feedback uses the deterministic fallback.
 See [`.env.example`](.env.example) for every variable.
 
