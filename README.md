@@ -72,6 +72,12 @@ Every pull request must use the repository template and provide:
 - [Member 4 assignment](docs/team/member-4-evaluation.md)
 - [Member 5 assignment](docs/team/member-5-experience-integration.md)
 - [Parallel delivery and implementation plans](docs/superpowers/plans/README.md)
+- [Product journeys](docs/product/journeys/learner-first-task.md)
+- [Capability ledger](docs/product/capability-ledger.yaml)
+- [Learning competency model and scoring](docs/product/learning/scoring-policy.md)
+- [Bilingual content and glossary](docs/product/content/voice-and-tone.md)
+- [Release claim-to-evidence matrix](docs/product/evidence/claim-matrix.yaml)
+- [Competition submission package](submission/application.md)
 
 Copied hackathon rules, application-form snapshots, and early ideation documents are intentionally not kept in the repository because they become stale and previously conflicted with the canonical product scope. Member 1 must verify current official requirements from the live organizer source and record only claims actually used in the versioned source register.
 

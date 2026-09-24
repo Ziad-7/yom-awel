@@ -1,0 +1,184 @@
+task_id: "clean-sales"
+version: "1"
+intended_learner_level: "junior"
+workplace_context:
+  company_name: "Nile Distribution & Trading Co."
+  industry: "Distribution & Retail"
+  supervisor: "Tarek (Operations Lead)"
+  scenario: "Daily sales transaction log cleanup for automated reporting"
+
+required_artifacts:
+  input:
+    filename: "sales_dirty.csv"
+    format: ["csv", "xlsx"]
+    max_bytes: 5242880
+  output:
+    filename_pattern: "sales_cleaned.*"
+    format: ["csv", "xlsx"]
+    required_columns:
+      - "order_id"
+      - "customer_email"
+      - "order_date"
+      - "quantity"
+      - "unit_price"
+      - "revenue"
+      - "missing_email_reason"
+
+learning_objectives:
+  - id: "obj-deduplicate-orders"
+    title: "Order Primary Key Deduplication"
+    description: "Identify and resolve repeated transaction records to ensure single-instance integrity per order_id."
+    skill_id: "data_cleaning"
+    check_ids:
+      - "unique_orders"
+    points: 25
+
+  - id: "obj-normalize-dates"
+    title: "Standardize Transaction Dates"
+    description: "Convert heterogeneous date representations into standard ISO 8601 YYYY-MM-DD format."
+    skill_id: "data_cleaning"
+    check_ids:
+      - "standard_dates"
+    points: 25
+
+  - id: "obj-validate-numerics"
+    title: "Audit Numeric Consistency and Revenue Integrity"
+    description: "Validate quantities and unit prices against negative entry defects and guarantee revenue equals quantity times price."
+    skill_id: "data_cleaning"
+    check_ids:
+      - "valid_numeric_values"
+    points: 25
+
+  - id: "obj-handle-missing-emails"
+    title: "Document Missing Customer Attributes"
+    description: "Annotate transactions lacking customer emails with unavailable reason code rather than dropping sales records."
+    skill_id: "data_cleaning"
+    check_ids:
+      - "complete_customer_records"
+    points: 25
+
+transformations:
+  allowed:
+    - "Deduplicating rows based on unique order_id"
+    - "Converting date values to YYYY-MM-DD"
+    - "Replacing negative values with positive corrected values"
+    - "Recalculating revenue column as quantity * unit_price"
+    - "Filling missing customer email reasons with 'unavailable'"
+  forbidden:
+    - "Deleting rows simply because customer email is missing"
+    - "Renaming or reordering required column headers arbitrarily"
+    - "Inserting extraneous text notes or summary rows inside data range"
+    - "Altering order_id identifiers"
+
+pass_policy:
+  evaluator_id: "sales-cleaning"
+  evaluator_version: "1"
+  rule: "passed = score >= 75 AND every critical check passed"
+  total_points: 100
+  pass_threshold: 75
+  critical_checks:
+    - "unique_orders"
+  critical_check_details:
+    - check_id: "unique_orders"
+      critical: true
+      rationale: "Order deduplication is mandatory for business key integrity in retail analytics. Duplicate transaction keys lead to double-counted revenues, distorted unit sales metrics, and downstream inventory reconciliation errors. Even if a submission scores >= 75 by normalizing dates, validating numbers, and recording reasons for missing customer emails, retaining duplicate order_id records prevents passing."
+
+format_policy:
+  supported_formats:
+    - "csv"
+    - "xlsx"
+  evaluation_parity: true
+  bounds:
+    max_bytes: 5242880
+    max_expanded_bytes: 52428800
+    sheets: "first active sheet only"
+    max_rows: 10000
+    max_columns: 20
+    prohibited:
+      - "macros"
+      - "password_protection"
+      - "external_links"
+
+diagnostic_vocabulary:
+  version: "1"
+  rejections:
+    - code: "unsupported_type"
+      category: "validation"
+      learner_message_en: "Unsupported file format. Please upload a valid CSV or XLSX spreadsheet."
+      learner_message_ar: "صيغة الملف غير مدعومة. يرجى رفع ملف CSV أو XLSX صالح."
+    - code: "artifact_too_large"
+      category: "validation"
+      learner_message_en: "File size exceeds the 5 MiB limit."
+      learner_message_ar: "حجم الملف يتجاوز الحد الأقصى المسموح (5 ميجابايت)."
+    - code: "mime_mismatch"
+      category: "validation"
+      learner_message_en: "File content does not match its declared CSV or XLSX format."
+      learner_message_ar: "محتوى الملف لا يطابق صيغة CSV أو XLSX المعلنة."
+    - code: "expanded_size_exceeded"
+      category: "validation"
+      learner_message_en: "Expanded workbook content exceeds the safe processing limit."
+      learner_message_ar: "محتوى ملف العمل بعد فك الضغط يتجاوز حد المعالجة الآمن."
+    - code: "sheet_limit_exceeded"
+      category: "validation"
+      learner_message_en: "Workbook must contain only the supported active worksheet."
+      learner_message_ar: "يجب أن يحتوي ملف العمل على ورقة العمل النشطة المدعومة فقط."
+    - code: "artifact_unreadable"
+      category: "validation"
+      learner_message_en: "File cannot be parsed as a tabular spreadsheet (e.g. corrupt structure, macro workbook, or password protected)."
+      learner_message_ar: "تعذر قراءة الملف كجدول بيانات صالح (مثل بنية تالفة، أو ماكرو مفعّل، أو ملف محمي بكلمة سر)."
+    - code: "missing_columns"
+      category: "validation"
+      learner_message_en: "Required column headers are missing."
+      learner_message_ar: "أعمدة أساسية مطلوبة مفقودة من الملف."
+    - code: "duplicate_columns"
+      category: "validation"
+      learner_message_en: "Duplicate column names detected in the header row."
+      learner_message_ar: "تم العثور على أسماء أعمدة مكررة في صف العناوين."
+    - code: "too_few_rows"
+      category: "validation"
+      learner_message_en: "Cleaned dataset contains fewer than the required 40 rows."
+      learner_message_ar: "الملف المنظف يحتوي على أقل من الحد الأدنى المطلوب (40 صفاً)."
+  check_diagnostics:
+    - check_id: "unique_orders"
+      passed_code: "unique_orders_passed"
+      failed_code: "unique_orders_failed"
+      guidance_en: "Review duplicate order IDs and keep exactly one instance per order."
+      guidance_ar: "راجع معرفات الطلبات المتكررة ونظّفها قبل إعادة التسليم."
+    - check_id: "standard_dates"
+      passed_code: "standard_dates_passed"
+      failed_code: "standard_dates_failed"
+      guidance_en: "Standardize all dates to standard ISO YYYY-MM-DD format."
+      guidance_ar: "وحّد تنسيق التواريخ ثم أعد فحص ترتيب السجلات."
+    - check_id: "valid_numeric_values"
+      passed_code: "valid_numeric_values_passed"
+      failed_code: "valid_numeric_values_failed"
+      guidance_en: "Verify positive quantities and prices, and ensure revenue equals quantity * unit_price."
+      guidance_ar: "تحقق من قيم الكميات والأسعار وصحح غير الصالح منها."
+    - check_id: "complete_customer_records"
+      passed_code: "complete_customer_records_passed"
+      failed_code: "complete_customer_records_failed"
+      guidance_en: "Every customer without email must have missing_email_reason filled with 'unavailable' instead of deleting rows."
+      guidance_ar: "أكمل بيانات العملاء المطلوبة ثم أعد التسليم."
+
+misconception_catalog:
+  - misconception_id: "misc-delete-missing-email"
+    description: "Learner deletes the entire row when customer email is absent."
+    remediation_hint: "Deleting rows loses sales revenue data. Annotate with 'unavailable' instead."
+  - misconception_id: "misc-ignore-negative-typos"
+    description: "Learner assumes negative quantities are return entries rather than input typos."
+    remediation_hint: "Physical quantities must be positive for this daily sales sheet."
+  - misconception_id: "misc-date-locale-confusion"
+    description: "Learner leaves month and day inverted (e.g. MM/DD/YYYY)."
+    remediation_hint: "Standardize all dates strictly to ISO 8601 YYYY-MM-DD format."
+
+content_manifest:
+  brief_ar: "content/brief.ar-EG.md"
+  brief_en: "content/brief.en.md"
+  hints_ar: "content/hints.ar-EG.md"
+  hints_en: "content/hints.en.md"
+  pinned_hashes:
+    brief_ar_sha256: "d1258296d68d920339be47e1e3e6200601d8525d2465d149fc1f468b8474b881"
+    brief_en_sha256: "7bef0dc4b738cd36bb9aac46d641913d0390867b3ac684efefed4a6a6537e24a"
+    hints_ar_sha256: "d8b37c1ab268b61db26b2b62de703a640debca01a5ba3287151aac8465acb69c"
+    hints_en_sha256: "d5dbf71c97fc8ba49b950902be45ca8ba9fe99f0aee329fd46bb3daf122ff58a"
+

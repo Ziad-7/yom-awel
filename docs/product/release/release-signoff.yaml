@@ -1,0 +1,53 @@
+version: "1"
+release_version: "1.0.0"
+tested_source_sha: null
+deployment:
+  preview_url: null
+  production_url: null
+  telegram_bot: null
+
+quality_gates:
+  zero_cost_review:
+    status: "pending"
+    details: "Architecture targets free plans, but an integrated deployment and quota review have not yet been recorded."
+  hobby_non_commercial_eligibility:
+    status: "pending"
+    details: "Project owners must confirm current Vercel Hobby eligibility before deployment."
+  secret_scan:
+    status: "pending"
+    details: "Run and attach a secret-scan report for the final candidate commit."
+  automated_tests:
+    status: "pending"
+    details: "Tests must be rerun and attached for the final integrated candidate commit."
+  browser_acceptance:
+    status: "pending"
+    details: "Awaiting Member 5 web experience merge and live preview deployment verification."
+  gemini_fallback_test:
+    status: "pending"
+    details: "Unit coverage exists, but integrated outage behavior has not yet been verified."
+
+member_approvals:
+  member_1:
+    role: "Product, Learning Design & Release"
+    status: "pending_review"
+    decision_summary: "Learning contracts are drafted; final cross-owner and release-candidate review is pending."
+  member_2:
+    role: "Domain, Persistence & Contracts"
+    status: "pending_review"
+    decision_summary: "Awaiting cross-owner review on PR #23 head."
+  member_3:
+    role: "AI Personas & Pedagogical Feedback"
+    status: "pending_review"
+    decision_summary: "Awaiting cross-owner review on PR #23 head."
+  member_4:
+    role: "Deterministic Evaluation & Task Data"
+    status: "pending_review"
+    decision_summary: "Awaiting evaluator PR merge and pinned package publication."
+  member_5:
+    role: "Experience, Transport & Deployment"
+    status: "pending_review"
+    decision_summary: "Awaiting web experience PR merge and live preview verification."
+
+decision: "no-go"
+decision_timestamp: "2026-09-24T12:00:00Z"
+signoff_lead: "member-1"

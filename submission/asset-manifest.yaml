@@ -1,0 +1,74 @@
+version: "1"
+description: "Deterministic asset manifest tracking reviewable source files, planned exports, hashes, and claim mappings for the submission package."
+
+assets:
+  - id: "asset-application"
+    source_path: "submission/application.md"
+    export_path: "exports/application.pdf"
+    export_status: "pending_generation"
+    mime_type: "application/pdf"
+    max_bytes: 10485760
+    sha256: null
+    purpose: "Official written competition answers and architectural overview"
+    claim_ids:
+      - "claim-cap-state-machine"
+      - "claim-cap-artifact-upload"
+      - "claim-cap-deterministic-eval"
+      - "claim-cap-arabic-feedback"
+      - "claim-cap-skills-projection"
+      - "claim-cap-retry-handling"
+      - "claim-cap-web-experience"
+
+  - id: "asset-pitch-deck"
+    source_path: "submission/pitch-deck.md"
+    export_path: "exports/pitch-deck.pdf"
+    export_status: "pending_generation"
+    mime_type: "application/pdf"
+    max_bytes: 20971520
+    sha256: null
+    purpose: "Marp-compatible competition presentation deck"
+    claim_ids:
+      - "claim-cap-state-machine"
+      - "claim-cap-artifact-upload"
+      - "claim-cap-deterministic-eval"
+      - "claim-cap-arabic-feedback"
+      - "claim-cap-retry-handling"
+      - "claim-cap-skills-projection"
+      - "claim-cap-web-experience"
+      - "claim-cap-sql-sandbox"
+
+  - id: "asset-demo-script"
+    source_path: "submission/demo-script.md"
+    export_path: "exports/demo-script.txt"
+    export_status: "pending_generation"
+    mime_type: "text/plain"
+    max_bytes: 1048576
+    sha256: null
+    purpose: "Primary 3-minute video recording narration and scene guide"
+    claim_ids:
+      - "claim-cap-web-experience"
+      - "claim-cap-deterministic-eval"
+      - "claim-cap-arabic-feedback"
+      - "claim-cap-skills-projection"
+
+  - id: "asset-demo-contingency"
+    source_path: "submission/demo-contingency.md"
+    export_path: "exports/demo-contingency.txt"
+    export_status: "pending_generation"
+    mime_type: "text/plain"
+    max_bytes: 1048576
+    sha256: null
+    purpose: "Contingency demonstration guide for Gemini offline and local deterministic fallback"
+    claim_ids:
+      - "claim-cap-arabic-feedback"
+      - "claim-cap-deterministic-eval"
+      - "claim-cap-retry-handling"
+
+
+private_checklist_reference:
+  status: "maintained_outside_git"
+  items:
+    - "Applicant National ID / Student Verification"
+    - "University Enrollment Proof"
+    - "Team Member Contact Directory"
+    - "Vercel / Supabase Non-Secret Project Identifiers"

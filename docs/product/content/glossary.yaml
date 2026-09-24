@@ -1,0 +1,77 @@
+version: "1"
+description: "Authoritative bilingual glossary for Yom Awel workplace simulation"
+
+terms:
+  - id: "term-task"
+    en: "Task / Assignment"
+    ar_preferred: "تكليف عملي"
+    ar_allowed:
+      - "مهمة"
+      - "تكليف"
+    ar_rejected:
+      - "واجب"
+      - "كويز"
+      - "امتحان"
+    definition: "A realistic workplace assignment given to a learner by a simulated company supervisor."
+
+  - id: "term-submission"
+    en: "Submission / Upload"
+    ar_preferred: "تسليم الشغل"
+    ar_allowed:
+      - "رفع الملف"
+      - "إرسال التكليف"
+    ar_rejected:
+      - "ابلود"
+      - "سابميت"
+    definition: "Uploading the cleaned spreadsheet or required artifact for evaluation."
+
+  - id: "term-evaluation"
+    en: "Evaluation / Review"
+    ar_preferred: "مراجعة الشغل"
+    ar_allowed:
+      - "تدقيق البيانات"
+      - "تقييم التكليف"
+    ar_rejected:
+      - "تصحيح الامتحان"
+      - "تفتيش"
+    definition: "Deterministic automated verification of learner artifact against defined data quality checks."
+
+  - id: "term-retry"
+    en: "Retry / Revision"
+    ar_preferred: "إعادة المحاولة"
+    ar_allowed:
+      - "تعديل الشغل"
+      - "تسليم نسخة معدلة"
+    ar_rejected:
+      - "رسوب"
+      - "إعادة الامتحان"
+    definition: "Submitting an updated artifact after reviewing formative supervisor feedback."
+
+  - id: "term-deduplication"
+    en: "Deduplication"
+    ar_preferred: "إزالة التكرار"
+    ar_allowed:
+      - "حذف السجلات المكررة"
+      - "فلترة التكرار"
+    ar_rejected:
+      - "ديدوبليكيت"
+    definition: "Filtering out multiple identical order records to keep a single unique record per business key."
+
+  - id: "term-date-normalization"
+    en: "Date Normalization"
+    ar_preferred: "توحيد صيغ التواريخ"
+    ar_allowed:
+      - "تنسيق التواريخ القياسي"
+    ar_rejected:
+      - "فورماتنج التواريخ"
+    definition: "Converting diverse date text formats into standard ISO 8601 YYYY-MM-DD representation."
+
+  - id: "term-missing-data"
+    en: "Missing Data Handling"
+    ar_preferred: "معالجة البيانات المفقودة"
+    ar_allowed:
+      - "توثيق الحقول غير المسجلة"
+    ar_rejected:
+      - "نل (Null)"
+      - "مسح الصفوف الفارغة"
+    definition: "Systematic policy-compliant treatment and annotation of missing attribute values."

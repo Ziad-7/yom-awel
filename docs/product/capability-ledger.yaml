@@ -1,0 +1,165 @@
+version: "1"
+ledger_description: "Authoritative product capability ledger for Yom Awel platform, tracking current verified features, experimental branch work, and roadmap items."
+
+capabilities:
+  - id: "cap-progression-state"
+    name: "Progression State Machine and Invariants"
+    owner: "member-2"
+    status: "current"
+    learner_outcome: "Learners have an unambiguous single active state (ONBOARDING, READY, IN_TASK, PROCESSING, NEEDS_RETRY, TASK_COMPLETED) preventing corrupt states or out-of-order task progression."
+    implementation_path:
+      - "services/api/src/yom_awel/domain/state_machine.py"
+      - "services/api/src/yom_awel/domain/entities.py"
+    evidence:
+      automated_tests:
+        - "services/api/tests/domain/test_state_machine.py"
+        - "services/api/tests/domain/test_learner_progress.py"
+      preview_checks:
+        - "Verify learner lifecycle transitions sequentially without skipping states in verified database session."
+
+  - id: "cap-artifact-upload"
+    name: "Private Artifact Storage and Signed Uploads"
+    owner: "member-2"
+    status: "current"
+    learner_outcome: "Learners securely upload spreadsheet artifacts to private cloud/local storage without public exposure of their files or secrets."
+    implementation_path:
+      - "services/api/src/yom_awel/persistence/local_artifacts.py"
+      - "services/api/src/yom_awel/persistence/supabase_artifacts.py"
+      - "services/api/src/yom_awel/ports/artifacts.py"
+    evidence:
+      automated_tests:
+        - "services/api/tests/persistence/test_local_artifacts.py"
+        - "services/api/tests/persistence/test_supabase_artifacts.py"
+      preview_checks:
+        - "Verify client requests upload authorization and obtains signed URL restricted to the learner's own submission prefix."
+
+  - id: "cap-retry-flow"
+    name: "Task Failure Handling and Retry Execution"
+    owner: "member-2"
+    status: "current"
+    learner_outcome: "Learners who fail evaluation can inspect structured feedback, review defects, and re-submit a revised file under a new attempt without losing history."
+    implementation_path:
+      - "services/api/src/yom_awel/application/submissions.py"
+      - "services/api/src/yom_awel/application/outcome_lookup.py"
+      - "services/api/src/yom_awel/domain/entities.py"
+    evidence:
+      automated_tests:
+        - "services/api/tests/application/test_process_submission.py"
+        - "services/api/tests/application/test_outcome_lookup.py"
+      preview_checks:
+        - "Verify submission failure sets state to NEEDS_RETRY and permits submission of Attempt #2 with an incremented counter."
+
+  - id: "cap-skills-profile"
+    name: "Evidence-Based Skills Profile Projection"
+    owner: "member-2"
+    status: "current"
+    learner_outcome: "Learners see an auditable skills profile where every reported skill links directly to passed evaluation checks rather than arbitrary percentage bars."
+    implementation_path:
+      - "services/api/src/yom_awel/application/profiles.py"
+      - "services/api/src/yom_awel/domain/entities.py"
+    evidence:
+      automated_tests:
+        - "services/api/tests/domain/test_skill_evidence.py"
+        - "services/api/tests/application/test_other.py"
+      preview_checks:
+        - "Verify skill profile aggregation returns only competencies backed by recorded evaluation evidence."
+
+  - id: "cap-web-onboarding"
+    name: "Next.js Web Learner Experience and RTL Onboarding"
+    owner: "member-5"
+    status: "experimental"
+    learner_outcome: "Learners can register, view tasks, and manage their workplace simulation via an accessible Right-to-Left Arabic web interface."
+    implementation_path:
+      - "apps/web/src/app/onboarding/page.tsx"
+      - "apps/web/src/app/workplace/page.tsx"
+      - "apps/web/src/components/workplace.tsx"
+    evidence:
+      automated_tests:
+        - "apps/web/tests/e2e/learner-flow.spec.ts"
+        - "services/api/tests/transport/test_journey.py"
+      preview_checks:
+        - "Verify incognito browser on Vercel preview completes onboarding and displays Arabic workplace brief."
+
+  - id: "cap-telegram-onboarding"
+    name: "Telegram Bot Experience and Webhook Transport"
+    owner: "member-5"
+    status: "experimental"
+    learner_outcome: "Learners can receive task briefings, download attachments, and upload spreadsheets directly inside Telegram."
+    implementation_path:
+      - "services/api/src/yom_awel/transport/telegram.py"
+      - "services/api/src/yom_awel/transport/app.py"
+    evidence:
+      automated_tests:
+        - "services/api/tests/transport/test_auth_telegram.py"
+      preview_checks:
+        - "Send /start command to test bot in staging and verify welcome message in Egyptian Arabic."
+
+  - id: "cap-spreadsheet-delivery"
+    name: "Clean-Sales Task Package and Fixtures"
+    owner: "member-4"
+    status: "experimental"
+    learner_outcome: "Learners receive a dirty sales CSV/XLSX file featuring realistic workplace defects (duplicates, bad dates, invalid numbers, missing emails)."
+    implementation_path:
+      - "task_packages/clean-sales/1/task.json"
+      - "task_packages/clean-sales/1/data/sales_dirty.csv"
+      - "services/api/src/yom_awel/evaluation/task_package.py"
+    evidence:
+      automated_tests:
+        - "services/api/tests/evaluation/test_task_package.py"
+        - "services/api/tests/evaluation/test_dataset_generation.py"
+      preview_checks:
+        - "Download dirty dataset and confirm presence of known seeded defects for clean-sales v1."
+
+  - id: "cap-deterministic-eval"
+    name: "Deterministic Spreadsheet Evaluation Engine"
+    owner: "member-4"
+    status: "experimental"
+    learner_outcome: "Learners receive objective, reproducible grading (0-100) based on strict data quality rules with zero hallucinations."
+    implementation_path:
+      - "services/api/src/yom_awel/evaluation/sales_cleaning.py"
+      - "services/api/src/yom_awel/evaluation/artifact_validation.py"
+    evidence:
+      automated_tests:
+        - "services/api/tests/evaluation/test_sales_cleaning.py"
+        - "services/api/tests/evaluation/test_reproducibility.py"
+      preview_checks:
+        - "Submit reference clean CSV and verify deterministic score of 100/100 under 500ms."
+
+  - id: "cap-feedback-fallback"
+    name: "Authentic Egyptian Arabic Coaching and Deterministic Fallback"
+    owner: "member-3"
+    status: "experimental"
+    learner_outcome: "Learners are intended to receive warm Egyptian Arabic guidance explaining evaluation results, with a deterministic local fallback when Gemini is unavailable. Integrated availability remains to be verified."
+    implementation_path:
+      - "services/api/src/yom_awel/feedback/service.py"
+      - "services/api/src/yom_awel/feedback/gemini.py"
+      - "services/api/src/yom_awel/feedback/fallback.py"
+    evidence:
+      automated_tests:
+        - "services/api/tests/feedback/test_gemini.py"
+        - "services/api/tests/feedback/test_fallback.py"
+        - "services/api/tests/feedback/test_service.py"
+      preview_checks:
+        - "Disable Gemini API key in staging and verify structured Arabic fallback feedback is served without error."
+
+  - id: "cap-sql-sandbox-eval"
+    name: "Sandboxed SQL Query Evaluation"
+    owner: "member-4"
+    status: "roadmap"
+    learner_outcome: "Learners solve realistic data analytics tasks by writing SQL queries against isolated sandbox databases."
+    implementation_path:
+      - "services/api/src/yom_awel/evaluation/sql_sandbox.py"
+    evidence:
+      automated_tests: []
+      preview_checks: []
+
+  - id: "cap-voice-coaching"
+    name: "Audio-Based Voice Coaching in Egyptian Dialect"
+    owner: "member-3"
+    status: "roadmap"
+    learner_outcome: "Learners can listen to supervisor audio notes summarizing their performance via Telegram voice notes or web audio."
+    implementation_path:
+      - "services/api/src/yom_awel/feedback/voice.py"
+    evidence:
+      automated_tests: []
+      preview_checks: []

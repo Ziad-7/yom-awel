@@ -1,0 +1,189 @@
+version: "1"
+description: "Authoritative interface strings and accessible copy for Yom Awel web and bot interfaces."
+
+messages:
+  # 1. State: loading
+  "state.loading":
+    ar-EG: "جاري مراجعة الملف وتدقيق البيانات، برجاء الانتظار ثواني..."
+    en: "Evaluating spreadsheet and auditing data quality, please wait a few seconds..."
+    accessible_label: "حالة النظام: جاري تقييم وفحص الملف"
+    retryable: false
+    action_label_ar: ""
+    action_label_en: ""
+    expected_state_after_action: "PROCESSING"
+
+  # 2. State: empty
+  "state.empty":
+    ar-EG: "مفيش بيانات متاحة للعرض حالياً."
+    en: "No data available to display at this time."
+    accessible_label: "معلومات: القائمة أو الصفحة فارغة"
+    retryable: false
+    action_label_ar: "تحديث"
+    action_label_en: "Refresh"
+    expected_state_after_action: "READY"
+
+  # 3. State: offline
+  "network.offline":
+    ar-EG: "يبدو أن هناك مشكلة في الاتصال بالإنترنت. يرجى التحقق من اتصالك والمحاولة مرة أخرى."
+    en: "There seems to be a network connection problem. Please check your connection and try again."
+    accessible_label: "تنبيه انقطاع الاتصال بالشبكة"
+    retryable: true
+    action_label_ar: "إعادة المحاولة"
+    action_label_en: "Retry Connection"
+    expected_state_after_action: "IN_TASK"
+
+  # 4. Upload: invalid_type
+  "upload.invalid_type":
+    ar-EG: "نوع الملف غير مدعوم ({file_name}). الصيغ المقبولة فقط هي جداول بيانات CSV أو Excel (.xlsx)."
+    en: "Unsupported file type ({file_name}). Accepted formats are CSV or Excel (.xlsx) spreadsheets only."
+    accessible_label: "تنبيه: نوع الملف المرفوع غير مدعوم، يرجى اختيار ملف CSV أو Excel"
+    retryable: true
+    action_label_ar: "اختيار ملف آخر"
+    action_label_en: "Choose Another File"
+    expected_state_after_action: "IN_TASK"
+
+  # 5. Upload: mime_mismatch
+  "upload.mime_mismatch":
+    ar-EG: "محتوى الملف لا يطابق امتداده ({file_name}). تأكد أن الملف جدول بيانات سليم وغير تالف."
+    en: "File content does not match its extension ({file_name}). Please ensure the file is a valid spreadsheet."
+    accessible_label: "تنبيه: عدم تطابق توقيع الملف مع الامتداد"
+    retryable: true
+    action_label_ar: "اختيار ملف صالح"
+    action_label_en: "Choose Valid File"
+    expected_state_after_action: "IN_TASK"
+
+  # 6. Upload: oversize
+  "upload.oversize":
+    ar-EG: "حجم الملف يتعدى الحد المسموح به ({max_size} ميجابايت). برجاء تقليل حجم الملف والمحاولة مرة أخرى."
+    en: "File size exceeds the allowed limit ({max_size} MB). Please reduce file size and try again."
+    accessible_label: "تنبيه: حجم الملف يتجاوز الحد الأقصى المسموح"
+    retryable: true
+    action_label_ar: "اختيار ملف أصغر"
+    action_label_en: "Choose Smaller File"
+    expected_state_after_action: "IN_TASK"
+
+  # 7. Upload: unreadable_workbook (encrypted or macros)
+  "upload.unreadable_workbook":
+    ar-EG: "تعذر قراءة ملف الإكسيل ({file_name}). تأكد أن الملف غير محمي بكلمة مرور ولا يحتوي على ماكرو."
+    en: "Unable to read Excel workbook ({file_name}). Ensure the workbook is unencrypted and contains no macros."
+    accessible_label: "تنبيه: ملف الإكسيل تالف أو مشفر أو يحتوي على ماكرو"
+    retryable: true
+    action_label_ar: "رفع ملف عادي"
+    action_label_en: "Upload Standard File"
+    expected_state_after_action: "IN_TASK"
+
+  # 8. Evaluation: failure
+  "evaluation.failure":
+    ar-EG: "الملف لم يستوفِ شروط القبول بعد. درجتك الحالية {score} من 100. راجع توجيهات المشرف أدناه لإصلاح الأخطاء."
+    en: "Deliverable did not meet passing requirements yet. Current score: {score} out of 100. Review the supervisor feedback below to fix defects."
+    accessible_label: "تنبيه: التكليف يحتاج مراجعة وتعديل"
+    retryable: true
+    action_label_ar: "إعادة رفع الملف"
+    action_label_en: "Resubmit File"
+    expected_state_after_action: "NEEDS_RETRY"
+
+  # 9. Service: failure_retryable
+  "service.failure_retryable":
+    ar-EG: "حدث خطأ مؤقت في خادم المعالجة أثناء تقييم التكليف. بياناتك محفوظة، يرجى إعادة المحاولة."
+    en: "A temporary processing error occurred while evaluating your submission. Your data is safe; please retry."
+    accessible_label: "تنبيه: خطأ خادم مؤقت قابل للمحاولة"
+    retryable: true
+    action_label_ar: "إعادة الإرسال"
+    action_label_en: "Retry Submission"
+    expected_state_after_action: "IN_TASK"
+
+  # 10. Feedback: gemini_fallback
+  "feedback.gemini_fallback":
+    ar-EG: "إرشادات بديلة مباشرة من نظام الملاحظات المحلي لضمان استمرار الخدمة دون انقطاع."
+    en: "Direct alternative guidance generated from the local deterministic feedback system."
+    accessible_label: "إشعار: التوجيهات صادرة من نظام الملاحظات المحلي الاحتياطي"
+    retryable: false
+    action_label_ar: ""
+    action_label_en: ""
+    expected_state_after_action: "NEEDS_RETRY"
+
+  # 11. Evaluation: success
+  "evaluation.success":
+    ar-EG: "تسلم إيدك يا بطل! تم اجتياز التكليف بنجاح بدرجة {score} من 100."
+    en: "Great work! You have successfully passed the assignment with a score of {score} out of 100."
+    accessible_label: "إشعار نجاح: تم قبول التكليف واجتياز المعايير المطلوبة"
+    retryable: false
+    action_label_ar: "عرض ملف المهارات"
+    action_label_en: "View Skills Profile"
+    expected_state_after_action: "TASK_COMPLETED"
+
+  # 12. Evaluation: retry
+  "evaluation.retry":
+    ar-EG: "تقدر تعدل الملف وترفعه تاني في أي وقت. المحاولة السابقة محفوظة ومفيش أي خصم درجات."
+    en: "You can revise the file and upload again anytime. Previous attempts are preserved with no score penalties."
+    accessible_label: "توجيه: إمكانية إعادة رفع التكليف متاحة بعد تصحيح البيانات"
+    retryable: true
+    action_label_ar: "رفع التعديل"
+    action_label_en: "Upload Revision"
+    expected_state_after_action: "NEEDS_RETRY"
+
+  # 13. Profile: empty
+  "profile.empty":
+    ar-EG: "لسه مفيش مهارات مسجلة هنا. لما تخلّص أول تكليف عملي بنجاح، مهاراتك هتنزل هنا بالدليل العملي."
+    en: "No verified skills recorded yet. Complete your first practical assignment to populate verified competency evidence."
+    accessible_label: "معلومات: لا توجد مهارات مسجلة بعد، ابدأ التكليف العملي الأول"
+    retryable: false
+    action_label_ar: "الذهاب لميدان العمل"
+    action_label_en: "Go to Workplace"
+    expected_state_after_action: "IN_TASK"
+
+  # Backward-compatible aliases
+  "upload.unsupported_file":
+    ar-EG: "نوع الملف غير مدعوم ({file_name}). الصيغ المقبولة فقط هي CSV أو Excel (.xlsx)."
+    en: "Unsupported file type ({file_name}). Accepted formats are CSV or Excel (.xlsx) only."
+    accessible_label: "تنبيه: نوع الملف المرفوع غير مدعوم، يرجى اختيار ملف CSV أو Excel"
+    retryable: true
+    action_label_ar: "اختيار ملف آخر"
+    action_label_en: "Choose Another File"
+    expected_state_after_action: "IN_TASK"
+
+  "upload.oversized_file":
+    ar-EG: "حجم الملف يتعدى الحد المسموح به ({max_size} ميجابايت). برجاء تقليل حجم الملف والمحاولة مرة أخرى."
+    en: "File size exceeds the allowed limit ({max_size} MB). Please reduce file size and try again."
+    accessible_label: "تنبيه: حجم الملف يتجاوز الحد الأقصى المسموح"
+    retryable: true
+    action_label_ar: "اختيار ملف أصغر"
+    action_label_en: "Choose Smaller File"
+    expected_state_after_action: "IN_TASK"
+
+  "evaluation.loading":
+    ar-EG: "جاري مراجعة الملف وتدقيق البيانات، برجاء الانتظار ثواني..."
+    en: "Evaluating spreadsheet and auditing data quality, please wait a few seconds..."
+    accessible_label: "حالة النظام: جاري تقييم وفحص الملف"
+    retryable: false
+    action_label_ar: ""
+    action_label_en: ""
+    expected_state_after_action: "PROCESSING"
+
+  "evaluation.processing":
+    ar-EG: "الملف قيد المراجعة حالياً من فريق العمليات."
+    en: "The submission is currently being processed by the operations pipeline."
+    accessible_label: "حالة التكليف: قيد المعالجة"
+    retryable: false
+    action_label_ar: ""
+    action_label_en: ""
+    expected_state_after_action: "PROCESSING"
+
+  "evaluation.evaluation_failed":
+    ar-EG: "حدث خطأ غير متوقع أثناء فحص الملف. برجاء التأكد من سلامة الملف وإعادة المحاولة."
+    en: "An unexpected error occurred while parsing the file. Please verify file integrity and retry."
+    accessible_label: "تنبيه خطأ فني أثناء تقييم الملف"
+    retryable: true
+    action_label_ar: "إعادة المحاولة"
+    action_label_en: "Retry"
+    expected_state_after_action: "IN_TASK"
+
+  "feedback.fallback_feedback":
+    ar-EG: "ملاحظة: تم توليد هذه التوجيهات باستخدام النظام الآلي المحلي المباشر لضمان استمرار الخدمة دون انقطاع."
+    en: "Note: This feedback was generated via the direct local deterministic fallback to ensure uninterrupted service."
+    accessible_label: "إشعار: التوجيهات صادرة من نظام الملاحظات المحلي الاحتياطي"
+    retryable: false
+    action_label_ar: ""
+    action_label_en: ""
+    expected_state_after_action: "NEEDS_RETRY"
+
