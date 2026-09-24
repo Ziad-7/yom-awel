@@ -6,6 +6,7 @@ from collections import defaultdict, deque
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from json import JSONDecodeError
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -114,6 +115,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
             request._body = bytes(content)
         try:
             response = await call_next(request)
+        except DomainError as error:
+            return await domain_error(request, error)
         except Exception:  # noqa: BLE001 - redact unexpected transport/provider failures
             return error_response("unavailable", 503)
         response.headers["Cache-Control"] = "no-store"
@@ -326,21 +329,30 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
             submission_id=submission_id, status=reservation.status, retry_after_seconds=retry
         )
 
-    @app.post("/api/v1/telegram/webhook")
+    @app.post("/api/v1/telegram/webhook", response_model=dict[str, bool])
     async def telegram(
         request: Request, x_telegram_bot_api_secret_token: Annotated[str | None, Header()] = None
-    ) -> dict[str, bool]:
+    ) -> Response:
         if not config.telegram_secret or not hmac.compare_digest(
             x_telegram_bot_api_secret_token or "", config.telegram_secret
         ):
             raise DomainError("unauthorized", "Webhook authentication required")
         from yom_awel.transport.telegram import TelegramAdapter, TelegramClient
 
+        try:
+            update = await request.json()
+        except (JSONDecodeError, UnicodeDecodeError):
+            return error_response("invalid_request", 400)
+        if not isinstance(update, dict):
+            return error_response("invalid_request", 400)
         client = getattr(app.state, "telegram_client", None) or TelegramClient(
             config.telegram_token
         )
         adapter = TelegramAdapter(service(), client)
-        await adapter.handle(await request.json())
-        return {"ok": True}
+        try:
+            await adapter.handle(update)
+        except DomainError as error:
+            return await domain_error(request, error)
+        return JSONResponse({"ok": True})
 
     return app

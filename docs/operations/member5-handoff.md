@@ -111,14 +111,17 @@ required before release; automated checks do not substitute for those approvals.
 
 ## Local verification result
 
-- Python: 263 passed, 13 existing Supabase-dependent tests skipped.
-- New transport suite: 27 passed, including JWT negatives, upload integrity,
-  ownership, webhook replay, active submission replay and restart persistence.
+- Python: 265 passed, 13 existing Supabase-dependent tests skipped.
+- New transport suite: 29 passed, including JWT negatives, upload integrity,
+  ownership, malformed webhook rejection, webhook replay, active submission replay
+  and restart persistence.
 - Web: 3 unit tests and 2 complete Playwright journeys passed.
 - Axe WCAG 2 A/AA scan passed on the authenticated desktop workspace after contrast fixes.
 - Ruff lint/format, strict mypy, TypeScript, ESLint, OpenAPI type drift, dependency
   lock check, and the production Next.js build passed.
 - npm production dependency audit reported zero vulnerabilities.
+- Web responses set anti-framing, MIME-sniffing, referrer, and browser-permission
+  security headers; the browser suite verifies them.
 
 The in-app browser bridge was unavailable; the checked-in Playwright suite provided
 the browser verification and screenshots. For a small system drive, install only

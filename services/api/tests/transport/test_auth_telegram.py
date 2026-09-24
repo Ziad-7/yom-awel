@@ -139,6 +139,24 @@ def test_telegram_fail_retry_pass_and_replay(tmp_path):
         assert "100/100" in bot.messages[-1]
 
 
+@pytest.mark.parametrize("body", [b"{", b"[]"])
+def test_telegram_rejects_malformed_update_as_client_error(tmp_path, body):
+    app = create_app(
+        Settings(
+            secret="s" * 48, database_path=str(tmp_path / "app.db"), telegram_secret="test-secret"
+        )
+    )
+    headers = {
+        "X-Telegram-Bot-Api-Secret-Token": "test-secret",
+        "Content-Type": "application/json",
+    }
+    with TestClient(app) as client:
+        response = client.post("/api/v1/telegram/webhook", headers=headers, content=body)
+    assert response.status_code == 400
+    assert response.json()["code"] == "invalid_request"
+    assert response.json()["retryable"] is False
+
+
 def test_rate_limit_and_error_redaction(tmp_path):
     settings = Settings(secret="s" * 48, database_path=str(tmp_path / "app.db"), rate_limit=2)
     with TestClient(create_app(settings)) as client:

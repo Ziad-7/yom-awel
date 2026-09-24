@@ -6,6 +6,7 @@ from yom_awel.domain.enums import ErrorCategory
 from yom_awel.domain.errors import DomainError
 
 STATUS = {
+    "invalid_request": 400,
     "unauthorized": 401,
     "forbidden": 403,
     "learner_scope_violation": 403,
