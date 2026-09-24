@@ -24,7 +24,7 @@ def test_public_construction_rejects_invalid_timeouts(timeout: float, boundary: 
         elif boundary == "adapter":
             GeminiAdapter(
                 api_key=None,
-                model="gemini-2.5-flash",
+                model="gemini-3.5-flash-lite",
                 task_context_resolver=unused_resolver,
                 timeout_seconds=timeout,
             )
@@ -41,7 +41,7 @@ def test_all_boundaries_preserve_positive_timeout_and_cap_budget(
     config = FeedbackConfig(timeout_seconds=timeout)
     adapter = GeminiAdapter(
         api_key=None,
-        model="gemini-2.5-flash",
+        model="gemini-3.5-flash-lite",
         task_context_resolver=unused_resolver,
         timeout_seconds=timeout,
     )

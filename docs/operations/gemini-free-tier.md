@@ -3,9 +3,13 @@
 Gemini coaching is optional. Configure a free-tier API key only in the deployment secret store
 and select the model through runtime configuration. Never commit a key or expose it to the web
 client. The required product path must not enable billing or depend on paid quota.
-The adapter accepts only `gemini-2.5-flash` or `gemini-2.5-flash-lite`, both listed with
-free-tier text input/output on the [official pricing page](https://ai.google.dev/gemini-api/docs/pricing).
-Recheck that listing before changing models or enabling the optional provider in deployment.
+The adapter accepts only `gemini-3.5-flash-lite` (the default). The
+[official pricing page](https://ai.google.dev/gemini-api/docs/pricing), checked on
+2026-09-24, lists free-tier input and output for this model. `gemini-3.5-flash`
+is paid-only and is rejected. Account access and remaining quota still require a live check.
+The handoff reports 404 responses for the 2.5 models with its key; those models are
+not used by this demo. Missing credentials or exhausted quota keep fallback available.
+When Gemini fails or is slow, the deterministic Tarek feedback is served instead.
 
 Only the bounded structured request produced by the feedback prompt builder may leave the
 application boundary. It excludes learner identity, email, Telegram identifiers, raw artifacts,
@@ -58,4 +62,3 @@ suffixes. Any deviation triggers fallback, including from an injected primary pr
 intentionally disables free-form model coaching in v1: Gemini cannot rewrite the approved
 copy, and the required path gains no dependency on its availability. Member 1 still reviews
 the approved templates for tone, factual relevance and solution non-disclosure.
-

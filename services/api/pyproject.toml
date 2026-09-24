@@ -21,6 +21,10 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/yom_awel"]
 
+# Ships the task packages inside the wheel for deployments without the repository tree.
+[tool.hatch.build.targets.wheel.force-include]
+"../../task_packages" = "yom_awel/task_packages"
+
 [dependency-groups]
 dev = [
     "pytest",

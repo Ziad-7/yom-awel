@@ -27,7 +27,7 @@ def dump_fixture(filename: str, model_cls: type[BaseModel], **kwargs: Any) -> No
     obj = model_cls(**kwargs)
     path = FIXTURES_DIR / filename
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
+    with path.open("w", encoding="utf-8", newline="\n") as f:
         json.dump(obj.model_dump(mode="json"), f, ensure_ascii=False, indent=2, sort_keys=True)
         f.write("\n")
 

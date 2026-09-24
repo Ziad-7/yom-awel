@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -10,9 +11,17 @@ class Input(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class Output(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
 class OnboardInput(Input):
     display_name: str = Field(min_length=1, max_length=80, pattern=r"\S")
     preferred_language: Language = Language.AR_EG
+
+
+class LanguageInput(Input):
+    preferred_language: Language
 
 
 class UploadInput(Input):
@@ -29,21 +38,60 @@ class SubmissionInput(Input):
     learner_note: str | None = Field(default=None, max_length=500)
 
 
-class SessionResult(BaseModel):
-    access_token: str
-    expires_in: int = 604800
+class SessionResult(Output):
+    expires_in: int
 
 
-class HealthResult(BaseModel):
+class HealthResult(Output):
     status: str = "ok"
 
 
-class RuntimeResult(BaseModel):
-    mode: str
-    simulated_evaluation: bool
+class RuntimeResult(Output):
+    mode: Literal["local", "cloud"]
+    feedback_provider: Literal["gemini", "deterministic"]
 
 
-class AttemptResult(BaseModel):
+TaskStatus = Literal["available", "in_progress", "completed"]
+
+
+class TaskSummary(Output):
+    task_id: str
+    version: str
+    task_version_id: UUID
+    title_ar: str
+    title_en: str
+    status: TaskStatus
+    pass_threshold: int
+    points_total: int
+
+
+class TaskList(Output):
+    tasks: list[TaskSummary]
+
+
+class CheckInfo(Output):
+    check_id: str
+    points: int
+    critical: bool
+
+
+class TaskDetail(Output):
+    task_id: str
+    version: str
+    task_version_id: UUID
+    title_ar: str
+    title_en: str
+    brief_ar: str
+    brief_en: str
+    hints_ar: str
+    hints_en: str
+    pass_threshold: int
+    formats: list[Literal["csv", "xlsx"]]
+    max_bytes: int
+    checks: list[CheckInfo]
+
+
+class AttemptResult(Output):
     submission_id: UUID
     attempt_number: int
     evaluation: EvaluationResult

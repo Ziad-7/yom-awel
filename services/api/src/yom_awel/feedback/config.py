@@ -13,7 +13,7 @@ from yom_awel.feedback.service import ResilientFeedbackProvider
 from yom_awel.feedback.timeouts import validate_timeout_seconds
 from yom_awel.ports.feedback import FeedbackProvider
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
 
 
 class FeedbackConfigError(ValueError):

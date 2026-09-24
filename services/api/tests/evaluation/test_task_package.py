@@ -186,7 +186,12 @@ def test_load_rejects_symlink_escaping_the_package(tmp_path: Path) -> None:
     outside.write_bytes(b"secret")
     package_root = tmp_path / "package"
     package_root.mkdir()
-    (package_root / "brief.md").symlink_to(outside)
+    try:
+        (package_root / "brief.md").symlink_to(outside)
+    except OSError as error:
+        if getattr(error, "winerror", None) == 1314:
+            pytest.skip("Windows requires Developer Mode or elevation to create symlinks")
+        raise
     write_package(package_root, published({"brief.md": b"secret"}), {})
 
     with pytest.raises(TaskPackageError, match="escapes the package"):
