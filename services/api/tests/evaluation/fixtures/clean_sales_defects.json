@@ -1,0 +1,119 @@
+{
+  "defects": [
+    {
+      "column": "order_id",
+      "defect_id": "duplicate_order_1",
+      "dirty_value": "SO-1003",
+      "kind": "duplicate_order",
+      "row": 2
+    },
+    {
+      "column": "order_id",
+      "defect_id": "duplicate_order_2",
+      "dirty_value": "SO-1005",
+      "kind": "duplicate_order",
+      "row": 4
+    },
+    {
+      "column": "order_id",
+      "defect_id": "duplicate_order_3",
+      "dirty_value": "SO-1013",
+      "kind": "duplicate_order",
+      "row": 12
+    },
+    {
+      "column": "order_id",
+      "defect_id": "duplicate_order_4",
+      "dirty_value": "SO-1016",
+      "kind": "duplicate_order",
+      "row": 15
+    },
+    {
+      "column": "order_id",
+      "defect_id": "duplicate_order_5",
+      "dirty_value": "SO-1039",
+      "kind": "duplicate_order",
+      "row": 38
+    },
+    {
+      "column": "quantity",
+      "defect_id": "negative_value_1",
+      "dirty_value": "-7",
+      "kind": "negative_value",
+      "row": 10
+    },
+    {
+      "column": "unit_price",
+      "defect_id": "negative_value_2",
+      "dirty_value": "-419.49",
+      "kind": "negative_value",
+      "row": 22
+    },
+    {
+      "column": "revenue",
+      "defect_id": "negative_value_3",
+      "dirty_value": "-9368.90",
+      "kind": "negative_value",
+      "row": 24
+    },
+    {
+      "column": "order_date",
+      "defect_id": "nonstandard_date_1",
+      "dirty_value": "14/03/2026",
+      "kind": "nonstandard_date",
+      "row": 23
+    },
+    {
+      "column": "order_date",
+      "defect_id": "nonstandard_date_2",
+      "dirty_value": "2026/03/05",
+      "kind": "nonstandard_date",
+      "row": 29
+    },
+    {
+      "column": "order_date",
+      "defect_id": "nonstandard_date_3",
+      "dirty_value": "12-Feb-2026",
+      "kind": "nonstandard_date",
+      "row": 34
+    },
+    {
+      "column": "order_date",
+      "defect_id": "nonstandard_date_4",
+      "dirty_value": "Feb 27, 2026",
+      "kind": "nonstandard_date",
+      "row": 37
+    },
+    {
+      "column": "missing_email_reason",
+      "defect_id": "missing_email_1",
+      "dirty_value": "",
+      "kind": "missing_email",
+      "row": 9
+    },
+    {
+      "column": "missing_email_reason",
+      "defect_id": "missing_email_2",
+      "dirty_value": "",
+      "kind": "missing_email",
+      "row": 11
+    },
+    {
+      "column": "missing_email_reason",
+      "defect_id": "missing_email_3",
+      "dirty_value": "",
+      "kind": "missing_email",
+      "row": 32
+    },
+    {
+      "column": "missing_email_reason",
+      "defect_id": "missing_email_4",
+      "dirty_value": "",
+      "kind": "missing_email",
+      "row": 35
+    }
+  ],
+  "generator_version": "1",
+  "release": false,
+  "seed": 20260921
+}
