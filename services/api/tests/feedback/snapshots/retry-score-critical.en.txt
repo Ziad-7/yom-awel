@@ -1,0 +1,5 @@
+Eng. Tarek, Team Lead
+Decision: submission needs rework. Duplicate orders block passing, whatever the score.
+Business impact: duplicate orders inflate total revenue and distort the sales report; mixed date formats scramble the order of sales across periods; invalid quantities or prices make the revenue totals unreliable. One more check also needs review.
+Next action: review repeated order IDs and keep exactly one row per order; convert every order date to the ISO format YYYY-MM-DD; keep quantities and unit prices positive and make revenue equal quantity times unit price, then upload the file again.
+Score explanation: 0 of 100 is below the pass mark of 75, and the duplicate orders check must also pass.
