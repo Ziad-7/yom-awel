@@ -8,7 +8,8 @@ from yom_awel.application.models import (
 )
 from yom_awel.domain.entities import Artifact, OutboxEvent
 from yom_awel.domain.enums import ErrorCategory, LearnerStatus
-from yom_awel.domain.errors import DomainError
+from yom_awel.domain.errors import DomainError, OptimisticConflict
+from yom_awel.domain.state_machine import transition
 from yom_awel.ports.artifacts import ArtifactStore
 from yom_awel.ports.clock import Clock
 from yom_awel.ports.id_generator import IDGenerator
@@ -35,6 +36,64 @@ class GetCurrentTask:
                 task = await uow.tasks.get_current_published_version(progress.current_task_id)
 
             return CurrentTaskResult(status=progress.current_status.value, task=task)
+
+
+class AssignCurrentTask:
+    def __init__(
+        self,
+        uow_factory: UnitOfWorkFactory,
+        clock: Clock,
+        task_id: str = "clean-sales",
+    ):
+        self.uow_factory = uow_factory
+        self.clock = clock
+        self.task_id = task_id
+
+    async def execute(self, learner_id: UUID) -> CurrentTaskResult:
+        try:
+            async with self.uow_factory() as uow:
+                progress = await uow.learners.get_progress(learner_id)
+                if not progress:
+                    raise DomainError(
+                        code="not_found",
+                        message="Learner progress not found",
+                        category=ErrorCategory.VALIDATION,
+                        retryable=False,
+                    )
+
+                if progress.current_status != LearnerStatus.READY:
+                    task = None
+                    if progress.current_task_id:
+                        task = await uow.tasks.get_current_published_version(progress.current_task_id)
+                    return CurrentTaskResult(status=progress.current_status.value, task=task)
+
+                task = await uow.tasks.get_current_published_version(self.task_id)
+                if not task:
+                    raise DomainError(
+                        code="task_not_found",
+                        message="Task not found",
+                        category=ErrorCategory.VALIDATION,
+                        retryable=False,
+                    )
+
+                new_progress = progress.model_copy(
+                    update={
+                        "current_status": transition(progress.current_status, LearnerStatus.IN_TASK),
+                        "current_task_id": task.task_id,
+                        "version": progress.version + 1,
+                        "updated_at": self.clock.now(),
+                    }
+                )
+                await uow.learners.save_progress(new_progress, expected_version=progress.version)
+                await uow.commit()
+                return CurrentTaskResult(status=new_progress.current_status.value, task=task)
+        except OptimisticConflict:
+            async with self.uow_factory() as uow:
+                winner = await uow.learners.get_progress(learner_id)
+                if not winner or not winner.current_task_id:
+                    raise
+                task = await uow.tasks.get_current_published_version(winner.current_task_id)
+                return CurrentTaskResult(status=winner.current_status.value, task=task)
 
 
 class CreateArtifactUpload:
