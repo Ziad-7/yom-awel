@@ -164,10 +164,12 @@ class ConflictInjectingLearners:
         learners: object,
         factory: MemoryUnitOfWorkFactory,
         clock: FakeClock,
+        winner_current_task_id: str | None = "clean-sales",
     ) -> None:
         self._learners = learners
         self._factory = factory
         self._clock = clock
+        self._winner_current_task_id = winner_current_task_id
         self._injected = False
 
     def __getattr__(self, name: str):
@@ -185,7 +187,7 @@ class ConflictInjectingLearners:
                 winner.model_copy(
                     update={
                         "current_status": LearnerStatus.IN_TASK,
-                        "current_task_id": "clean-sales",
+                        "current_task_id": self._winner_current_task_id,
                         "version": winner.version + 1,
                         "updated_at": self._clock.now(),
                     }
@@ -197,14 +199,26 @@ class ConflictInjectingLearners:
 
 
 class ConflictInjectingUnitOfWork:
-    def __init__(self, inner: object, factory: MemoryUnitOfWorkFactory, clock: FakeClock) -> None:
+    def __init__(
+        self,
+        inner: object,
+        factory: MemoryUnitOfWorkFactory,
+        clock: FakeClock,
+        winner_current_task_id: str | None = "clean-sales",
+    ) -> None:
         self._inner = inner
         self._factory = factory
         self._clock = clock
+        self._winner_current_task_id = winner_current_task_id
 
     async def __aenter__(self):
         await self._inner.__aenter__()
-        self.learners = ConflictInjectingLearners(self._inner.learners, self._factory, self._clock)
+        self.learners = ConflictInjectingLearners(
+            self._inner.learners,
+            self._factory,
+            self._clock,
+            self._winner_current_task_id,
+        )
         self.tasks = self._inner.tasks
         return self
 
@@ -216,15 +230,23 @@ class ConflictInjectingUnitOfWork:
 
 
 class ConflictInjectingFactory:
-    def __init__(self, factory: MemoryUnitOfWorkFactory, clock: FakeClock) -> None:
+    def __init__(
+        self,
+        factory: MemoryUnitOfWorkFactory,
+        clock: FakeClock,
+        winner_current_task_id: str | None = "clean-sales",
+    ) -> None:
         self._factory = factory
         self._clock = clock
+        self._winner_current_task_id = winner_current_task_id
         self._first = True
 
     def __call__(self):
         if self._first:
             self._first = False
-            return ConflictInjectingUnitOfWork(self._factory(), self._factory, self._clock)
+            return ConflictInjectingUnitOfWork(
+                self._factory(), self._factory, self._clock, self._winner_current_task_id
+            )
         return self._factory()
 
 
@@ -236,7 +258,9 @@ async def test_conflict_returns_competing_winner_current_task():
     learner_id = await seed_learner(factory, clock)
     task = await seed_clean_sales_task(factory)
 
-    result = await AssignCurrentTask(ConflictInjectingFactory(factory, clock), clock).execute(learner_id)
+    result = await AssignCurrentTask(ConflictInjectingFactory(factory, clock), clock).execute(
+        learner_id
+    )
 
     assert result.status == "IN_TASK"
     assert result.task == task
@@ -244,3 +268,19 @@ async def test_conflict_returns_competing_winner_current_task():
         progress = await uow.learners.get_progress(learner_id)
         assert progress is not None
         assert progress.version == 2
+
+
+@pytest.mark.asyncio
+async def test_conflict_reraises_when_competing_winner_has_no_current_task():
+    """Fails if a conflict without a winner task is converted into an empty result."""
+    factory = MemoryUnitOfWorkFactory()
+    clock = FakeClock()
+    learner_id = await seed_learner(factory, clock)
+    await seed_clean_sales_task(factory)
+
+    with pytest.raises(OptimisticConflict) as error:
+        await AssignCurrentTask(ConflictInjectingFactory(factory, clock, None), clock).execute(
+            learner_id
+        )
+
+    assert error.value.code == "optimistic_conflict"
