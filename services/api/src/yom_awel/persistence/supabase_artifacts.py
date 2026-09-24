@@ -11,7 +11,6 @@ from uuid import UUID
 
 from pydantic import ValidationError
 
-from yom_awel.domain.contracts import artifact_content_type
 from yom_awel.domain.entities import Artifact
 from yom_awel.domain.errors import ArtifactIntegrityFailure, ArtifactNotReady, PersistenceError
 from yom_awel.persistence.retention import CleanupArtifact, CleanupQueueStore
@@ -54,7 +53,7 @@ class SupabaseArtifactMetadata(Protocol):
         self, artifact_id: UUID, learner_id: UUID
     ) -> Mapping[str, object] | None: ...
 
-    async def reserve_artifact(self, row: Mapping[str, object]) -> ArtifactReservation: ...
+    async def reserve_artifact_v2(self, row: Mapping[str, object]) -> ArtifactReservation: ...
 
     async def enqueue_cleanup(self, row: Mapping[str, object]) -> None: ...
 
@@ -68,6 +67,8 @@ class SupabaseArtifactMetadata(Protocol):
 
 
 class SupabaseSignedStorage(Protocol):
+    async def object_metadata(self, bucket: str, path: str) -> Mapping[str, object]: ...
+
     async def create_signed_upload_url(
         self, bucket: str, path: str, expires_in: int, metadata: Mapping[str, str]
     ) -> SignedUpload: ...
@@ -215,6 +216,7 @@ _ARTIFACT_KEYS = {
     "learner_id",
     "object_path",
     "filename",
+    "content_type",
     "size_bytes",
     "sha256",
     "retention_expires_at",
@@ -257,7 +259,7 @@ def map_artifact_row(value: Mapping[str, object], learner_id: UUID) -> Artifact:
                 "artifact_id": parsed_artifact,
                 "learner_id": parsed_learner,
                 "filename": value["filename"],
-                "content_type": artifact_content_type(str(value["filename"])),
+                "content_type": value["content_type"],
                 "size_bytes": value["size_bytes"],
                 "sha256": value["sha256"],
             }
@@ -321,6 +323,7 @@ class SupabaseArtifactStore:
             raise ValueError("signed upload expiry must be between one and 900 seconds")
         path = generated_object_path(artifact.learner_id, artifact.artifact_id)
         metadata = {
+            "content_type": artifact.content_type,
             "sha256": artifact.sha256,
             "size_bytes": str(artifact.size_bytes),
             "upsert": "false",
@@ -328,12 +331,13 @@ class SupabaseArtifactStore:
         cleanup_row = self._cleanup_row(artifact, "UPLOAD_FAILED", path)
         try:
             await self._metadata.enqueue_cleanup(cleanup_row)
-            reservation = await self._metadata.reserve_artifact(
+            reservation = await self._metadata.reserve_artifact_v2(
                 {
                     "artifact_id": str(artifact.artifact_id),
                     "learner_id": str(artifact.learner_id),
                     "object_path": path,
                     "filename": artifact.filename,
+                    "content_type": artifact.content_type,
                     "size_bytes": artifact.size_bytes,
                     "sha256": artifact.sha256,
                     "upload_owner": self._upload_owner,
@@ -383,10 +387,15 @@ class SupabaseArtifactStore:
 
         path = generated_object_path(learner_id, artifact_id)
         try:
+            object_metadata = await self._storage.object_metadata(PRIVATE_BUCKET, path)
+            if not self._metadata_matches(artifact, object_metadata):
+                raise ArtifactIntegrityFailure()
             signed = await self._storage.create_signed_download_url(
                 PRIVATE_BUCKET, path, self._download_expiry
             )
             content = await self._storage.download_with_signed_url(signed)
+        except ArtifactIntegrityFailure:
+            raise
         except Exception as exc:
             raise SupabaseArtifactError("supabase_provider_error") from exc
         if (
@@ -412,19 +421,25 @@ class SupabaseArtifactStore:
         if digest != artifact.sha256:
             raise SupabaseArtifactError("artifact_hash_mismatch", "Artifact hash is invalid")
         path = generated_object_path(artifact.learner_id, artifact.artifact_id)
-        metadata = {"sha256": digest, "size_bytes": str(len(content)), "upsert": "false"}
+        metadata = {
+            "content_type": artifact.content_type,
+            "sha256": digest,
+            "size_bytes": str(len(content)),
+            "upsert": "false",
+        }
         cleanup_row = self._cleanup_row(artifact, "UPLOAD_FAILED", path)
         try:
             await self._metadata.enqueue_cleanup(cleanup_row)
         except Exception as exc:
             raise SupabaseArtifactError("supabase_provider_error") from exc
         try:
-            reservation = await self._metadata.reserve_artifact(
+            reservation = await self._metadata.reserve_artifact_v2(
                 {
                     "artifact_id": str(artifact.artifact_id),
                     "learner_id": str(artifact.learner_id),
                     "object_path": path,
                     "filename": artifact.filename,
+                    "content_type": artifact.content_type,
                     "size_bytes": artifact.size_bytes,
                     "sha256": artifact.sha256,
                     "upload_owner": self._upload_owner,
@@ -464,19 +479,18 @@ class SupabaseArtifactStore:
         except Exception as exc:
             await self._best_effort_tombstone(self._cleanup_row(artifact, "UPLOAD_FAILED", path))
             raise SupabaseArtifactError("supabase_provider_error") from exc
-        try:
-            await self._metadata.activate_artifact(
-                artifact.learner_id, artifact.artifact_id, self._upload_owner
-            )
-        except Exception as exc:
-            await self._best_effort_tombstone(self._cleanup_row(artifact, "UPLOAD_FAILED", path))
-            raise SupabaseArtifactError("supabase_provider_error") from exc
-        await self._best_effort_resolve(artifact.learner_id, artifact.artifact_id)
-        activated_row = dict(row)
-        activated_row["purge_status"] = "ACTIVE"
-        activated_row["purge_lease_owner"] = None
-        activated_row["purge_lease_expires_at"] = None
-        return map_artifact_row(activated_row, artifact.learner_id)
+        return await self.complete_upload(artifact.artifact_id, artifact.learner_id)
+
+    @staticmethod
+    def _metadata_matches(artifact: Artifact, metadata: Mapping[str, object]) -> bool:
+        return (
+            set(metadata) == {"content_type", "size_bytes", "sha256"}
+            and metadata["content_type"] == artifact.content_type
+            and type(metadata["size_bytes"]) is int
+            and metadata["size_bytes"] == artifact.size_bytes
+            and isinstance(metadata["sha256"], str)
+            and metadata["sha256"] == artifact.sha256
+        )
 
     @staticmethod
     def _cleanup_row(artifact: Artifact, reason: str, path: str) -> Mapping[str, object]:

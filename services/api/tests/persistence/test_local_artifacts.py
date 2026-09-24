@@ -65,6 +65,16 @@ async def test_repeated_artifact_id_is_unique(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_local_round_trip_preserves_authorized_media_type(tmp_path: Path) -> None:
+    store = LocalArtifactStore(tmp_path)
+    artifact, content = _artifact("persisted.csv")
+    await store.put(artifact, content)
+    loaded = await store.get(artifact.artifact_id, artifact.learner_id)
+    assert loaded is not None
+    assert loaded.content_type == "text/csv"
+
+
+@pytest.mark.asyncio
 async def test_failed_hash_write_leaves_no_files(tmp_path: Path) -> None:
     store = LocalArtifactStore(tmp_path)
     artifact, content = _artifact("failed.csv")

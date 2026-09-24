@@ -244,6 +244,22 @@ async def test_task_version_uniqueness_and_get(factory: MemoryUnitOfWorkFactory)
 
 
 @pytest.mark.asyncio
+async def test_artifact_round_trip_preserves_authorized_media_type(
+    factory: MemoryUnitOfWorkFactory,
+) -> None:
+    learner = make_learner()
+    artifact = make_artifact(learner.learner_id)
+    async with factory() as uow:
+        await uow.learners.add(learner)
+        await uow.artifacts.put(artifact, b"hello")
+        await uow.commit()
+    async with factory() as uow:
+        loaded = await uow.artifacts.get(artifact.artifact_id, learner.learner_id)
+    assert loaded is not None
+    assert loaded.content_type == "text/csv"
+
+
+@pytest.mark.asyncio
 async def test_reservation_identity_duplicates_reclaim_and_finalization(
     factory: MemoryUnitOfWorkFactory,
 ) -> None:

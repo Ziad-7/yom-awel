@@ -61,13 +61,16 @@ class MetadataFake:
     ) -> Mapping[str, object] | None:
         return self.row
 
-    async def reserve_artifact(self, row: Mapping[str, object]) -> ArtifactReservation:
+    async def reserve_artifact_v2(self, row: Mapping[str, object]) -> ArtifactReservation:
         self.inserted = row
         self.reserved.append(row)
         if self.insert_error is not None:
             raise self.insert_error
         assert self.row is not None
         created = self.created_sequence.pop(0) if self.created_sequence else self.created
+        if created:
+            self.row = dict(self.row)
+            self.row["purge_status"] = "UPLOADING"
         return ArtifactReservation(self.row, created)
 
     async def enqueue_cleanup(self, row: Mapping[str, object]) -> None:
@@ -86,6 +89,11 @@ class MetadataFake:
         self, learner_id: UUID, artifact_id: UUID, upload_owner: str
     ) -> None:
         self.activated.append((learner_id, artifact_id, upload_owner))
+        if self.row is not None:
+            self.row = dict(self.row)
+            self.row["purge_status"] = "ACTIVE"
+            self.row["purge_lease_owner"] = None
+            self.row["purge_lease_expires_at"] = None
 
 
 class StorageFake:
@@ -102,6 +110,13 @@ class StorageFake:
         self.upload_calls: list[tuple[str, str, int, Mapping[str, str]]] = []
         self.download_calls: list[tuple[str, str, int]] = []
         self.delete_calls: list[tuple[str, str]] = []
+
+    async def object_metadata(self, bucket: str, path: str) -> Mapping[str, object]:
+        return {
+            "content_type": "text/csv",
+            "size_bytes": len(self.content),
+            "sha256": hashlib.sha256(self.content).hexdigest(),
+        }
 
     async def create_signed_upload_url(
         self, bucket: str, path: str, expires_in: int, metadata: Mapping[str, str]
@@ -217,14 +232,15 @@ class LocalArtifactMetadata:
 
         return await asyncio.to_thread(request)
 
-    async def reserve_artifact(self, row: Mapping[str, object]) -> ArtifactReservation:
+    async def reserve_artifact_v2(self, row: Mapping[str, object]) -> ArtifactReservation:
         value = await self._rpc(
-            "reserve_artifact",
+            "reserve_artifact_v2",
             {
                 "p_learner_id": row["learner_id"],
                 "p_artifact_id": row["artifact_id"],
                 "p_object_path": row["object_path"],
                 "p_filename": row["filename"],
+                "p_content_type": row["content_type"],
                 "p_size_bytes": row["size_bytes"],
                 "p_sha256": row["sha256"],
                 "p_upload_owner": row["upload_owner"],
@@ -234,9 +250,9 @@ class LocalArtifactMetadata:
         if isinstance(value, Mapping) and isinstance(value.get("artifact"), Mapping):
             created = value.get("created")
             if type(created) is not bool:
-                raise RuntimeError("local reserve_artifact returned invalid discriminator")
+                raise RuntimeError("local reserve_artifact_v2 returned invalid discriminator")
             return ArtifactReservation(value["artifact"], created)
-        raise RuntimeError("local reserve_artifact returned no row/discriminator")
+        raise RuntimeError("local reserve_artifact_v2 returned no row/discriminator")
 
     async def enqueue_cleanup(self, row: Mapping[str, object]) -> None:
         await self._rpc(
@@ -306,7 +322,14 @@ class LocalArtifactStorage:
                 headers={
                     "apikey": self.service_key,
                     "Authorization": f"Bearer {self.service_key}",
-                    "Content-Type": "application/octet-stream",
+                    "Content-Type": metadata["content_type"],
+                    "x-metadata": json.dumps(
+                        {
+                            "content_type": metadata["content_type"],
+                            "sha256": metadata["sha256"],
+                            "size_bytes": metadata["size_bytes"],
+                        }
+                    ),
                     "x-upsert": "false",
                 },
                 method="POST",
@@ -315,6 +338,31 @@ class LocalArtifactStorage:
                 return
 
         await asyncio.to_thread(request)
+
+    async def object_metadata(self, bucket: str, path: str) -> Mapping[str, object]:
+        def request() -> Mapping[str, object]:
+            http_request = Request(
+                f"{self.base_url}/storage/v1/object/info/{bucket}/{quote(path, safe='/')}",
+                headers={
+                    "apikey": self.service_key,
+                    "Authorization": f"Bearer {self.service_key}",
+                },
+            )
+            with urlopen(http_request, timeout=5) as response:
+                value = json.loads(response.read().decode("utf-8"))
+            if not isinstance(value, Mapping) or not isinstance(value.get("user_metadata"), Mapping):
+                raise TypeError("storage object metadata was invalid")
+            user_metadata = value["user_metadata"]
+            size_bytes = user_metadata.get("size_bytes")
+            if not isinstance(size_bytes, str) or not size_bytes.isdecimal():
+                raise RuntimeError("storage object size metadata was invalid")
+            return {
+                "content_type": user_metadata.get("content_type"),
+                "size_bytes": int(size_bytes),
+                "sha256": user_metadata.get("sha256"),
+            }
+
+        return await asyncio.to_thread(request)
 
     async def create_signed_download_url(
         self, bucket: str, path: str, expires_in: int
@@ -400,6 +448,7 @@ def artifact_row(value: Artifact) -> dict[str, object]:
         "learner_id": str(value.learner_id),
         "object_path": generated_object_path(value.learner_id, value.artifact_id),
         "filename": value.filename,
+        "content_type": value.content_type,
         "size_bytes": value.size_bytes,
         "sha256": value.sha256,
         "retention_expires_at": "2030-01-01T00:00:00+00:00",
@@ -424,17 +473,24 @@ async def test_put_and_download_use_private_signed_uuid_path_and_hash_metadata()
             PRIVATE_BUCKET,
             generated_object_path(learner_id, artifact_id),
             300,
-            {"sha256": value.sha256, "size_bytes": "5", "upsert": "false"},
+            {
+                "content_type": "text/csv",
+                "sha256": value.sha256,
+                "size_bytes": "5",
+                "upsert": "false",
+            },
         )
     ]
     assert await store.download(artifact_id, learner_id) == content
     assert storage.download_calls == [
+        (PRIVATE_BUCKET, generated_object_path(learner_id, artifact_id), 120),
         (PRIVATE_BUCKET, generated_object_path(learner_id, artifact_id), 120)
     ]
     assert metadata.resolved == [(learner_id, artifact_id)]
     assert metadata.activated == [(learner_id, artifact_id, "artifact-uploader")]
     assert metadata.reserved[0]["upload_owner"] == "artifact-uploader"
     assert metadata.reserved[0]["upload_lease_seconds"] == 600
+    assert metadata.reserved[0]["content_type"] == "text/csv"
 
 
 @pytest.mark.asyncio
@@ -459,6 +515,7 @@ async def test_authorize_upload_reserves_metadata_and_returns_signed_browser_det
             generated_object_path(learner_id, artifact_id),
             180,
             {
+                "content_type": "text/csv",
                 "sha256": value.sha256,
                 "size_bytes": "5",
                 "upsert": "false",
@@ -498,6 +555,29 @@ async def test_complete_upload_rejects_hash_or_size_mismatch_without_activation(
     with pytest.raises(ArtifactIntegrityFailure):
         await store.complete_upload(artifact_id, learner_id)
     assert metadata.activated == []
+
+
+@pytest.mark.asyncio
+async def test_complete_upload_rejects_storage_media_type_mismatch_before_download() -> None:
+    learner_id, artifact_id, content = uuid4(), uuid4(), b"hello"
+    value = artifact(learner_id, artifact_id, content)
+    row = artifact_row(value)
+    row["purge_status"] = "UPLOADING"
+    metadata = MetadataFake(row)
+    storage = StorageFake(content)
+
+    async def wrong_metadata(bucket: str, path: str) -> Mapping[str, object]:
+        return {
+            "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "size_bytes": len(content),
+            "sha256": value.sha256,
+        }
+
+    storage.object_metadata = wrong_metadata  # type: ignore[method-assign]
+    with pytest.raises(ArtifactIntegrityFailure):
+        await SupabaseArtifactStore(metadata, storage).complete_upload(artifact_id, learner_id)
+    assert metadata.activated == []
+    assert storage.download_calls == []
 
 
 @pytest.mark.asyncio
@@ -680,6 +760,15 @@ def test_artifact_mapper_rejects_path_effects_and_unknown_rows() -> None:
     with pytest.raises(SupabaseArtifactError) as owner_error:
         map_artifact_row(row, learner_id)
     assert owner_error.value.code == "learner_scope_violation"
+
+
+def test_artifact_mapper_rejects_mismatched_media_type() -> None:
+    learner_id, artifact_id = uuid4(), uuid4()
+    row = artifact_row(artifact(learner_id, artifact_id, b"x"))
+    row["content_type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    with pytest.raises(SupabaseArtifactError) as error:
+        map_artifact_row(row, learner_id)
+    assert error.value.code == "provider_payload_invalid"
 
 
 @pytest.mark.integration

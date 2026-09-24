@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
     artifact_id TEXT PRIMARY KEY,
     learner_id TEXT NOT NULL REFERENCES learners(learner_id) ON DELETE CASCADE,
     filename TEXT NOT NULL,
+    content_type TEXT,
     size_bytes INTEGER NOT NULL CHECK (size_bytes BETWEEN 0 AND 5242880),
     sha256 TEXT NOT NULL CHECK (length(sha256) = 64),
     content BLOB NOT NULL
@@ -228,7 +229,20 @@ class SQLiteDatabase:
         # same learner/idempotency key.
         self._reservation_lock = asyncio.Lock()
         self._anchor.executescript(SCHEMA)
+        self._expand_artifact_content_type()
         self._anchor.commit()
+
+    def _expand_artifact_content_type(self) -> None:
+        columns = {row["name"] for row in self._anchor.execute("PRAGMA table_info(artifacts)")}
+        if "content_type" not in columns:
+            self._anchor.execute("ALTER TABLE artifacts ADD COLUMN content_type TEXT")
+        self._anchor.execute(
+            "UPDATE artifacts SET content_type = CASE "
+            "WHEN lower(filename) LIKE '%.csv' THEN 'text/csv' "
+            "WHEN lower(filename) LIKE '%.xlsx' THEN "
+            "'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' END "
+            "WHERE content_type IS NULL"
+        )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(
@@ -431,7 +445,7 @@ class _Tasks(_Repo):
 class _Artifacts(_Repo):
     async def get(self, artifact_id: UUID, learner_id: UUID) -> Artifact | None:
         row = self._one(
-            "SELECT artifact_id, learner_id, filename, size_bytes, sha256, content FROM artifacts "
+            "SELECT artifact_id, learner_id, filename, content_type, size_bytes, sha256, content FROM artifacts "
             "WHERE artifact_id=? AND learner_id=?",
             (_uuid(artifact_id), _uuid(learner_id)),
         )
@@ -467,13 +481,14 @@ class _Artifacts(_Repo):
         if expires_in_seconds < 1:
             raise ValueError("expires_in_seconds must be positive")
         existing = self._one(
-            "SELECT learner_id, filename, size_bytes, sha256 FROM artifacts WHERE artifact_id=?",
+            "SELECT learner_id, filename, content_type, size_bytes, sha256 FROM artifacts WHERE artifact_id=?",
             (_uuid(artifact.artifact_id),),
         )
         if existing is not None:
             if (
                 existing["learner_id"] != _uuid(artifact.learner_id)
                 or existing["filename"] != artifact.filename
+                or existing["content_type"] != artifact.content_type
                 or int(existing["size_bytes"]) != artifact.size_bytes
                 or existing["sha256"] != artifact.sha256
             ):
@@ -482,11 +497,12 @@ class _Artifacts(_Repo):
             if not await self._learner_exists(artifact.learner_id):
                 raise LearnerScopeViolation("artifact.learner_id")
             self.db.execute(
-                "INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO artifacts (artifact_id, learner_id, filename, content_type, size_bytes, sha256, content) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     _uuid(artifact.artifact_id),
                     _uuid(artifact.learner_id),
                     artifact.filename,
+                    artifact.content_type,
                     artifact.size_bytes,
                     artifact.sha256,
                     sqlite3.Binary(b""),
@@ -501,7 +517,7 @@ class _Artifacts(_Repo):
 
     async def complete_upload(self, artifact_id: UUID, learner_id: UUID) -> Artifact:
         row = self._one(
-            "SELECT artifact_id, learner_id, filename, size_bytes, sha256, content "
+            "SELECT artifact_id, learner_id, filename, content_type, size_bytes, sha256, content "
             "FROM artifacts WHERE artifact_id=? AND learner_id=?",
             (_uuid(artifact_id), _uuid(learner_id)),
         )
@@ -520,13 +536,14 @@ class _Artifacts(_Repo):
         if hashlib.sha256(content).hexdigest() != artifact.sha256:
             raise ValueError("content sha256 does not match artifact metadata")
         existing = self._one(
-            "SELECT learner_id, filename, size_bytes, sha256, content FROM artifacts WHERE artifact_id=?",
+            "SELECT learner_id, filename, content_type, size_bytes, sha256, content FROM artifacts WHERE artifact_id=?",
             (_uuid(artifact.artifact_id),),
         )
         if existing is not None:
             if (
                 existing["learner_id"] != _uuid(artifact.learner_id)
                 or existing["filename"] != artifact.filename
+                or existing["content_type"] != artifact.content_type
                 or int(existing["size_bytes"]) != artifact.size_bytes
                 or existing["sha256"] != artifact.sha256
                 or len(bytes(existing["content"])) == int(existing["size_bytes"])
@@ -539,11 +556,12 @@ class _Artifacts(_Repo):
             return artifact
         try:
             self.db.execute(
-                "INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO artifacts (artifact_id, learner_id, filename, content_type, size_bytes, sha256, content) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     _uuid(artifact.artifact_id),
                     _uuid(artifact.learner_id),
                     artifact.filename,
+                    artifact.content_type,
                     artifact.size_bytes,
                     artifact.sha256,
                     sqlite3.Binary(content),
@@ -1128,14 +1146,18 @@ def _task(row: sqlite3.Row) -> TaskVersion:
 
 
 def _artifact(row: sqlite3.Row) -> Artifact:
-    return Artifact(
-        artifact_id=UUID(row["artifact_id"]),
-        learner_id=UUID(row["learner_id"]),
-        filename=row["filename"],
-        content_type=artifact_content_type(row["filename"]),
-        size_bytes=row["size_bytes"],
-        sha256=row["sha256"],
-    )
+    try:
+        content_type = row["content_type"] or artifact_content_type(row["filename"])
+        return Artifact(
+            artifact_id=UUID(row["artifact_id"]),
+            learner_id=UUID(row["learner_id"]),
+            filename=row["filename"],
+            content_type=content_type,
+            size_bytes=row["size_bytes"],
+            sha256=row["sha256"],
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ArtifactIntegrityFailure() from exc
 
 
 def _progress(row: sqlite3.Row) -> LearnerProgress:
