@@ -36,6 +36,8 @@ jobs:
         run: uv run --project services/api ruff check services/api
       - name: Mypy
         run: uv run --project services/api mypy --config-file services/api/pyproject.toml services/api/src/yom_awel
+      - name: Mypy (tools/quality and demo)
+        run: uv run --project services/api mypy --config-file services/api/pyproject.toml --explicit-package-bases tools/quality $(test -d demo && echo demo)
       - name: Pytest
         run: uv run --project services/api pytest
       - name: Schema Export and diff
