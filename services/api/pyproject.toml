@@ -3,7 +3,9 @@ name = "api"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "defusedxml>=0.7.1",
     "google-genai>=1,<2",
+    "openpyxl>=3.1.5",
     "pydantic>=2,<3",
 ]
 
@@ -23,6 +25,7 @@ dev = [
     "ruff",
     "hatchling==1.32.3",
     "pre-commit>=4.6.2",
+    "types-openpyxl>=3.1.5.20260827",
 ]
 
 [tool.pytest.ini_options]
