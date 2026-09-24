@@ -10,6 +10,25 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-20-yom-awel-platform-design.md`
 
+## Implementation status (2026-09-23)
+
+The implementation follows the merged `contracts-v1` baseline (`054fbc4`), not the original
+pre-contract examples. `tarek` is the canonical ID and the port takes evaluation, language,
+and an optional note. Historical write-failing-test/commit checkboxes below are retained as
+the original execution recipe, not a claim that those historical steps were replayed.
+
+| Task | Implemented evidence | Outstanding release review |
+|---|---|---|
+| M3-1 | Persona/policy modules and `test_personas.py` | Member 1 tone approval |
+| M3-2 | Four canonical check mappings, bounded fallback, canonical snapshots | Member 1 snapshot approval |
+| M3-3 | Bounded/redacted request, language-selected approved detail, safe fixture and adversarial tests | Consumer review of privacy boundary |
+| M3-4 | Lazy SDK, explicit JSON schema, strict parser, grounding/language rejection tests | Optional deployment smoke test; not required for zero-cost path |
+| M3-5 | Configuration factory, resilient chain, real cancellation, bounded retries, secret-log tests | Member 5 composition/dependency review |
+| M3-6 | Nine quality cases including actual provider/error failures, rubric and operations guide | Member 1 rubric approval |
+
+See [review evidence and prepared PR description](../../team/member-3-review-evidence.md) for
+the reviewer-request mapping, exact verification commands, and unresolved human/PR actions.
+
 ## Global Constraints
 
 - Use only Gemini models available on the free tier; a Gemini key is optional at runtime.
@@ -51,8 +70,8 @@ from yom_awel.feedback.policy import ACTIVE_FEEDBACK_POLICY
 
 
 def test_tarek_is_the_only_active_v1_persona() -> None:
-    assert ACTIVE_FEEDBACK_POLICY.persona_id == "eng-tarek"
-    assert PERSONAS["eng-tarek"].language == "ar-EG"
+    assert ACTIVE_FEEDBACK_POLICY.persona_id == "tarek"
+    assert PERSONAS["tarek"].language == "ar-EG"
     assert PERSONAS["hazem"].status == "roadmap"
     assert PERSONAS["mona"].status == "roadmap"
 
@@ -105,7 +124,7 @@ git commit -m "feat: define versioned feedback personas"
 - Create: `services/api/tests/feedback/snapshots/fallback-fail.txt`
 
 **Interfaces:**
-- Consumes: exact `FeedbackProvider.generate(task, evaluation, learner_note)` port and `EvaluationResult`.
+- Consumes: exact `FeedbackProvider.generate(evaluation, language, learner_note=None)` port and `EvaluationResult`. Gemini resolves trusted `TaskVersion` through an injected resolver; the shared port does not receive a task argument.
 - Produces: always-valid `FeedbackResult(provider="deterministic", used_fallback=True)`.
 
 - [ ] **Step 1: Write failing fallback tests**
@@ -113,9 +132,9 @@ git commit -m "feat: define versioned feedback personas"
 Load canonical pass/fail fixtures and assert:
 
 ```python
-result = await provider.generate(task, evaluation, None)
+result = await provider.generate(evaluation, Language.AR_EG, None)
 assert result.language == "ar-EG"
-assert result.persona_id == "eng-tarek"
+assert result.persona_id == "tarek"
 assert result.prompt_version == "tarek-feedback@1"
 assert result.provider == "deterministic"
 assert result.model is None
