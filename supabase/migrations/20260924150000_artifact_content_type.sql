@@ -44,6 +44,7 @@ begin
     if p_learner_id is null or p_artifact_id is null
         or p_object_path <> p_learner_id::text || '/' || p_artifact_id::text
         or p_filename is null or char_length(p_filename) not between 1 and 255
+        or expected_content_type is null
         or p_content_type is distinct from expected_content_type
         or p_size_bytes < 0 or p_size_bytes > 5242880
         or p_sha256 is null or p_sha256 !~ '^[a-f0-9]{64}$'

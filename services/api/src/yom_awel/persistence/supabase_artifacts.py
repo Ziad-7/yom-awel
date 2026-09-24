@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -328,6 +329,7 @@ class SupabaseArtifactStore:
             "size_bytes": str(artifact.size_bytes),
             "upsert": "false",
         }
+        headers = self._upload_headers(artifact)
         cleanup_row = self._cleanup_row(artifact, "UPLOAD_FAILED", path)
         try:
             await self._metadata.enqueue_cleanup(cleanup_row)
@@ -350,6 +352,7 @@ class SupabaseArtifactStore:
             status = row.get("purge_status")
             if status in {"PURGED", "CLAIMED"}:
                 raise SupabaseArtifactError("artifact_unavailable")
+            self._require_matching_reservation(row, artifact)
             signed = await self._storage.create_signed_upload_url(
                 PRIVATE_BUCKET, path, expiry, metadata
             )
@@ -362,7 +365,7 @@ class SupabaseArtifactStore:
                 upload_url=signed.url,
                 upload_token=signed.token,
                 expires_in_seconds=expiry,
-                headers={"x-upsert": "false"},
+                headers=headers,
             )
         except SupabaseArtifactError:
             raise
@@ -453,6 +456,7 @@ class SupabaseArtifactStore:
         except Exception as exc:
             raise SupabaseArtifactError("supabase_provider_error") from exc
         row, created = reservation.row, reservation.created
+        self._require_matching_reservation(row, artifact)
         if not created:
             # Do not resolve a queue entry for another caller's unfinished
             # reservation. The cleanup worker owns reconciliation of UPLOADING
@@ -491,6 +495,29 @@ class SupabaseArtifactStore:
             and isinstance(metadata["sha256"], str)
             and metadata["sha256"] == artifact.sha256
         )
+
+    @staticmethod
+    def _upload_headers(artifact: Artifact) -> Mapping[str, str]:
+        return {
+            "Content-Type": artifact.content_type,
+            "x-metadata": json.dumps(
+                {
+                    "content_type": artifact.content_type,
+                    "sha256": artifact.sha256,
+                    "size_bytes": str(artifact.size_bytes),
+                },
+                separators=(",", ":"),
+                sort_keys=True,
+            ),
+            "x-upsert": "false",
+        }
+
+    @staticmethod
+    def _require_matching_reservation(row: Mapping[str, object], artifact: Artifact) -> None:
+        if map_artifact_row(row, artifact.learner_id) != artifact:
+            raise SupabaseArtifactError(
+                "provider_payload_invalid", "Reserved artifact does not match authorization"
+            )
 
     @staticmethod
     def _cleanup_row(artifact: Artifact, reason: str, path: str) -> Mapping[str, object]:

@@ -12,6 +12,7 @@ def test_artifact_content_type_migration_expands_backfills_and_keeps_rollback_co
     assert "when lower(filename) like '%.xlsx' then 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'" in migration
     assert "create or replace function public.reserve_artifact_v2" in migration
     assert "p_content_type text" in migration
+    assert "expected_content_type is null" in migration
     assert "current_row.content_type is distinct from p_content_type" in migration
     assert "insert into public.artifacts(" in migration
     assert "content_type" in migration

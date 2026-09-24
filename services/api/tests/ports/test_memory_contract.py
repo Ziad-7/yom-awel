@@ -260,6 +260,27 @@ async def test_artifact_round_trip_preserves_authorized_media_type(
 
 
 @pytest.mark.asyncio
+async def test_second_memory_authorization_rejects_different_valid_media_type(
+    factory: MemoryUnitOfWorkFactory,
+) -> None:
+    learner = make_learner()
+    artifact = make_artifact(learner.learner_id)
+    replacement = Artifact(
+        artifact_id=artifact.artifact_id,
+        learner_id=artifact.learner_id,
+        filename="work.xlsx",
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        size_bytes=artifact.size_bytes,
+        sha256=artifact.sha256,
+    )
+    async with factory() as uow:
+        await uow.learners.add(learner)
+        await uow.artifacts.authorize_upload(artifact)
+        with pytest.raises(UniqueConstraintViolation):
+            await uow.artifacts.authorize_upload(replacement)
+
+
+@pytest.mark.asyncio
 async def test_reservation_identity_duplicates_reclaim_and_finalization(
     factory: MemoryUnitOfWorkFactory,
 ) -> None:

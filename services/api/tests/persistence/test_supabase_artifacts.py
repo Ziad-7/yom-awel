@@ -509,6 +509,19 @@ async def test_authorize_upload_reserves_metadata_and_returns_signed_browser_det
     assert result.upload_url == "https://signed.invalid/upload"
     assert result.upload_token == "opaque"
     assert result.expires_in_seconds == 180
+    assert result.headers == {
+        "Content-Type": "text/csv",
+        "x-metadata": json.dumps(
+            {
+                "content_type": "text/csv",
+                "sha256": value.sha256,
+                "size_bytes": "5",
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
+        "x-upsert": "false",
+    }
     assert storage.upload_calls == [
         (
             PRIVATE_BUCKET,
@@ -523,6 +536,24 @@ async def test_authorize_upload_reserves_metadata_and_returns_signed_browser_det
         )
     ]
     assert storage.content == b""
+
+
+@pytest.mark.asyncio
+async def test_second_supabase_authorization_rejects_different_valid_media_type() -> None:
+    learner_id, artifact_id, content = uuid4(), uuid4(), b"hello"
+    value = artifact(learner_id, artifact_id, content)
+    replacement = value.model_copy(
+        update={
+            "filename": "answer.xlsx",
+            "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }
+    )
+    metadata = MetadataFake(artifact_row(value), created=False)
+    store = SupabaseArtifactStore(metadata, StorageFake(content))
+
+    with pytest.raises(SupabaseArtifactError) as error:
+        await store.authorize_upload(replacement)
+    assert error.value.code == "provider_payload_invalid"
 
 
 @pytest.mark.asyncio
