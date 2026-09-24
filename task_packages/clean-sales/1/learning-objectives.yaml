@@ -164,4 +164,10 @@ content_manifest:
   brief_en: "content/brief.en.md"
   hints_ar: "content/hints.ar-EG.md"
   hints_en: "content/hints.en.md"
+  pinned_hashes:
+    brief_ar_sha256: "d1258296d68d920339be47e1e3e6200601d8525d2465d149fc1f468b8474b881"
+    brief_en_sha256: "7bef0dc4b738cd36bb9aac46d641913d0390867b3ac684efefed4a6a6537e24a"
+    hints_ar_sha256: "d8b37c1ab268b61db26b2b62de703a640debca01a5ba3287151aac8465acb69c"
+    hints_en_sha256: "d5dbf71c97fc8ba49b950902be45ca8ba9fe99f0aee329fd46bb3daf122ff58a"
+
 
