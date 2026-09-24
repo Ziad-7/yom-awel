@@ -9,16 +9,66 @@ from yom_awel.transport.settings import Settings
 ROOT = Path(__file__).resolve().parents[4]
 
 
+SECRET = "s" * 48
+FAKE_KEY = "fake-key-for-test"  # pragma: allowlist secret
+CLOUD = {
+    "APP_ENV": "cloud",
+    "AUTH_SECRET": SECRET,
+    "DATABASE_URL": "postgresql://app:fake-password@db.invalid:6543/postgres",  # pragma: allowlist secret
+    "CORS_ORIGINS": "https://web.test",
+}
+
+
 def test_openapi_is_current():
     expected = json.loads((ROOT / "contracts/openapi.json").read_text(encoding="utf-8"))
-    assert create_app(Settings(secret="s" * 48)).openapi() == expected
+    assert create_app(Settings(secret=SECRET)).openapi() == expected
 
 
-def test_demo_fixtures_match_canonical_contracts():
-    for fixture in (ROOT / "services/api/src/yom_awel/transport/demo_data").glob("*.json"):
-        assert json.loads(fixture.read_text(encoding="utf-8")) == json.loads(
-            (ROOT / "contracts/fixtures" / fixture.name).read_text(encoding="utf-8")
-        )
+def test_cloud_settings_read_every_documented_variable():
+    settings = Settings.from_env(
+        CLOUD
+        | {
+            "GEMINI_API_KEY": FAKE_KEY,
+            "GEMINI_MODEL": "gemini-2.5-flash-lite",
+            "FEEDBACK_MODE": "auto",
+        }
+    )
+    assert (settings.mode, settings.cors_origins) == ("cloud", ("https://web.test",))
+    assert settings.uses_gemini and settings.secure_cookies
+    assert settings.gemini_model == "gemini-2.5-flash-lite"
+    for secret in (SECRET, "fake-password", FAKE_KEY):
+        assert secret not in repr(settings)
+
+
+@pytest.mark.parametrize(
+    "overrides,message",
+    [
+        ({"DATABASE_URL": ""}, "DATABASE_URL"),
+        ({"DATABASE_URL": "mysql://x"}, "DATABASE_URL"),
+        ({"AUTH_SECRET": "short"}, "AUTH_SECRET"),  # pragma: allowlist secret
+        ({"AUTH_SECRET": ""}, "AUTH_SECRET"),
+        ({"APP_ENV": "production"}, "APP_ENV"),
+        ({"FEEDBACK_MODE": "gemini-only"}, "FEEDBACK_MODE"),
+        ({"GEMINI_MODEL": "gemini-pro"}, "GEMINI_MODEL"),
+        ({"CORS_ORIGINS": "http://web.test"}, "HTTPS"),
+    ],
+)
+def test_cloud_settings_fail_closed(overrides, message):
+    with pytest.raises(ValueError, match=message):
+        Settings.from_env(CLOUD | overrides)
+
+
+def test_fallback_mode_ignores_a_configured_key():
+    settings = Settings.from_env(CLOUD | {"GEMINI_API_KEY": FAKE_KEY, "FEEDBACK_MODE": "fallback"})
+    assert not settings.uses_gemini
+
+
+def test_local_mode_creates_a_private_signing_key(tmp_path):
+    key = tmp_path / "session.key"
+    settings = Settings.from_env({"LOCAL_SECRET_PATH": str(key)})
+    assert settings.secret == key.read_text(encoding="utf-8")
+    assert oct(key.stat().st_mode & 0o777) == "0o600"
+    assert not settings.secure_cookies
 
 
 @pytest.mark.parametrize(
@@ -26,14 +76,12 @@ def test_demo_fixtures_match_canonical_contracts():
 )
 def test_cors_rejects_non_origin_values(origin):
     with pytest.raises(ValueError):
-        Settings(secret="s" * 48, cors_origins=(origin,)).validate()
+        Settings(secret=SECRET, cors_origins=(origin,)).validate()
 
 
-def test_local_mode_rejected_on_vercel(monkeypatch):
-    monkeypatch.setenv("VERCEL", "1")
-    monkeypatch.setenv("APP_ENV", "local")
+def test_local_mode_rejected_on_vercel():
     with pytest.raises(ValueError, match="local storage"):
-        Settings.from_env()
+        Settings.from_env({"VERCEL": "1", "APP_ENV": "local", "AUTH_SECRET": SECRET})
 
 
 def test_deployment_has_separate_roots_and_bounded_function():

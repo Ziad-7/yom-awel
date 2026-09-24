@@ -36,7 +36,7 @@ from yom_awel.domain.entities import (
     SubmissionReservation,
     Task,
 )
-from yom_awel.domain.enums import Channel, LearnerStatus, SubmissionStatus
+from yom_awel.domain.enums import Channel, Language, LearnerStatus, SubmissionStatus
 from yom_awel.domain.errors import (
     ArtifactIntegrityFailure,
     ArtifactNotReady,
@@ -303,6 +303,16 @@ class _Learners(_Repo):
             )
         except sqlite3.IntegrityError as error:
             raise UniqueConstraintViolation("learners.id") from error
+
+    async def set_preferred_language(
+        self, learner_id: UUID, language: Language, updated_at: datetime
+    ) -> None:
+        cursor = self.db.execute(
+            "UPDATE learners SET preferred_language=?, updated_at=? WHERE learner_id=?",
+            (language.value, _dt(updated_at), _uuid(learner_id)),
+        )
+        if cursor.rowcount != 1:
+            raise NotFound("learners.id")
 
     async def add_external_identity(
         self, learner_id: UUID, provider: str, provider_subject: str

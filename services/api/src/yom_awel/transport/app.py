@@ -7,11 +7,11 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from json import JSONDecodeError
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 import jwt
-from fastapi import Depends, FastAPI, Header, Request, Response
+from fastapi import Cookie, Depends, FastAPI, Header, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -24,27 +24,38 @@ from yom_awel.application.models import (
     UploadAuthorizationResult,
     UploadCompletionResult,
 )
-from yom_awel.domain.contracts import ApplicationError, SkillsProfile, SubmissionOutcome
+from yom_awel.domain.contracts import (
+    ApplicationError,
+    FeedbackResult,
+    SkillsProfile,
+    SubmissionOutcome,
+)
 from yom_awel.domain.entities import Artifact, Learner
-from yom_awel.domain.enums import Channel
+from yom_awel.domain.enums import Channel, Language
 from yom_awel.domain.errors import DomainError
+from yom_awel.evaluation.catalog import dataset
 from yom_awel.transport.artifact_validation import validate_content, validate_metadata
-from yom_awel.transport.auth import Authenticator, Identity
+from yom_awel.transport.auth import SESSION_COOKIE, SESSION_SECONDS, Authenticator, Identity
 from yom_awel.transport.dependencies import Services, compose
 from yom_awel.transport.errors import domain_error, error_response
-from yom_awel.transport.fakes import CLEAN_CSV, DIRTY_CSV
 from yom_awel.transport.models import (
     AttemptResult,
     HealthResult,
+    LanguageInput,
     OnboardInput,
     RuntimeResult,
     SessionResult,
     SubmissionInput,
+    TaskDetail,
+    TaskList,
     UploadInput,
 )
 from yom_awel.transport.settings import Settings
 
 MAX_BYTES = 5 * 1024 * 1024
+CSRF_HEADER = "x-yom-awel"
+# Telegram authenticates with its own secret header and cannot send the CSRF header.
+CSRF_EXEMPT = frozenset({"/api/v1/telegram/webhook"})
 
 
 def validate_file(body: UploadInput) -> None:
@@ -60,6 +71,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if app.state.services is None:
             app.state.services = compose(config)
+        await app.state.services.seed_tasks()
         yield
 
     app = FastAPI(
@@ -108,6 +120,12 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
             limit("request:" + (request.client.host if request.client else "unknown"))
         except DomainError:
             return error_response("rate_limited", 429)
+        if (
+            request.method in ("POST", "PUT", "PATCH", "DELETE")
+            and request.url.path not in CSRF_EXEMPT
+            and request.headers.get(CSRF_HEADER) != "1"
+        ):
+            return error_response("forbidden", 403)
         if request.method in ("POST", "PUT", "PATCH"):
             maximum = MAX_BYTES if request.method == "PUT" else 65536
             try:
@@ -135,9 +153,9 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(config.cors_origins),
-        allow_credentials=False,
+        allow_credentials=True,
         allow_methods=["GET", "POST", "PUT"],
-        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-Upload-Token"],
+        allow_headers=["Content-Type", "Idempotency-Key", "X-Upload-Token", "X-Yom-Awel"],
         expose_headers=["Retry-After"],
     )
     app.add_exception_handler(DomainError, domain_error)  # type: ignore[arg-type]
@@ -156,8 +174,10 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         result: Services = app.state.services
         return result
 
-    async def identity(authorization: Annotated[str | None, Header()] = None) -> Identity:
-        verified = await auth.verify(authorization)
+    async def identity(
+        yom_session: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    ) -> Identity:
+        verified = auth.verify(yom_session)
         limit(verified.provider + ":" + verified.subject)
         return verified
 
@@ -170,12 +190,43 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
 
     @app.get("/api/v1/runtime", response_model=RuntimeResult)
     async def runtime() -> RuntimeResult:
-        return RuntimeResult(mode=config.mode, simulated_evaluation=service().simulated)
+        return RuntimeResult(
+            mode=config.mode,
+            feedback_provider="gemini" if config.uses_gemini else "deterministic",
+        )
 
-    @app.post("/api/v1/auth/local-session", response_model=SessionResult)
-    async def session(request: Request) -> SessionResult:
+    @app.post("/api/v1/auth/session", response_model=SessionResult)
+    async def session(
+        request: Request,
+        response: Response,
+        yom_session: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    ) -> SessionResult:
         limit("session:" + (request.client.host if request.client else "unknown"))
-        return SessionResult(access_token=auth.local_session())
+        try:
+            auth.verify(yom_session)
+        except DomainError:
+            response.set_cookie(
+                SESSION_COOKIE,
+                auth.issue(),
+                max_age=SESSION_SECONDS,
+                httponly=True,
+                secure=config.secure_cookies,
+                samesite="lax",
+                path="/",
+            )
+        return SessionResult(expires_in=SESSION_SECONDS)
+
+    @app.post("/api/v1/auth/logout", status_code=204)
+    async def logout(response: Response) -> Response:
+        response.status_code = 204
+        response.delete_cookie(
+            SESSION_COOKIE,
+            httponly=True,
+            secure=config.secure_cookies,
+            samesite="lax",
+            path="/",
+        )
+        return response
 
     @app.post("/api/v1/learners/onboard", response_model=Learner)
     async def onboard(body: OnboardInput, who: Annotated[Identity, Depends(identity)]) -> Learner:
@@ -184,6 +235,14 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     @app.get("/api/v1/learners/me", response_model=Learner)
     async def me(user: Annotated[Learner, Depends(learner)]) -> Learner:
         return user
+
+    @app.put("/api/v1/learners/me/language", response_model=Learner)
+    async def language(body: LanguageInput, user: Annotated[Learner, Depends(learner)]) -> Learner:
+        return await service().language.execute(user.learner_id, body.preferred_language)
+
+    @app.get("/api/v1/tasks", response_model=TaskList)
+    async def tasks(user: Annotated[Learner, Depends(learner)]) -> TaskList:
+        return await service().task_list(user.learner_id)
 
     @app.get("/api/v1/tasks/current", response_model=CurrentTaskResult)
     async def current(user: Annotated[Learner, Depends(learner)]) -> CurrentTaskResult:
@@ -197,14 +256,29 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     async def attempts(user: Annotated[Learner, Depends(learner)]) -> list[AttemptResult]:
         return await service().history(user.learner_id)
 
-    @app.get("/api/v1/tasks/sample")
-    async def sample(user: Annotated[Learner, Depends(learner)], clean: bool = False) -> Response:
-        if not service().simulated:
-            raise DomainError("not_found", "Use approved task package downloads")
+    @app.get("/api/v1/tasks/{task_id}", response_model=TaskDetail)
+    async def task_detail(task_id: str, user: Annotated[Learner, Depends(learner)]) -> TaskDetail:
+        return service().task_detail(task_id)
+
+    @app.post("/api/v1/tasks/{task_id}/start", response_model=CurrentTaskResult)
+    async def start(task_id: str, user: Annotated[Learner, Depends(learner)]) -> CurrentTaskResult:
+        return await service().start.execute(user.learner_id, task_id)
+
+    @app.get(
+        "/api/v1/tasks/{task_id}/dataset",
+        response_class=Response,
+        responses={200: {"content": {"text/csv": {}, "application/octet-stream": {}}}},
+    )
+    async def download(
+        task_id: str,
+        user: Annotated[Learner, Depends(learner)],
+        file_format: Annotated[Literal["csv", "xlsx"], Query(alias="format")] = "csv",
+    ) -> Response:
+        file = dataset(service().catalog.get(task_id), file_format)
         return Response(
-            CLEAN_CSV if clean else DIRTY_CSV,
-            media_type="text/csv",
-            headers={"Content-Disposition": 'attachment; filename="sales-demo.csv"'},
+            file.content,
+            media_type=file.media_type,
+            headers={"Content-Disposition": f'attachment; filename="{file.filename}"'},
         )
 
     @app.post("/api/v1/artifacts/upload-authorization", response_model=UploadAuthorizationResult)
@@ -220,32 +294,30 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
                 artifact_sha256=body.artifact_sha256,
             )
         )
-        if config.mode == "local":
-            artifact = Artifact(
-                artifact_id=result.artifact_id,
-                learner_id=user.learner_id,
-                filename=body.filename,
-                size_bytes=body.size_bytes,
-                sha256=body.artifact_sha256,
-            )
-            token = jwt.encode(
-                {
-                    "artifact": artifact.model_dump(mode="json"),
-                    "content_type": body.content_type,
-                    "aud": "artifact-upload",
-                    "exp": datetime.now(UTC) + timedelta(seconds=300),
-                },
-                config.secret,
-                algorithm="HS256",
-            )
-            return result.model_copy(
-                update={
-                    "upload_url": f"/api/v1/artifacts/{result.artifact_id}/content",
-                    "upload_token": token,
-                    "headers": {"X-Upload-Token": token, "Content-Type": body.content_type},
-                }
-            )
-        return result
+        artifact = Artifact(
+            artifact_id=result.artifact_id,
+            learner_id=user.learner_id,
+            filename=body.filename,
+            size_bytes=body.size_bytes,
+            sha256=body.artifact_sha256,
+        )
+        token = jwt.encode(
+            {
+                "artifact": artifact.model_dump(mode="json"),
+                "content_type": body.content_type,
+                "aud": "artifact-upload",
+                "exp": datetime.now(UTC) + timedelta(seconds=300),
+            },
+            config.secret,
+            algorithm="HS256",
+        )
+        return result.model_copy(
+            update={
+                "upload_url": f"/api/v1/artifacts/{result.artifact_id}/content",
+                "upload_token": token,
+                "headers": {"X-Upload-Token": token, "Content-Type": body.content_type},
+            }
+        )
 
     @app.put("/api/v1/artifacts/{artifact_id}/content", response_model=UploadCompletionResult)
     async def upload(
@@ -254,8 +326,6 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         user: Annotated[Learner, Depends(learner)],
         x_upload_token: Annotated[str | None, Header()] = None,
     ) -> UploadCompletionResult:
-        if config.mode != "local":
-            raise DomainError("not_found", "Use direct private storage upload")
         try:
             claims = jwt.decode(
                 x_upload_token or "",
@@ -342,6 +412,14 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         return ProcessingState(
             submission_id=submission_id, status=reservation.status, retry_after_seconds=retry
         )
+
+    @app.get("/api/v1/submissions/{submission_id}/feedback", response_model=FeedbackResult)
+    async def feedback(
+        submission_id: UUID,
+        language: Language,
+        user: Annotated[Learner, Depends(learner)],
+    ) -> FeedbackResult:
+        return await service().feedback_in(user.learner_id, submission_id, language)
 
     @app.post("/api/v1/telegram/webhook", response_model=dict[str, bool])
     async def telegram(
