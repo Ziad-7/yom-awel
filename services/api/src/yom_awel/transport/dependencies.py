@@ -16,13 +16,14 @@ from yom_awel.domain.entities import Learner
 from yom_awel.domain.enums import LearnerStatus
 from yom_awel.domain.errors import DomainError
 from yom_awel.domain.state_machine import transition
+from yom_awel.feedback.fallback import DeterministicFeedbackProvider
 from yom_awel.persistence.sqlite import SQLiteUnitOfWorkFactory
 from yom_awel.ports.artifacts import ArtifactStore
 from yom_awel.ports.evaluation import Evaluator
 from yom_awel.ports.feedback import FeedbackProvider
 from yom_awel.ports.unit_of_work import UnitOfWorkFactory
 from yom_awel.transport.auth import Identity
-from yom_awel.transport.fakes import FixtureEvaluator, FixtureFeedback, demo_task
+from yom_awel.transport.fakes import FixtureEvaluator, demo_task
 from yom_awel.transport.models import AttemptResult, OnboardInput
 from yom_awel.transport.settings import Settings
 
@@ -139,7 +140,7 @@ def compose(settings: Settings) -> Services:
     return Services(
         cast(UnitOfWorkFactory, factory),
         FixtureEvaluator(),
-        FixtureFeedback(),
+        DeterministicFeedbackProvider(),
         starter=start_local_fixture,
         simulated=True,
     )

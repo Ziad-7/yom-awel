@@ -2,8 +2,7 @@
 
 from pathlib import Path
 
-from yom_awel.domain.contracts import ArtifactRef, EvaluationResult, FeedbackResult, TaskVersion
-from yom_awel.domain.enums import Language
+from yom_awel.domain.contracts import ArtifactRef, EvaluationResult, TaskVersion
 
 DATA = Path(__file__).with_name("demo_data")
 DIRTY_CSV = (
@@ -28,13 +27,3 @@ class FixtureEvaluator:
         )
         result = EvaluationResult.model_validate_json((DATA / fixture).read_text(encoding="utf-8"))
         return result.model_copy(update={"task_version_id": task_version.task_version_id})
-
-
-class FixtureFeedback:
-    async def generate(
-        self, evaluation: EvaluationResult, language: Language, learner_note: str | None = None
-    ) -> FeedbackResult:
-        result = FeedbackResult.model_validate_json(
-            (DATA / "feedback-fallback.json").read_text(encoding="utf-8")
-        )
-        return result.model_copy(update={"language": language.value})
