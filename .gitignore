@@ -19,3 +19,15 @@ data/submitted/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Member5 local runtime and web build output
+.local/
+node_modules/
+.next/
+apps/web/next-env.d.ts
+*.tsbuildinfo
+playwright-report/
+test-results/
+.env.local
+.env.*.local
+.vercel/
