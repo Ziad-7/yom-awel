@@ -24,6 +24,9 @@ from yom_awel.transport.settings import Settings
         {"exp": 1},
         {"role": "service_role"},
         {"sub": "invalid"},
+        {"is_anonymous": False},
+        {"is_anonymous": None},
+        {"is_anonymous": "true"},
     ],
 )
 async def test_cloud_jwt_claims_and_signature(mutation):
@@ -44,6 +47,8 @@ async def test_cloud_jwt_claims_and_signature(mutation):
         "is_anonymous": True,
         **mutation,
     }
+    if mutation == {"is_anonymous": None}:
+        claims.pop("is_anonymous")
     token = jwt.encode(claims, key, algorithm="RS256", headers={"kid": "key-1"})
     if mutation:
         with pytest.raises(DomainError):
@@ -125,6 +130,10 @@ def test_telegram_fail_retry_pass_and_replay(tmp_path):
         failed = update(2, content=DIRTY_CSV)
         assert client.post(endpoint, headers=headers, json=failed).status_code == 200
         assert "محتاج تعديل" in bot.messages[-1]
+        for section in ("القرار:", "تأثير الشغل:", "الخطوة الجاية:", "تفسير الدرجة:"):
+            assert section in bot.messages[-1]
+        assert "0 من 100" in bot.messages[-1]
+        assert "إرشادات بديلة" in bot.messages[-1]
         original = bot.messages[-1]
         assert client.post(endpoint, headers=headers, json=failed).status_code == 200
         assert bot.messages[-1] == original
@@ -133,6 +142,8 @@ def test_telegram_fail_retry_pass_and_replay(tmp_path):
         passed = update(3, content=CLEAN_CSV)
         assert client.post(endpoint, headers=headers, json=passed).status_code == 200
         assert "التسليم مقبول" in bot.messages[-1]
+        assert "100 من 100" in bot.messages[-1]
+        assert "إرشادات بديلة" in bot.messages[-1]
         assert client.post(endpoint, headers=headers, json=passed).status_code == 200
         assert bot.downloads == 2
         assert client.post(endpoint, headers=headers, json=update(4, "/skills")).status_code == 200

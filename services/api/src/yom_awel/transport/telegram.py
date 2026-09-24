@@ -12,6 +12,7 @@ from yom_awel.domain.contracts import SubmissionOutcome
 from yom_awel.domain.entities import Artifact
 from yom_awel.domain.enums import Channel
 from yom_awel.domain.errors import DomainError
+from yom_awel.transport.artifact_validation import validate_content
 from yom_awel.transport.auth import Identity
 from yom_awel.transport.dependencies import Services
 from yom_awel.transport.fakes import DIRTY_CSV
@@ -157,6 +158,21 @@ class TelegramAdapter:
         content = await self.client.download(str(document.get("file_id", "")))
         if not 0 < len(content) <= MAX_BYTES or len(content) != document["file_size"]:
             raise DomainError("artifact_integrity_failure", "File size mismatch")
+        content_type = str(
+            document.get("mime_type")
+            or (
+                "text/csv"
+                if filename.lower().endswith(".csv")
+                else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        )
+        try:
+            validate_content(filename, content_type, content)
+        except DomainError:
+            await self.client.send(
+                chat_id, "محتوى الملف أو نوعه غير صالح. ارفع ملف CSV أو XLSX سليم."
+            )
+            return
         artifact = Artifact(
             artifact_id=uuid5(NAMESPACE_URL, f"{learner.learner_id}:{key}"),
             learner_id=learner.learner_id,

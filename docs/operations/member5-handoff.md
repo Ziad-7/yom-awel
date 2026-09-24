@@ -3,9 +3,14 @@
 ## Scope and baseline
 
 Work is isolated on `codex/member5-experience-integration`, based on main
-`054fbc4`. The abandoned member3 work is preserved only on
+`244a8a1` after the review rebase. The abandoned member3 work is preserved only on
 `codex/member3-feedback-integration`, commit `8f42622`, and was not imported here.
 No member2 domain, persistence, migration, or shared port files were changed.
+
+PR #22 delivers the **local integration scaffold**, tracked by [#28](https://github.com/Ziad-7/yom-awel/issues/28).
+It does not complete the cloud release. Member2 contract/composition gates are
+tracked in [#26](https://github.com/Ziad-7/yom-awel/issues/26); remaining M5-6,
+M5-7 and M5-8 deployment/provider work is [#27](https://github.com/Ziad-7/yom-awel/issues/27).
 
 Execution prompt: Build member5's Arabic Next.js experience, typed FastAPI
 transport, authentication, bounded private uploads, webhook translation, and
@@ -33,8 +38,10 @@ process; API `.env` files are not loaded implicitly. Next.js reads
 
 The local fixture evaluator accepts only the exact downloadable success fixture;
 other uploads use the canonical failure fixture. This is clearly labelled in the
-UI and Telegram, and is not a replacement for member4's grader. The feedback fake
-uses member2's canonical fallback fixture, not the abandoned member3 code.
+UI and Telegram, and is not a replacement for member4's grader. Feedback uses
+Member3's merged `DeterministicFeedbackProvider`, with Arabic decision, business
+consequence, next action and score sections for each evaluation. It requires no
+Gemini credentials; the fallback label remains visible on both channels.
 Artifacts are private SQLite blobs in local mode; clients never select disk paths.
 
 ## Verified journey
@@ -60,8 +67,12 @@ Authenticated API routes include `/learners/onboard`, `/learners/me`,
 Outcome lookup also requires the original `Idempotency-Key`, because the existing
 member2 lookup port is scoped by learner and key. Browser retries retain that key.
 Uploads require bounded metadata, a signed short-lived authorization, ownership,
-and a server-verified SHA-256. Cloud uploads go directly to the returned storage
-URL; bearer tokens are sent only to our API, never storage.
+and a server-verified SHA-256. Local authorizations also bind the MIME type in
+the signed token; PUT verifies Content-Type and checks CSV/XLSX signatures and
+bounded archive structure before storage. Telegram applies the same checks.
+These transport checks do not replace the immutable metadata and real Storage
+verification contract requested in #26. Cloud direct-upload code is unverified;
+bearer tokens are sent only to our API, never storage.
 
 ## Teammate integration boundaries
 
@@ -83,11 +94,29 @@ and private storage. This is an integration hook, not a claim that cloud is read
 Member2/3/4 implementations remain owned by those teammates.
 
 Supabase JWT verification uses HTTPS JWKS, `kid`, RS256/ES256 signatures, issuer,
-audience, expiration, UUID subject and authenticated role. The browser supports
+audience, expiration, UUID subject, authenticated role and `is_anonymous is True`.
+Missing, false or non-boolean anonymous claims are rejected. The browser supports
 anonymous Supabase sign-in, session restore/refresh and explicit logout. Local
 sessions cannot authenticate in cloud. Existing anonymous-user RLS needs live
 verification with the complete cloud composition. Current process-local rate
 limiting is a local safeguard; cloud needs provider/distributed abuse limits.
+
+Canonical application error category/retryability are preserved from
+`DomainError.details`; persistence exceptions receive safe infrastructure status
+defaults instead of being misclassified as validation. Retryable responses carry
+bounded Retry-After values. Provider text and arbitrary error details are redacted.
+
+## Planned live auth/RLS gate
+
+`tests/transport/test_live_anonymous_rls.py` runs only with `M5_LIVE_AUTH_TESTS=1`.
+Set SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, M5_OWNER_JWT, M5_OTHER_JWT,
+M5_NON_ANONYMOUS_JWT, M5_MISSING_ANONYMOUS_JWT, M5_OWNER_ARTIFACT_ID and
+M5_OWNER_OBJECT_PATH for an isolated seeded project. The two negative policy
+tokens must be validly signed for the owner's subject with false/missing
+is_anonymous claims. Member2 must provide this controlled fixture in #26.
+The test uses read-only positive owner checks followed by foreign/policy denials
+against metadata and private Storage. Enabling the gate without its configuration
+fails, rather than silently skipping. It has not been executed against Supabase.
 
 ## Tests and review
 
@@ -111,8 +140,8 @@ required before release; automated checks do not substitute for those approvals.
 
 ## Local verification result
 
-- Python: 265 passed, 13 existing Supabase-dependent tests skipped.
-- New transport suite: 29 passed, including JWT negatives, upload integrity,
+- Python: 422 passed, 15 cloud-dependent tests skipped (13 existing plus 2 new live gates).
+- Transport suite: 51 passed and 2 live gates skipped, including JWT negatives, upload integrity,
   ownership, malformed webhook rejection, webhook replay, active submission replay
   and restart persistence.
 - Web: 3 unit tests and 2 complete Playwright journeys passed.
@@ -127,4 +156,6 @@ The in-app browser bridge was unavailable; the checked-in Playwright suite provi
 the browser verification and screenshots. For a small system drive, install only
 the full Chromium build (`npx playwright install --no-shell chromium`) and point
 TEMP/TMP at a drive with space. No live Telegram, Supabase, Gemini, or Vercel calls
-were used to claim release readiness. No changes were pushed.
+were used to claim release readiness. See PR #22 for the latest pushed revision
+and successful CI screenshot artifacts. Independent review repairs and remaining
+gates are recorded in `docs/quality/member5-pr-review-repairs.md`.

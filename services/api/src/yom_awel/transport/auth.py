@@ -68,7 +68,7 @@ class Authenticator:
                     audience="authenticated",
                     options={"require": ["exp", "sub", "iss", "aud"]},
                 )
-                if claims.get("role") != "authenticated":
+                if claims.get("role") != "authenticated" or claims.get("is_anonymous") is not True:
                     raise jwt.InvalidTokenError()
                 provider = "supabase"
             else:

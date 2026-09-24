@@ -1,4 +1,4 @@
-name: Member 5 experience
+name: Member 5 local integration
 on:
   push:
   pull_request:
@@ -29,7 +29,9 @@ jobs:
       - run: npm run test:e2e
         working-directory: apps/web
       - uses: actions/upload-artifact@v6
-        if: failure()
+        if: always()
         with:
           name: browser-test-evidence
           path: apps/web/test-results
+          retention-days: 14
+          if-no-files-found: warn

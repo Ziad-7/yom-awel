@@ -24,10 +24,11 @@ from yom_awel.application.models import (
     UploadAuthorizationResult,
     UploadCompletionResult,
 )
-from yom_awel.domain.contracts import SkillsProfile, SubmissionOutcome
+from yom_awel.domain.contracts import ApplicationError, SkillsProfile, SubmissionOutcome
 from yom_awel.domain.entities import Artifact, Learner
 from yom_awel.domain.enums import Channel
 from yom_awel.domain.errors import DomainError
+from yom_awel.transport.artifact_validation import validate_content, validate_metadata
 from yom_awel.transport.auth import Authenticator, Identity
 from yom_awel.transport.dependencies import Services, compose
 from yom_awel.transport.errors import domain_error, error_response
@@ -47,18 +48,7 @@ MAX_BYTES = 5 * 1024 * 1024
 
 
 def validate_file(body: UploadInput) -> None:
-    ext = body.filename.rsplit(".", 1)[-1].lower()
-    allowed = {
-        "csv": {"text/csv", "application/vnd.ms-excel", "application/octet-stream"},
-        "xlsx": {
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/octet-stream",
-        },
-    }
-    if ext not in allowed or body.content_type not in allowed[ext]:
-        raise DomainError("unsupported_artifact", "Only CSV/XLSX are accepted")
-    if any(char in body.filename for char in ("/", "\\", "\x00")):
-        raise DomainError("unsupported_artifact", "Invalid filename")
+    validate_metadata(body.filename, body.content_type)
 
 
 def create_app(settings: Settings | None = None, services: Services | None = None) -> FastAPI:
@@ -72,7 +62,26 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
             app.state.services = compose(config)
         yield
 
-    app = FastAPI(title="Yom Awel API", version="1.0.0", lifespan=lifespan)
+    app = FastAPI(
+        title="Yom Awel API",
+        version="1.0.0",
+        lifespan=lifespan,
+        responses={
+            status: {"model": ApplicationError, "description": description}
+            for status, description in {
+                400: "Malformed request",
+                401: "Authentication required",
+                403: "Access denied",
+                404: "Resource not found",
+                409: "State or idempotency conflict",
+                413: "Artifact too large",
+                415: "Unsupported or unsafe artifact",
+                422: "Validation or artifact integrity failure",
+                429: "Rate limit exceeded",
+                503: "Evaluation, persistence or infrastructure unavailable",
+            }.items()
+        },
+    )
     app.state.services = services
     app.state.settings = config
     app.state.auth = auth
@@ -222,6 +231,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
             token = jwt.encode(
                 {
                     "artifact": artifact.model_dump(mode="json"),
+                    "content_type": body.content_type,
                     "aud": "artifact-upload",
                     "exp": datetime.now(UTC) + timedelta(seconds=300),
                 },
@@ -232,7 +242,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
                 update={
                     "upload_url": f"/api/v1/artifacts/{result.artifact_id}/content",
                     "upload_token": token,
-                    "headers": {"X-Upload-Token": token},
+                    "headers": {"X-Upload-Token": token, "Content-Type": body.content_type},
                 }
             )
         return result
@@ -252,19 +262,23 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
                 config.secret,
                 algorithms=["HS256"],
                 audience="artifact-upload",
-                options={"require": ["exp", "aud", "artifact"]},
+                options={"require": ["exp", "aud", "artifact", "content_type"]},
             )
             artifact = Artifact.model_validate(claims["artifact"])
         except (jwt.PyJWTError, ValueError, KeyError) as exc:
             raise DomainError("forbidden", "Upload authorization invalid") from exc
         if artifact.learner_id != user.learner_id or artifact.artifact_id != artifact_id:
             raise DomainError("forbidden", "Upload authorization invalid")
+        content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        if content_type != claims["content_type"]:
+            raise DomainError("artifact_type_mismatch", "Upload MIME does not match authorization")
         content = await request.body()
         if (
             len(content) != artifact.size_bytes
             or hashlib.sha256(content).hexdigest() != artifact.sha256
         ):
             raise DomainError("artifact_integrity_failure", "Upload does not match authorization")
+        validate_content(artifact.filename, content_type, content)
         async with service().factory() as uow:
             existing = await uow.artifacts.get(artifact_id, user.learner_id)
             if existing is None:

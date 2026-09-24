@@ -47,6 +47,22 @@ test("Arabic onboarding, failure, retry, pass, reload and skills", async ({
   await expect(
     page.getByText("إرشادات بديلة · من غير اتصال بالذكاء الاصطناعي"),
   ).toBeVisible();
+  const coaching = page.locator(".coach-note");
+  for (const section of [
+    "القرار:",
+    "تأثير الشغل:",
+    "الخطوة الجاية:",
+    "تفسير الدرجة:",
+  ]) {
+    await expect(coaching).toContainText(section);
+  }
+  await expect(coaching).toContainText("التسليم محتاج إعادة شغل");
+  await expect(coaching).toContainText("0 من 100");
+  await expect(coaching).not.toContainText("Fallback message");
+  await page.screenshot({
+    path: "test-results/member5-failure-feedback.png",
+    fullPage: true,
+  });
   await page.locator("#submission").setInputFiles({
     name: "clean.csv",
     mimeType: "text/csv",
@@ -54,6 +70,21 @@ test("Arabic onboarding, failure, retry, pass, reload and skills", async ({
   });
   await page.getByRole("button", { name: "سلّم للمراجعة" }).click();
   await expect(page.locator("#result-heading")).toContainText("التسليم اتقبل");
+  await expect(coaching).toContainText("التسليم مقبول");
+  await expect(coaching).toContainText("100 من 100");
+  for (const section of [
+    "القرار:",
+    "تأثير الشغل:",
+    "الخطوة الجاية:",
+    "تفسير الدرجة:",
+  ]) {
+    await expect(coaching).toContainText(section);
+  }
+  await expect(coaching).toContainText("إرشادات بديلة");
+  await page.screenshot({
+    path: "test-results/member5-success-feedback.png",
+    fullPage: true,
+  });
   await page.reload();
   await expect(
     page.getByRole("heading", { name: "أهلاً سارة، يلا نشتغل." }),

@@ -1,8 +1,15 @@
 # Member5 deployment and operations
 
-Cloud release needs the complete member2 service factory and task assignment,
-approved member3/4 provider bindings, and real project credentials. The local
-journey uses clearly labelled fixtures. Vercel must never use local mode.
+PR #22 is scoped to local integration (#28), not cloud release. Cloud release
+needs the complete member2 service factory, immutable artifact MIME metadata and
+task assignment (#26), the approved member4 binding and real project credentials
+(#27). Member3's merged deterministic Arabic feedback is integrated now; only
+evaluation remains explicitly simulated. Vercel must never use local mode.
+
+M5-7/M5-8 are pending: this file describes the required rollout, not an executed
+preview/promotion pipeline. Successful local browser evidence is uploaded by CI
+on both success and failure; it is the local equivalent allowed by the M5 plan
+until Vercel is connected. No immutable API/web deployment URLs are available yet.
 
 Use two personal, non-commercial Vercel Hobby projects with roots `apps/web` and
 `services/api`. Recheck Hobby eligibility and current limits before release.
