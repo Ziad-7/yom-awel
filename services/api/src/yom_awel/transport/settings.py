@@ -6,12 +6,13 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlparse
 
+from yom_awel.feedback.config import FeedbackConfig
+
 REPOSITORY_ROOT = Path(__file__).resolve().parents[5]
+BUNDLED_TASK_PACKAGES = Path(__file__).resolve().parents[1] / "task_packages"
 MIN_SECRET_LENGTH = 32
-GEMINI_MODELS = ("gemini-2.5-flash", "gemini-2.5-flash-lite")
 
 Mode = Literal["local", "cloud"]
-FeedbackMode = Literal["auto", "fallback"]
 
 
 @dataclass(frozen=True)
@@ -21,17 +22,15 @@ class Settings:
     database_url: str = field(default="", repr=False)
     secret: str = field(default="", repr=False)
     cors_origins: tuple[str, ...] = ("http://localhost:3000", "http://127.0.0.1:3000")
-    task_packages: Path = REPOSITORY_ROOT / "task_packages"
-    gemini_api_key: str = field(default="", repr=False)
-    gemini_model: str = GEMINI_MODELS[0]
-    feedback_mode: FeedbackMode = "auto"
+    task_packages: Path = field(default_factory=lambda: task_packages_dir({}))
+    feedback: FeedbackConfig = field(default_factory=FeedbackConfig)
     telegram_token: str = field(default="", repr=False)
     telegram_secret: str = field(default="", repr=False)
     rate_limit: int = 120
 
     @property
     def uses_gemini(self) -> bool:
-        return self.feedback_mode == "auto" and bool(self.gemini_api_key)
+        return self.feedback.mode == "gemini"
 
     @property
     def secure_cookies(self) -> bool:
@@ -43,7 +42,6 @@ class Settings:
         mode = _mode(env.get("APP_ENV", "local"))
         if env.get("VERCEL") and mode == "local":
             raise ValueError("Vercel requires APP_ENV=cloud; local storage is not durable")
-        feedback_mode = _feedback_mode(env.get("FEEDBACK_MODE", "") or "auto")
         secret = env.get("AUTH_SECRET", "")
         if mode == "local" and not secret:
             secret = _local_secret(Path(env.get("LOCAL_SECRET_PATH", ".local/session.key")))
@@ -59,10 +57,8 @@ class Settings:
                 ).split(",")
                 if origin.strip()
             ),
-            task_packages=Path(env.get("TASK_PACKAGES_DIR", "") or cls.task_packages),
-            gemini_api_key=env.get("GEMINI_API_KEY", "").strip(),
-            gemini_model=env.get("GEMINI_MODEL", "") or GEMINI_MODELS[0],
-            feedback_mode=feedback_mode,
+            task_packages=task_packages_dir(env),
+            feedback=FeedbackConfig.from_env(env),
             telegram_token=env.get("TELEGRAM_BOT_TOKEN", ""),
             telegram_secret=env.get("TELEGRAM_WEBHOOK_SECRET", ""),
         )
@@ -76,8 +72,6 @@ class Settings:
             ("postgresql://", "postgres://")
         ):
             raise ValueError("APP_ENV=cloud requires a postgresql:// DATABASE_URL")
-        if self.gemini_model not in GEMINI_MODELS:
-            raise ValueError("GEMINI_MODEL must be gemini-2.5-flash or gemini-2.5-flash-lite")
         if not self.cors_origins:
             raise ValueError("CORS_ORIGINS must name the web app origin")
         for origin in self.cors_origins:
@@ -95,20 +89,21 @@ class Settings:
                 raise ValueError("Cloud origins must use HTTPS")
 
 
+def task_packages_dir(env: Mapping[str, str]) -> Path:
+    """TASK_PACKAGES_DIR, then the repository checkout, then the copy bundled in the wheel."""
+
+    if configured := env.get("TASK_PACKAGES_DIR", ""):
+        return Path(configured)
+    repository = REPOSITORY_ROOT / "task_packages"
+    return repository if repository.is_dir() else BUNDLED_TASK_PACKAGES
+
+
 def _mode(value: str) -> Mode:
     if value == "local":
         return "local"
     if value == "cloud":
         return "cloud"
     raise ValueError("APP_ENV must be local or cloud")
-
-
-def _feedback_mode(value: str) -> FeedbackMode:
-    if value == "auto":
-        return "auto"
-    if value == "fallback":
-        return "fallback"
-    raise ValueError("FEEDBACK_MODE must be auto or fallback")
 
 
 def _local_secret(path: Path) -> str:

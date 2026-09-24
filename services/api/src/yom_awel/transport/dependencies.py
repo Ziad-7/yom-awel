@@ -23,7 +23,7 @@ from yom_awel.domain.entities import Learner
 from yom_awel.domain.enums import Language, LearnerStatus
 from yom_awel.domain.errors import DomainError, UniqueConstraintViolation
 from yom_awel.evaluation.catalog import CatalogTask, TaskCatalog
-from yom_awel.feedback.config import FeedbackConfig, build_feedback_provider
+from yom_awel.feedback.config import build_feedback_provider
 from yom_awel.persistence.sqlite import SQLiteUnitOfWorkFactory
 from yom_awel.ports.artifacts import ArtifactStore
 from yom_awel.ports.evaluation import Evaluator
@@ -190,18 +190,13 @@ class Services:
 
 def compose(settings: Settings) -> Services:
     catalog = TaskCatalog.load(settings.task_packages)
+    if not catalog.tasks():
+        raise ValueError(f"No published task package found under {settings.task_packages}")
 
     async def resolve(task_version_id: UUID) -> TaskVersion | None:
         return catalog.find_version(task_version_id)
 
-    feedback = build_feedback_provider(
-        FeedbackConfig(
-            mode="gemini" if settings.uses_gemini else "fallback",
-            api_key=settings.gemini_api_key or None,
-            model=settings.gemini_model,
-        ),
-        task_context_resolver=resolve,
-    )
+    feedback = build_feedback_provider(settings.feedback, task_context_resolver=resolve)
     return Services(
         _unit_of_work_factory(settings), catalog, catalog.evaluator_registry(), feedback
     )

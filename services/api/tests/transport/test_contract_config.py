@@ -29,13 +29,13 @@ def test_cloud_settings_read_every_documented_variable():
         CLOUD
         | {
             "GEMINI_API_KEY": FAKE_KEY,
-            "GEMINI_MODEL": "gemini-2.5-flash-lite",
+            "GEMINI_MODEL": "gemini-3.5-flash-lite",
             "FEEDBACK_MODE": "auto",
         }
     )
     assert (settings.mode, settings.cors_origins) == ("cloud", ("https://web.test",))
     assert settings.uses_gemini and settings.secure_cookies
-    assert settings.gemini_model == "gemini-2.5-flash-lite"
+    assert settings.feedback.model == "gemini-3.5-flash-lite"
     for secret in (SECRET, "fake-password", FAKE_KEY):
         assert secret not in repr(settings)
 
@@ -94,3 +94,21 @@ def test_deployment_has_separate_roots_and_bounded_function():
     assert "tests/**" in function["excludeFiles"]
     assert "memory" not in function
     assert "crons" not in api
+
+
+def test_task_packages_come_from_the_env_then_the_repository_then_the_wheel(monkeypatch, tmp_path):
+    from yom_awel.transport import settings as module
+
+    assert module.task_packages_dir({"TASK_PACKAGES_DIR": str(tmp_path)}) == tmp_path
+    assert module.task_packages_dir({}) == ROOT / "task_packages"
+    monkeypatch.setattr(module, "REPOSITORY_ROOT", tmp_path / "no-checkout")
+    assert module.task_packages_dir({}) == module.BUNDLED_TASK_PACKAGES
+
+
+def test_startup_refuses_an_empty_task_catalog(tmp_path):
+    from yom_awel.transport.dependencies import compose
+
+    with pytest.raises(ValueError, match="No published task package"):
+        compose(
+            Settings(secret=SECRET, task_packages=tmp_path, database_path=str(tmp_path / "x.db"))
+        )
