@@ -45,8 +45,8 @@ and completion verification.
 
 Exact error contract for this path:
 
-- Pydantic rejects an unsupported MIME value and reports `content_type must
-  match filename` when a supported MIME does not match the filename extension.
+- Pydantic rejects an extension/MIME mismatch with the stable validation error
+  type `artifact_type_mismatch`.
 - `CreateArtifactUpload` raises `DomainError(code="not_found", message="Learner
   progress not found")` when progress is absent.
 - It raises `DomainError(code="invalid_status", message="Learner is not in a
@@ -54,7 +54,7 @@ Exact error contract for this path:
 - It raises `DomainError(code="invalid_artifact", message="Artifact invalid")`
   for an empty filename or a file over 5 MiB.
 - A conflicting immutable reservation raises
-  `UniqueConstraintViolation(code="unique_constraint")`.
+  `IdempotencyConflict(code="idempotency_conflict")`.
 - Completion can raise `ArtifactNotReady(code="artifact_not_ready")`,
   `LearnerScopeViolation(code="learner_scope_violation")`, or
   `ArtifactIntegrityFailure(code="artifact_integrity_failure")`. Treat these as

@@ -88,7 +88,7 @@ def test_artifact_rejects_missing_unknown_or_mismatched_content_type(
 
 
 def test_artifact_rejects_extension_content_type_mismatch() -> None:
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as error:
         Artifact(
             artifact_id=UUID("00000000-0000-0000-0000-000000000005"),
             learner_id=UUID("00000000-0000-0000-0000-000000000006"),
@@ -97,6 +97,7 @@ def test_artifact_rejects_extension_content_type_mismatch() -> None:
             size_bytes=1,
             sha256="a" * 64,
         )
+    assert error.value.errors()[0]["type"] == "artifact_type_mismatch"
 
 
 VALID_SKILL_MAPPING = SkillMapping(skill_id="data_cleaning", check_id="unique_orders", weight=25)

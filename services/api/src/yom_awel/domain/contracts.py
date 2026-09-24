@@ -2,6 +2,7 @@ from typing import Annotated, Any, Literal, TypeVar
 from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, JsonValue, model_validator
+from pydantic_core import PydanticCustomError
 
 from yom_awel.domain.enums import ErrorCategory, LearnerStatus, TaskStatus
 
@@ -20,6 +21,24 @@ def artifact_content_type(filename: str) -> ArtifactContentType:
     raise ValueError("artifact filename must end in .csv or .xlsx")
 
 
+def validate_artifact_content_type(
+    filename: str, content_type: ArtifactContentType
+) -> ArtifactContentType:
+    try:
+        expected = artifact_content_type(filename)
+    except (AttributeError, ValueError):
+        raise PydanticCustomError(
+            "artifact_type_mismatch",
+            "artifact content type must match a .csv or .xlsx filename",
+        ) from None
+    if content_type != expected:
+        raise PydanticCustomError(
+            "artifact_type_mismatch",
+            "artifact content type must match filename",
+        )
+    return content_type
+
+
 class ArtifactRef(BaseModel):
     artifact_id: UUID
     filename: str = Field(strict=True, max_length=255)
@@ -34,8 +53,7 @@ class ArtifactRef(BaseModel):
 
     @model_validator(mode="after")
     def validate_content_type(self) -> "ArtifactRef":
-        if self.content_type != artifact_content_type(self.filename):
-            raise ValueError("content_type must match filename")
+        validate_artifact_content_type(self.filename, self.content_type)
         return self
 
 

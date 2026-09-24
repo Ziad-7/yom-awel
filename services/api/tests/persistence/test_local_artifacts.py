@@ -8,7 +8,7 @@ import pytest
 
 from yom_awel.domain.contracts import artifact_content_type
 from yom_awel.domain.entities import Artifact
-from yom_awel.domain.errors import UniqueConstraintViolation
+from yom_awel.domain.errors import IdempotencyConflict, UniqueConstraintViolation
 from yom_awel.persistence import local_artifacts
 from yom_awel.persistence.local_artifacts import LocalArtifactStore
 
@@ -87,8 +87,9 @@ async def test_second_local_authorization_rejects_different_valid_media_type(
         }
     )
     await store.authorize_upload(artifact)
-    with pytest.raises(UniqueConstraintViolation):
+    with pytest.raises(IdempotencyConflict) as error:
         await store.authorize_upload(replacement)
+    assert error.value.code == "idempotency_conflict"
 
 
 @pytest.mark.asyncio

@@ -20,7 +20,6 @@ from yom_awel.domain.enums import Channel, LearnerStatus, TaskStatus
 from yom_awel.domain.errors import (
     IdempotencyConflict,
     OptimisticConflict,
-    UniqueConstraintViolation,
 )
 from yom_awel.persistence.memory import FrozenClock, MemoryUnitOfWorkFactory
 from yom_awel.persistence.sqlite import SQLiteUnitOfWorkFactory
@@ -203,10 +202,32 @@ async def test_second_sqlite_authorization_rejects_different_valid_media_type(
         }
     )
     async with factory() as uow:
-        with pytest.raises(UniqueConstraintViolation):
+        with pytest.raises(IdempotencyConflict) as error:
             # The public Artifact model permits only filename/type-consistent values;
             # this is the closest valid retry that changes the immutable media type.
             await uow.artifacts.authorize_upload(replacement)
+        assert error.value.code == "idempotency_conflict"
+
+
+@pytest.mark.asyncio
+async def test_sqlite_retry_derives_valid_legacy_null_media_type(tmp_path: Path) -> None:
+    factory = SQLiteUnitOfWorkFactory(
+        tmp_path / "artifact-legacy-retry.sqlite", clock=FrozenClock(NOW)
+    )
+    _, _, artifact = await _seed(factory)
+    connection = factory.database.connection()
+    try:
+        connection.execute(
+            "UPDATE artifacts SET content_type=NULL WHERE artifact_id=?",
+            (str(artifact.artifact_id),),
+        )
+    finally:
+        connection.close()
+
+    async with factory() as uow:
+        authorization = await uow.artifacts.authorize_upload(artifact)
+
+    assert authorization.artifact == artifact
 
 
 @pytest.mark.asyncio

@@ -13,6 +13,7 @@ from yom_awel.domain.entities import Artifact
 from yom_awel.domain.errors import (
     ArtifactIntegrityFailure,
     ArtifactNotReady,
+    IdempotencyConflict,
     LearnerScopeViolation,
     UniqueConstraintViolation,
 )
@@ -94,7 +95,7 @@ class LocalArtifactStore:
             except (OSError, ValueError, TypeError):
                 raise UniqueConstraintViolation("artifacts.id") from None
             if existing != artifact:
-                raise UniqueConstraintViolation("artifacts.id")
+                raise IdempotencyConflict(str(artifact.artifact_id))
         else:
             temporary = learner_dir / f".{artifact.artifact_id}.metadata.pending"
             try:

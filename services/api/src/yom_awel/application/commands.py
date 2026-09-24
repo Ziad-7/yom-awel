@@ -2,7 +2,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from yom_awel.domain.contracts import ArtifactContentType, artifact_content_type
+from yom_awel.domain.contracts import ArtifactContentType, validate_artifact_content_type
 from yom_awel.domain.enums import Channel, Language
 
 
@@ -31,8 +31,7 @@ class CreateUploadCommand(BaseModel):
 
     @model_validator(mode="after")
     def validate_content_type(self) -> "CreateUploadCommand":
-        if self.content_type != artifact_content_type(self.filename):
-            raise ValueError("content_type must match filename")
+        validate_artifact_content_type(self.filename, self.content_type)
         return self
 
 

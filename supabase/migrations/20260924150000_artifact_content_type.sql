@@ -60,10 +60,16 @@ begin
         if current_row.learner_id <> p_learner_id
             or current_row.object_path <> p_object_path
             or current_row.filename <> p_filename
-            or current_row.content_type is distinct from p_content_type
+            or coalesce(current_row.content_type, expected_content_type) is distinct from p_content_type
             or current_row.size_bytes <> p_size_bytes
             or current_row.sha256 <> p_sha256 then
             raise exception 'artifact identity conflict' using errcode = '23505';
+        end if;
+        if current_row.content_type is null then
+            update public.artifacts
+            set content_type = p_content_type
+            where artifact_id = p_artifact_id
+            returning * into current_row;
         end if;
         return jsonb_build_object('created', false, 'artifact', to_jsonb(current_row));
     end if;

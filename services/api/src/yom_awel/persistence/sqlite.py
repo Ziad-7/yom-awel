@@ -18,6 +18,7 @@ from typing import Any, Self, cast
 from uuid import UUID, uuid4
 
 from yom_awel.domain.contracts import (
+    ArtifactContentType,
     SkillsProfile,
     SkillSummary,
     SubmissionOutcome,
@@ -488,14 +489,15 @@ class _Artifacts(_Repo):
             (_uuid(artifact.artifact_id),),
         )
         if existing is not None:
+            existing_content_type = _stored_artifact_content_type(existing)
             if (
                 existing["learner_id"] != _uuid(artifact.learner_id)
                 or existing["filename"] != artifact.filename
-                or existing["content_type"] != artifact.content_type
+                or existing_content_type != artifact.content_type
                 or int(existing["size_bytes"]) != artifact.size_bytes
                 or existing["sha256"] != artifact.sha256
             ):
-                raise UniqueConstraintViolation("artifacts.id")
+                raise IdempotencyConflict(str(artifact.artifact_id))
         else:
             if not await self._learner_exists(artifact.learner_id):
                 raise LearnerScopeViolation("artifact.learner_id")
@@ -543,10 +545,11 @@ class _Artifacts(_Repo):
             (_uuid(artifact.artifact_id),),
         )
         if existing is not None:
+            existing_content_type = _stored_artifact_content_type(existing)
             if (
                 existing["learner_id"] != _uuid(artifact.learner_id)
                 or existing["filename"] != artifact.filename
-                or existing["content_type"] != artifact.content_type
+                or existing_content_type != artifact.content_type
                 or int(existing["size_bytes"]) != artifact.size_bytes
                 or existing["sha256"] != artifact.sha256
                 or len(bytes(existing["content"])) == int(existing["size_bytes"])
@@ -1150,7 +1153,7 @@ def _task(row: sqlite3.Row) -> TaskVersion:
 
 def _artifact(row: sqlite3.Row) -> Artifact:
     try:
-        content_type = row["content_type"] or artifact_content_type(row["filename"])
+        content_type = _stored_artifact_content_type(row)
         return Artifact(
             artifact_id=UUID(row["artifact_id"]),
             learner_id=UUID(row["learner_id"]),
@@ -1160,6 +1163,13 @@ def _artifact(row: sqlite3.Row) -> Artifact:
             sha256=row["sha256"],
         )
     except (KeyError, TypeError, ValueError) as exc:
+        raise ArtifactIntegrityFailure() from exc
+
+
+def _stored_artifact_content_type(row: sqlite3.Row) -> ArtifactContentType:
+    try:
+        return row["content_type"] or artifact_content_type(row["filename"])
+    except (KeyError, AttributeError, TypeError, ValueError) as exc:
         raise ArtifactIntegrityFailure() from exc
 
 

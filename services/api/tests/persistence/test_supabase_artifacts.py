@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import json
 import os
@@ -16,7 +17,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from yom_awel.domain.entities import Artifact
-from yom_awel.domain.errors import ArtifactIntegrityFailure
+from yom_awel.domain.errors import ArtifactIntegrityFailure, IdempotencyConflict
 from yom_awel.persistence.retention import CleanupArtifact
 from yom_awel.persistence.supabase_artifacts import (
     MAX_ARTIFACT_BYTES,
@@ -323,13 +324,15 @@ class LocalArtifactStorage:
                     "apikey": self.service_key,
                     "Authorization": f"Bearer {self.service_key}",
                     "Content-Type": metadata["content_type"],
-                    "x-metadata": json.dumps(
-                        {
-                            "content_type": metadata["content_type"],
-                            "sha256": metadata["sha256"],
-                            "size_bytes": metadata["size_bytes"],
-                        }
-                    ),
+                    "x-metadata": base64.b64encode(
+                        json.dumps(
+                            {
+                                "content_type": metadata["content_type"],
+                                "sha256": metadata["sha256"],
+                                "size_bytes": metadata["size_bytes"],
+                            }
+                        ).encode("utf-8")
+                    ).decode("ascii"),
                     "x-upsert": "false",
                 },
                 method="POST",
@@ -511,18 +514,15 @@ async def test_authorize_upload_reserves_metadata_and_returns_signed_browser_det
     assert result.upload_url == "https://signed.invalid/upload"
     assert result.upload_token == "opaque"
     assert result.expires_in_seconds == 180
-    assert result.headers == {
-        "Content-Type": "text/csv",
-        "x-metadata": json.dumps(
-            {
-                "content_type": "text/csv",
-                "sha256": value.sha256,
-                "size_bytes": "5",
-            },
-            separators=(",", ":"),
-            sort_keys=True,
-        ),
-        "x-upsert": "false",
+    assert result.headers["Content-Type"] == "text/csv"
+    assert result.headers["x-upsert"] == "false"
+    decoded_metadata = json.loads(
+        base64.b64decode(result.headers["x-metadata"], validate=True).decode("utf-8")
+    )
+    assert decoded_metadata == {
+        "content_type": "text/csv",
+        "sha256": value.sha256,
+        "size_bytes": "5",
     }
     assert storage.upload_calls == [
         (
@@ -553,9 +553,9 @@ async def test_second_supabase_authorization_rejects_different_valid_media_type(
     metadata = MetadataFake(artifact_row(value), created=False)
     store = SupabaseArtifactStore(metadata, StorageFake(content))
 
-    with pytest.raises(SupabaseArtifactError) as error:
+    with pytest.raises(IdempotencyConflict) as error:
         await store.authorize_upload(replacement)
-    assert error.value.code == "provider_payload_invalid"
+    assert error.value.code == "idempotency_conflict"
 
 
 @pytest.mark.asyncio
@@ -799,6 +799,18 @@ def test_artifact_mapper_rejects_mismatched_media_type() -> None:
     learner_id, artifact_id = uuid4(), uuid4()
     row = artifact_row(artifact(learner_id, artifact_id, b"x"))
     row["content_type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    with pytest.raises(SupabaseArtifactError) as error:
+        map_artifact_row(row, learner_id)
+    assert error.value.code == "provider_payload_invalid"
+
+
+def test_artifact_mapper_derives_valid_legacy_null_media_type_and_rejects_unknown() -> None:
+    learner_id, artifact_id = uuid4(), uuid4()
+    row = artifact_row(artifact(learner_id, artifact_id, b"x"))
+    row["content_type"] = None
+    assert map_artifact_row(row, learner_id).content_type == "text/csv"
+
+    row["filename"] = "legacy.bin"
     with pytest.raises(SupabaseArtifactError) as error:
         map_artifact_row(row, learner_id)
     assert error.value.code == "provider_payload_invalid"

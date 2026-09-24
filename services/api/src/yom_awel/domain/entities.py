@@ -10,7 +10,7 @@ from yom_awel.domain.contracts import (
     SkillSummary,
     SubmissionOutcome,
     TaskVersion,
-    artifact_content_type,
+    validate_artifact_content_type,
 )
 from yom_awel.domain.enums import Channel, Language, LearnerStatus, SubmissionStatus
 
@@ -51,8 +51,7 @@ class Artifact(BaseModel):
 
     @model_validator(mode="after")
     def validate_content_type(self) -> "Artifact":
-        if self.content_type != artifact_content_type(self.filename):
-            raise ValueError("content_type must match filename")
+        validate_artifact_content_type(self.filename, self.content_type)
         return self
 
 

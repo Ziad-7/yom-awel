@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from base64 import b64encode
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -12,8 +13,14 @@ from uuid import UUID
 
 from pydantic import ValidationError
 
+from yom_awel.domain.contracts import artifact_content_type
 from yom_awel.domain.entities import Artifact
-from yom_awel.domain.errors import ArtifactIntegrityFailure, ArtifactNotReady, PersistenceError
+from yom_awel.domain.errors import (
+    ArtifactIntegrityFailure,
+    ArtifactNotReady,
+    IdempotencyConflict,
+    PersistenceError,
+)
 from yom_awel.persistence.retention import CleanupArtifact, CleanupQueueStore
 from yom_awel.persistence.supabase import SupabaseRpcClient
 from yom_awel.ports.artifacts import ArtifactUploadAuthorization
@@ -255,12 +262,18 @@ def map_artifact_row(value: Mapping[str, object], learner_id: UUID) -> Artifact:
         )
     _validate_path(value["object_path"], learner_id, parsed_artifact)
     try:
+        filename = value["filename"]
+        if not isinstance(filename, str):
+            raise TypeError("artifact filename must be text")
+        content_type = value["content_type"]
+        if content_type is None:
+            content_type = artifact_content_type(filename)
         return Artifact.model_validate(
             {
                 "artifact_id": parsed_artifact,
                 "learner_id": parsed_learner,
-                "filename": value["filename"],
-                "content_type": value["content_type"],
+                "filename": filename,
+                "content_type": content_type,
                 "size_bytes": value["size_bytes"],
                 "sha256": value["sha256"],
             }
@@ -367,7 +380,7 @@ class SupabaseArtifactStore:
                 expires_in_seconds=expiry,
                 headers=headers,
             )
-        except SupabaseArtifactError:
+        except (SupabaseArtifactError, IdempotencyConflict):
             raise
         except Exception as exc:
             raise SupabaseArtifactError("supabase_provider_error") from exc
@@ -498,26 +511,25 @@ class SupabaseArtifactStore:
 
     @staticmethod
     def _upload_headers(artifact: Artifact) -> Mapping[str, str]:
+        metadata = json.dumps(
+            {
+                "content_type": artifact.content_type,
+                "sha256": artifact.sha256,
+                "size_bytes": str(artifact.size_bytes),
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
         return {
             "Content-Type": artifact.content_type,
-            "x-metadata": json.dumps(
-                {
-                    "content_type": artifact.content_type,
-                    "sha256": artifact.sha256,
-                    "size_bytes": str(artifact.size_bytes),
-                },
-                separators=(",", ":"),
-                sort_keys=True,
-            ),
+            "x-metadata": b64encode(metadata.encode("utf-8")).decode("ascii"),
             "x-upsert": "false",
         }
 
     @staticmethod
     def _require_matching_reservation(row: Mapping[str, object], artifact: Artifact) -> None:
         if map_artifact_row(row, artifact.learner_id) != artifact:
-            raise SupabaseArtifactError(
-                "provider_payload_invalid", "Reserved artifact does not match authorization"
-            )
+            raise IdempotencyConflict(str(artifact.artifact_id))
 
     @staticmethod
     def _cleanup_row(artifact: Artifact, reason: str, path: str) -> Mapping[str, object]:

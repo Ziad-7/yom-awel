@@ -276,8 +276,9 @@ async def test_second_memory_authorization_rejects_different_valid_media_type(
     async with factory() as uow:
         await uow.learners.add(learner)
         await uow.artifacts.authorize_upload(artifact)
-        with pytest.raises(UniqueConstraintViolation):
+        with pytest.raises(IdempotencyConflict) as error:
             await uow.artifacts.authorize_upload(replacement)
+        assert error.value.code == "idempotency_conflict"
 
 
 @pytest.mark.asyncio
