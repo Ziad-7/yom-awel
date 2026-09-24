@@ -116,8 +116,11 @@ Do the API first, because the web project needs its URL.
 2. API project: name `yom-awel-api`, **Root Directory** `services/api`,
    framework preset **FastAPI** (from `services/api/vercel.json`). Keep
    **Include files outside the root directory in the Build Step** enabled:
-   the evaluator reads the task package from `task_packages/`. Add the API
-   variables from step 3, then **Deploy**.
+   the API wheel build copies `../../task_packages` into the package, and
+   `vercel.json` also bundles `task_packages/clean-sales` with the function.
+   The API must be installed non-editably so the wheel's copy is present;
+   step 5 checks that the task catalog actually loaded. Add the API variables
+   from step 3, then **Deploy**.
 3. Web project: name `yom-awel-web`, **Root Directory** `apps/web`,
    framework preset **Next.js**. Add `API_ORIGIN`, then **Deploy**.
 4. Set `CORS_ORIGINS` on the API project to the web production URL and
@@ -143,12 +146,29 @@ Replace the hosts with your production URLs.
    curl -fsS https://yom-awel-web.vercel.app/api/v1/runtime
    ```
 
-3. One full submission, in a private browser window on the web URL: choose
+3. The task catalog loaded (the task package reached the bundle). This
+   creates one throwaway learner; every state-changing call needs the
+   `X-Yom-Awel: 1` header:
+
+   ```sh
+   WEB=https://yom-awel-web.vercel.app
+   JAR="$(mktemp)"
+   curl -fsS -c "$JAR" -b "$JAR" -X POST -H 'X-Yom-Awel: 1' "$WEB/api/v1/auth/session"
+   curl -fsS -c "$JAR" -b "$JAR" -X POST -H 'X-Yom-Awel: 1' \
+     -H 'Content-Type: application/json' \
+     -d '{"display_name":"Deploy check","preferred_language":"en"}' \
+     "$WEB/api/v1/learners/onboard"
+   curl -fsS -b "$JAR" "$WEB/api/v1/tasks" | grep -q '"task_id":"clean-sales"' \
+     && echo "catalog ok"
+   rm -f "$JAR"
+   ```
+
+4. One full submission, in a private browser window on the web URL: choose
    Arabic, onboard, start **clean-sales**, download the dirty CSV, upload it
    unchanged (expect a score below 75 and Tarek's feedback), then upload a
    cleaned file and confirm the per-check scores, feedback and progress
    update. Repeat once in English with the XLSX download.
-4. Confirm the data landed in the dedicated schema (SQL Editor):
+5. Confirm the data landed in the dedicated schema (SQL Editor):
 
    ```sql
    SELECT
@@ -157,7 +177,7 @@ Replace the hosts with your production URLs.
      (SELECT count(*) FROM yom_awel.attempts) AS attempts;
    ```
 
-5. Confirm the app is not a superuser:
+6. Confirm the app is not a superuser:
    `SELECT rolsuper FROM pg_roles WHERE rolname = 'yom_awel_app';` returns
    `false`.
 

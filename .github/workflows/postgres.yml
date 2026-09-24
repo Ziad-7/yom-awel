@@ -45,6 +45,8 @@ jobs:
       - name: Sync dependencies
         run: cd services/api && uv sync --locked --group dev
       - name: Postgres contract, concurrency and ProcessSubmission round trip
+        # Explicit bash adds pipefail, so a failing pytest cannot hide behind tee.
+        shell: bash
         run: |
           uv run --project services/api pytest services/api/tests/persistence/test_postgres.py -v -rs \
             | tee pytest.out
