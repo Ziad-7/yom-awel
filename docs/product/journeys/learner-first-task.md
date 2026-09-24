@@ -31,7 +31,7 @@
       ▼ (Upload artifact & submit with idempotency key)
   PROCESSING
       │
-      ▼ (Deterministic score >= 75)
+      ▼ (Score >= 75 AND every critical check passed)
 TASK_COMPLETED ──► READY (or PROGRAM_COMPLETED)
 ```
 
@@ -83,7 +83,7 @@ TASK_COMPLETED ──► READY (or PROGRAM_COMPLETED)
   - If learner uploads an unsupported format (e.g. `.pdf` or `.exe`) or a file exceeding 5 MB (5,242,880 bytes), the request is rejected immediately with an informative Arabic error: `نوع الملف غير مدعوم` or `حجم الملف يتعدى الحد الأقصى (5 ميجابايت)`.
   - No attempt is created; state remains `IN_TASK`.
 
-- **Deterministic Evaluation Failure (Score < 75):**
+- **Deterministic Evaluation Failure (Score < 75 or a Critical Check Failed):**
   - If the learner submits incomplete work (e.g. forgot date normalization), the evaluator calculates the score (e.g. 50/100).
   - Learner state transitions to `NEEDS_RETRY`.
   - Feedback highlights specific guidance points without exposing exact cell values or answers.
@@ -102,7 +102,7 @@ TASK_COMPLETED ──► READY (or PROGRAM_COMPLETED)
 ## 5. Completion Evidence & Visible Outcome
 
 - **Completion Evidence:**
-  - A committed row in `evaluation_results` with `passed = true` and `score >= 75`.
+  - A committed row in `evaluation_results` with `passed = true`, `score >= 75`, and every critical check passed (currently `unique_orders`).
   - An immutable row in `attempts` linked to `task_version_id` and `submission_id`.
   - Updated `skill_evidence` linked to check IDs (`unique_orders`, `standard_dates`, etc.).
   - `learner_progress.state` set to `TASK_COMPLETED`.
@@ -140,7 +140,7 @@ To ensure Member 5 can write Playwright browser tests and Axe accessibility asse
 - **Canonical Learner Profile:**
   - Name: `نور الدين` (Noor El-Deen)
   - Language: `ar-EG`
-  - Canonical Learner ID: `canonical-demo-learner-01`
+  - Canonical Learner ID: `00000000-0000-4000-8000-000000000001`
 - **Canonical Task Data:**
   - Task ID: `clean-sales`
   - Version: `1`
@@ -167,4 +167,3 @@ To ensure Member 5 can write Playwright browser tests and Axe accessibility asse
 - **Member 3 (AI Feedback):** Delivers persona-driven Egyptian Arabic feedback prompt and deterministic fallback templates.
 - **Member 4 (Evaluation):** Provides `sales-cleaning` evaluator, boundary validation, and check points.
 - **Member 5 (Web & Transport):** Delivers Next.js onboarding & workplace pages, Telegram webhook, and upload dialogs.
-

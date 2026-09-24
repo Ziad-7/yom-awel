@@ -129,7 +129,7 @@ capabilities:
     name: "Authentic Egyptian Arabic Coaching and Deterministic Fallback"
     owner: "member-3"
     status: "experimental"
-    learner_outcome: "Learners receive warm, culturally resonant Egyptian Arabic supervisor guidance explaining evaluation results, with guaranteed uptime via local fallback."
+    learner_outcome: "Learners are intended to receive warm Egyptian Arabic guidance explaining evaluation results, with a deterministic local fallback when Gemini is unavailable. Integrated availability remains to be verified."
     implementation_path:
       - "services/api/src/yom_awel/feedback/service.py"
       - "services/api/src/yom_awel/feedback/gemini.py"

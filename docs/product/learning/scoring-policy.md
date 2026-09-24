@@ -50,8 +50,11 @@ Emitted when the submitted file fails baseline ingestion or boundary validation 
 | Rejection Code | Category | Learner-Visible Meaning | Retryable? |
 |---|---|---|:---:|
 | `unsupported_type` | Validation | File extension or MIME signature is not a supported CSV or XLSX spreadsheet. | Yes |
-| `file_too_large` | Validation | File size exceeds the 5 MiB limit. | Yes |
-| `corrupt_or_unreadable` | Validation | File cannot be parsed as a tabular spreadsheet (e.g. invalid encoding, macro workbook, encrypted). | Yes |
+| `artifact_too_large` | Validation | File size exceeds the 5 MiB limit. | Yes |
+| `mime_mismatch` | Validation | File content does not match its declared CSV or XLSX format. | Yes |
+| `expanded_size_exceeded` | Validation | Expanded workbook content exceeds the safe processing limit. | Yes |
+| `sheet_limit_exceeded` | Validation | Workbook contains unsupported additional worksheet content. | Yes |
+| `artifact_unreadable` | Validation | File cannot be parsed as a tabular spreadsheet (e.g. invalid encoding, macro workbook, encrypted). | Yes |
 | `missing_columns` | Validation | One or more required column headers are missing from the header row. | Yes |
 | `duplicate_columns` | Validation | Header row contains duplicate column names. | Yes |
 | `too_few_rows` | Validation | Cleaned dataset has fewer than the required 40 rows. Rows were improperly dropped. | Yes |
@@ -98,4 +101,3 @@ Member 4 accepts this scoring contract when the evaluation test suite implements
 2. **Format Equivalence:** A test proves that identical tabular data submitted in `.csv` and `.xlsx` formats receives identical scores, check breakdowns, and diagnostics.
 3. **Diagnostic Integrity:** All emitted diagnostic codes conform strictly to the finite vocabulary in Section 3 and survive the Member 3 feedback translation boundary without alteration.
 4. **Content Pinning:** Evaluator validates task package assets against reviewed SHA-256 hashes before grading and refuses unpinned or modified draft packages.
-

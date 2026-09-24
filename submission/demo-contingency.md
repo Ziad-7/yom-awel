@@ -1,6 +1,6 @@
 # Yom Awel — Contingency Demo Script (Offline / Gemini-Disabled Fallback)
 
-- **Purpose:** Demonstrate system resilience, zero downtime, and deterministic Egyptian Arabic fallback when external AI APIs are blocked, disabled, or rate-limited.
+- **Purpose:** Planned acceptance script for deterministic Egyptian Arabic fallback when external AI APIs are blocked, disabled, or rate-limited.
 - **Presenter:** Member 1 (Lead Presenter)
 - **Pre-Condition:** Gemini API key unset or mocked offline mode enabled (`GEMINI_API_KEY=""`).
 
@@ -12,7 +12,7 @@
 
 ## Scenario Overview
 
-Judges are shown that Yom Awel is an enterprise-grade platform that **does not break when external LLM infrastructure fails**. The platform continues to onboard learners, deterministically evaluate spreadsheets, provide actionable Egyptian Arabic coaching, and update skills profiles.
+Run this script only after the integrated release candidate passes it. Until then, it specifies expected behavior rather than claiming verified availability.
 
 ---
 
@@ -22,7 +22,7 @@ Judges are shown that Yom Awel is an enterprise-grade platform that **does not b
 - **Speaker:** "في سيناريو انقطاع الإنترنت الخارجي أو نفاد حصة نماذج الذكاء الاصطناعي المجانية، Yom Awel لا يتوقف أبداً عن تقديم تجربة تعليمية كاملة."
 - **Screen Action:**
   - Show system logs or environment panel indicating `used_fallback: true`.
-  - Learner accesses `/workplace` seamlessly.
+  - Confirm whether the learner can access `/workplace`; record failure as a failed release gate.
 
 ### 2. Evaluator Execution & Deterministic Fallback Notice (0:45 – 1:30)
 - **Speaker:** "التقييم الحتمي البرمجي يعمل محلياً بنسبة 100%. التلميحات والتوجيهات تظهر للمتدرب بالعامية المصرية المنضبطة من محرك الملاحظات الاحتياطي المحلي."
@@ -37,5 +37,5 @@ Judges are shown that Yom Awel is an enterprise-grade platform that **does not b
 - **Screen Action:**
   - Submit corrected workbook.
   - Final score reaches 100/100.
-  - State advances to `TASK_COMPLETED`.
-  - Competency profile updates successfully.
+  - Verify that state advances to `TASK_COMPLETED` only when the threshold and critical-check gate pass.
+  - Verify that the competency profile updates; retain evidence for release sign-off.

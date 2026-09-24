@@ -20,14 +20,30 @@ def test_release_signoff_is_valid() -> None:
         assert (RELEASE_DIR / doc).exists(), f"Missing required release document: {doc}"
 
     data = yaml.safe_load(SIGNOFF_PATH.read_text(encoding="utf-8"))
-    errors = validate_release_signoff(data)
+    errors = validate_release_signoff(data, root_dir=ROOT)
     assert errors == [], f"Release signoff validation errors: {errors}"
 
 
 def test_tested_source_sha_format() -> None:
     data = yaml.safe_load(SIGNOFF_PATH.read_text(encoding="utf-8"))
-    sha = data.get("tested_source_sha", "")
-    assert re.match(r"^[0-9a-f]{40}$", sha), f"Invalid 40-char commit SHA: '{sha}'"
+    sha = data.get("tested_source_sha")
+    assert sha is None or re.fullmatch(r"[0-9a-f]{40}", sha), (
+        f"Invalid commit SHA: '{sha}'"
+    )
+
+
+def test_no_go_may_have_no_tested_commit() -> None:
+    data = yaml.safe_load(SIGNOFF_PATH.read_text(encoding="utf-8"))
+    data["decision"] = "no-go"
+    data["tested_source_sha"] = None
+    assert validate_release_signoff(data, root_dir=ROOT) == []
+
+
+def test_nonexistent_tested_commit_is_rejected() -> None:
+    data = yaml.safe_load(SIGNOFF_PATH.read_text(encoding="utf-8"))
+    data["tested_source_sha"] = "0" * 40
+    errors = validate_release_signoff(data, root_dir=ROOT)
+    assert any("not a resolvable Git commit" in error for error in errors)
 
 
 def test_go_decision_has_all_passing_gates_and_five_member_reviews() -> None:

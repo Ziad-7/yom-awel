@@ -3,7 +3,7 @@
 - **Total Duration:** 3 Minutes (180 Seconds)
 - **Presenter:** Member 1 (Lead Presenter)
 - **Target Audience:** Hackathon Judges & Educational Evaluators
-- **Environment:** Production Vercel Preview (Incognito Browser)
+- **Environment:** Planned Vercel preview in an incognito browser; do not record until the release candidate passes acceptance.
 
 <!-- claim: claim-cap-web-experience -->
 <!-- claim: claim-cap-deterministic-eval -->
@@ -20,7 +20,7 @@
   - Browser opens to `/onboarding`.
   - Enter name: "أحمد ممدوح" (Ahmed Mamdouh), language set to `ar-EG`.
   - Click "ابدأ أول يوم عمل".
-- **Expected Visual State:** Seamless RTL transition to the workplace dashboard. Welcome card introduces Nile Distribution Co. and supervisor Tarek.
+- **Expected Visual State:** RTL transition to the workplace dashboard. Record any mismatch as an acceptance failure.
 
 ### Scene 2: Task Assignment & Data Hygiene Challenge (0:35 – 1:10)
 - **Speaker:** "المتدرب هنا مش بيشوف كورس نظري، المتدرب استلم أول تكليف عملي من مشرفه أستاذ طارق في شركة النيل للتوزيع: تنظيف ملف مبيعات يومي حقيقي فيه تكرار وتواريخ وأسعار غير منضبطة."
@@ -29,7 +29,7 @@
   - Download `sales_dirty.csv`. Open briefly to show the seeded errors (duplicate rows, inverted dates, negative prices).
 
 ### Scene 3: Artifact Upload & First Evaluation (1:10 – 1:50)
-- **Speaker:** "المتدرب صلح الملف ورفعه. دلوقتي النظام بيفحص الشغل بطريقة فريدة: التقييم حتمي برمجي 100% بدون أي فتي أو هلوسة من الذكاء الاصطناعي."
+- **Speaker:** "المتدرب صلح الملف ورفعه. التقييم البرمجي هو اللي بيحدد الدرجة، والذكاء الاصطناعي ما بيغيرش قرار النجاح أو الإعادة."
 - **Screen Action:**
   - Drag and drop corrected file into the upload zone.
   - Click "تسليم الشغل".
@@ -52,4 +52,4 @@
 
 ## Contingency & Recovery Lines
 - **If network latency delays evaluation:** Presenter notes: "النظام بيعمل فحص أمني دقيق للتأكد من بنية الملف وسلامة الأعمدة قبل تأكيد النتيجة."
-- **If Gemini free tier hits rate limits:** Presenter seamlessly transitions: "لاحظوا هنا إن النظام مصمم لضمان الاستمرارية التامة؛ لو خدمة الذكاء الاصطناعي واجهت ضغط، نظام الملاحظات المحلي الاحتياطي بيشتغل فوراً بدون أي توقف."
+- **If Gemini is unavailable:** Follow `submission/demo-contingency.md`; if fallback does not complete, stop and record a failed release gate rather than claiming uninterrupted service.

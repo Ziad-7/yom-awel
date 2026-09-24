@@ -11,9 +11,6 @@ assets:
     sha256: null
     purpose: "Official written competition answers and architectural overview"
     claim_ids:
-      - "claim-stat-youth-unemployment"
-      - "claim-stat-skills-gap"
-      - "claim-stat-spreadsheet-demand"
       - "claim-cap-state-machine"
       - "claim-cap-artifact-upload"
       - "claim-cap-deterministic-eval"
@@ -31,9 +28,6 @@ assets:
     sha256: null
     purpose: "Marp-compatible competition presentation deck"
     claim_ids:
-      - "claim-stat-youth-unemployment"
-      - "claim-stat-skills-gap"
-      - "claim-stat-spreadsheet-demand"
       - "claim-cap-state-machine"
       - "claim-cap-artifact-upload"
       - "claim-cap-deterministic-eval"

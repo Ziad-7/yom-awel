@@ -1,9 +1,6 @@
 # Yom Awel (يوم أول) — Competition Application
 
-<!-- claim: claim-cap-web-experience -->
-<!-- claim: claim-stat-youth-unemployment -->
-<!-- claim: claim-stat-skills-gap -->
-<!-- claim: claim-stat-spreadsheet-demand -->
+<!-- Release status: no-go. Capability labels below follow docs/product/evidence/claim-matrix.yaml. -->
 
 ## 1. Project Title & Executive Summary
 
@@ -11,19 +8,15 @@
 **Tagline:** Arabic-first workplace simulation for task-based digital and data skills training.  
 **Primary Track:** AI for Education & Workforce Development (Egypt & MENA)
 
-Yom Awel is an innovative educational platform that bridges the acute transition gap between graduation and employment for entry-level digital roles in Egypt. Instead of watching passive lectures or taking multiple-choice quizzes, learners join a simulated Egyptian company as junior data associates. They receive realistic workplace assignments, download authentic dirty enterprise datasets, clean and process deliverables using Excel or spreadsheets, and submit their work. 
+Yom Awel is a prototype for task-based preparation for entry-level digital roles in Egypt. Its intended experience places learners in a simulated Egyptian company as junior data associates, where they receive workplace assignments and submit spreadsheet deliverables instead of completing passive lectures or multiple-choice quizzes.
 
-The platform pairs rigorous deterministic automated grading (guaranteeing 100% factual correctness and zero grading hallucinations) with empathetic, culturally authentic Egyptian Arabic AI coaching powered by Gemini, backed by an offline-resilient local deterministic fallback. Every completed task builds an auditable, evidence-backed skills profile that proves real-world capability to prospective employers.
+The current repository contains the domain and persistence foundation, while deterministic evaluation, Egyptian Arabic coaching, and the web experience remain experimental until their workstreams are integrated and accepted. The design keeps scoring in deterministic code and limits generative AI to explanatory coaching; it does not claim that any grading system is perfectly error-free.
 
 ---
 
 ## 2. Problem Statement
 
-<!-- claim: claim-stat-youth-unemployment -->
-<!-- claim: claim-stat-skills-gap -->
-<!-- claim: claim-stat-spreadsheet-demand -->
-
-In Egypt, youth unemployment disproportionately affects university and intermediate degree graduates, with rates exceeding 25% according to official national statistics (CAPMAS 2023). While thousands graduate each year with academic qualifications, employers consistently report a severe applied skills gap: candidates understand theoretical concepts but struggle with everyday workplace data hygiene, spreadsheet formulas, date normalization, and error reconciliation.
+The team is exploring a practical learning problem: learners may understand concepts without having a safe place to rehearse everyday workplace workflows such as spreadsheet cleanup, date normalization, and error reconciliation. The current submission deliberately makes no numerical labor-market claim until a primary source and exact supporting table have been independently verified.
 
 Furthermore, existing learning platforms suffer from two critical limitations:
 1. **The Language and Cultural Disconnect:** Most technical tools and datasets are English-centric, failing to reflect the bilingual realities, local business scenarios, and cultural idioms of the Egyptian workplace.
@@ -41,12 +34,12 @@ Yom Awel re-engineers digital skills training through three structural innovatio
 2. **Deterministic Primacy with Generative Coaching:**
    <!-- claim: claim-cap-deterministic-eval -->
    <!-- claim: claim-cap-arabic-feedback -->
-   Progression is strictly governed by deterministic, versioned Python evaluators. The AI model (Gemini) is never permitted to award scores or alter progression; its sole purpose is pedagogical—explaining the deterministic results, identifying misconceptions, and offering encouraging hints in authentic Egyptian dialect. If Gemini is unavailable, a deterministic fallback ensures zero downtime.
+   The planned progression contract is governed by deterministic, versioned Python evaluators. Gemini is designed not to award scores or alter progression; its role is explanatory coaching. A deterministic fallback exists at unit-test level, but integrated outage behavior and availability have not yet been verified.
 
 3. **Verifiable, Evidence-Backed Competencies:**
    <!-- claim: claim-cap-skills-projection -->
    <!-- claim: claim-cap-retry-handling -->
-   Skills profiles do not display arbitrary progress bars or gamified vanity scores. Instead, each competency maps directly to immutable, cryptographic evaluation check evidence from submitted work.
+   The implemented domain model projects competency evidence from recorded evaluation checks. The learner-facing skills-profile experience remains pending integration and browser acceptance.
 
 ---
 
@@ -55,9 +48,9 @@ Yom Awel re-engineers digital skills training through three structural innovatio
 <!-- claim: claim-cap-state-machine -->
 <!-- claim: claim-cap-artifact-upload -->
 
-The platform is engineered as a modular monolith with ports and adapters:
-- **Frontend Channels:** Next.js 15 web application on Vercel Hobby with full Right-to-Left (RTL) Arabic typography and WCAG AA accessibility, accompanied by an idempotent Telegram bot adapter.
+The repository is designed as a modular monolith with ports and adapters:
+- **Frontend Channels (experimental):** A Next.js web application targeting Vercel, RTL Arabic, and WCAG AA acceptance; Telegram remains an adapter target rather than a verified release capability.
 - **Backend Core:** FastAPI modular application with domain services isolated from third-party frameworks.
-- **Database & Storage:** Supabase Free tier for PostgreSQL and private signed artifact storage, with SQLite and local filesystem storage for cloud-free offline operation.
-- **AI Infrastructure:** Google Gemini 2.5 Flash free tier for conversational coaching, with automatic failover to templated deterministic Arabic feedback.
-- **Zero-Cost Guarantee:** Yom Awel requires zero paid subscriptions, card-backed cloud dependencies, or metered overages, ensuring infinite sustainability on free tiers.
+- **Database & Storage:** Adapters exist for Supabase PostgreSQL/private storage and for local SQLite/filesystem development.
+- **AI Infrastructure (experimental):** Gemini-backed coaching with deterministic Arabic templates as a fallback path.
+- **Cost boundary:** The team will use only no-cost plans for this prototype. Deployment eligibility, quotas, and end-to-end operation must still be checked before release; no claim of unlimited or permanently free operation is made.

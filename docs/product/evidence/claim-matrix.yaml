@@ -2,37 +2,6 @@ version: "1"
 description: "Claim-to-evidence matrix mapping every public product and pitch claim to empirical tests, previews, or authoritative sources."
 
 claims:
-  - id: "claim-stat-youth-unemployment"
-    type: "statistical"
-    wording: "Youth unemployment in Egypt remains significant among educated job seekers, exceeding 25% for graduates."
-    source_id: "src-capmas-labor-2023"
-    usage_locations:
-      - "README.md"
-      - "submission/pitch-deck.md"
-      - "submission/application.md"
-    status: "verified"
-    owner: "member-1"
-
-  - id: "claim-stat-skills-gap"
-    type: "statistical"
-    wording: "There is an acute gap between academic learning and applied digital workflow capabilities required by Egyptian employers."
-    source_id: "src-worldbank-egypt-skills-2023"
-    usage_locations:
-      - "submission/pitch-deck.md"
-      - "submission/application.md"
-    status: "verified"
-    owner: "member-1"
-
-  - id: "claim-stat-spreadsheet-demand"
-    type: "statistical"
-    wording: "Spreadsheet hygiene and data validation are among the most frequently cited baseline requirements for entry-level operations roles."
-    source_id: "src-wuzzuf-hiring-report"
-    usage_locations:
-      - "submission/pitch-deck.md"
-      - "submission/application.md"
-    status: "verified"
-    owner: "member-1"
-
   - id: "claim-cap-state-machine"
     type: "capability"
     wording: "Learner state transitions follow an explicit, deterministic state machine preventing out-of-order progression."

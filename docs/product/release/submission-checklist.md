@@ -1,25 +1,25 @@
 # Yom Awel Final Submission & Release Sign-Off Checklist
 
 - **Target Release:** v1.0.0
-- **Verified Commit:** `b36cc6067b5d49729a05a789b157ad36ccb06365`
+- **Verified Commit:** Pending final integrated release candidate
 
 ---
 
 ## 1. Submission Deliverables Audit
 
-- [x] **Application Answers:** Complete, truthful, and evidence-cited responses in `submission/application.md`.
-- [x] **Pitch Presentation:** Marp-compatible pitch deck in `submission/pitch-deck.md`.
-- [x] **Demo Scripts:** 3-minute primary flow (`submission/demo-script.md`) and offline contingency flow (`submission/demo-contingency.md`).
-- [x] **Asset Manifest:** Cryptographic SHA-256 digests recorded for all submission files in `submission/asset-manifest.yaml`.
-- [x] **No Leaked Secrets:** Repository scan confirms zero API keys, database credentials, or personal tokens committed to Git.
-- [x] **No Placeholder Tokens:** Verified zero occurrences of `TODO`, `TBD`, `REPLACE_ME`, or `localhost:` in public submission artifacts.
+- [ ] **Application Answers:** Freeze only after final claim/evidence review.
+- [ ] **Pitch Presentation:** Export and inspect the Marp-compatible deck.
+- [ ] **Demo Scripts:** Execute the primary and outage scripts against the final deployed candidate.
+- [ ] **Asset Manifest:** Generate exports and record their SHA-256 digests.
+- [ ] **No Leaked Secrets:** Attach a secret-scan report for the final candidate commit.
+- [ ] **No Placeholder Tokens:** Scan the final public submission artifacts.
 
 ---
 
 ## 2. Platform & Quality Gates
 
-- [x] **Automated Tests:** All unit, domain, application, contract, and quality tests passing.
-- [x] **Deterministic Evaluation:** Ground truth evaluations validated on reference benchmarks.
-- [x] **Bilingual Copy:** Egyptian Arabic copy verified for RTL layout, warm tone, and accessibility.
-- [x] **Zero Mandatory Cost:** Verified operation on Vercel Hobby, Supabase Free, and Gemini Free.
-- [x] **Five-Member Sign-Off:** Explicit approvals documented across all 5 workstream lanes.
+- [ ] **Automated Tests:** Run all suites on the exact final integrated commit.
+- [ ] **Deterministic Evaluation:** Validate reference benchmarks after Member 4 integration.
+- [ ] **Bilingual Copy:** Verify RTL layout, language, keyboard flow, screen-reader announcements, and contrast in a deployed browser.
+- [ ] **Zero Mandatory Cost:** Confirm eligibility and quotas for Vercel, Supabase, and the selected model without adding a paid or card-backed dependency.
+- [ ] **Five-Member Sign-Off:** Record linked reviews against the exact final candidate commit.

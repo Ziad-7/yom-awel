@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -21,7 +22,9 @@ REQUIRED_GATES = [
 REQUIRED_MEMBERS = [f"member_{i}" for i in range(1, 6)]
 
 
-def validate_release_signoff(data: dict[str, Any]) -> list[str]:
+def validate_release_signoff(
+    data: dict[str, Any], root_dir: Path | None = None
+) -> list[str]:
     """Validate release signoff metadata and quality gate decisions.
 
     Returns a list of error messages. Empty list indicates full validity.
@@ -31,15 +34,27 @@ def validate_release_signoff(data: dict[str, Any]) -> list[str]:
     if not isinstance(data, dict):
         return ["Release sign-off root must be a YAML dictionary."]
 
-    sha = data.get("tested_source_sha")
-    if not sha or not isinstance(sha, str) or not SHA_REGEX.match(sha):
-        errors.append(
-            f"Invalid or missing tested_source_sha '{sha}'. Must be 40-char lowercase hex."
-        )
-
     decision = data.get("decision")
     if decision not in ["go", "no-go"]:
         errors.append(f"Invalid decision '{decision}'. Must be 'go' or 'no-go'.")
+
+    sha = data.get("tested_source_sha")
+    if sha is None:
+        if decision == "go":
+            errors.append("A 'go' decision requires tested_source_sha.")
+    elif not isinstance(sha, str) or not SHA_REGEX.fullmatch(sha):
+        errors.append(
+            f"Invalid tested_source_sha '{sha}'. Must be null or 40-char lowercase hex."
+        )
+    elif root_dir is not None:
+        result = subprocess.run(
+            ["git", "cat-file", "-e", f"{sha}^{{commit}}"],
+            cwd=root_dir,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            errors.append(f"tested_source_sha '{sha}' is not a resolvable Git commit.")
 
     # Quality gates
     gates = data.get("quality_gates")
@@ -89,7 +104,7 @@ def main() -> int:
         print(f"Error reading YAML file: {exc}", file=sys.stderr)
         return 1
 
-    errors = validate_release_signoff(data)
+    errors = validate_release_signoff(data, root_dir=root)
     if errors:
         print(
             f"FAILED: Found {len(errors)} error(s) in release sign-off:",

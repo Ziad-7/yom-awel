@@ -8,6 +8,18 @@ from typing import Any
 
 import yaml
 
+EXPECTED_REJECTION_CODES = {
+    "unsupported_type",
+    "artifact_too_large",
+    "mime_mismatch",
+    "expanded_size_exceeded",
+    "sheet_limit_exceeded",
+    "artifact_unreadable",
+    "missing_columns",
+    "duplicate_columns",
+    "too_few_rows",
+}
+
 
 def validate_objectives_manifest(
     data: dict[str, Any], root_dir: Path | None = None
@@ -82,18 +94,44 @@ def validate_objectives_manifest(
     if not isinstance(diag_vocab, dict):
         errors.append("Missing 'diagnostic_vocabulary' section.")
     else:
-        if (
-            not isinstance(diag_vocab.get("rejections"), list)
-            or len(diag_vocab["rejections"]) == 0
-        ):
+        rejections = diag_vocab.get("rejections")
+        if not isinstance(rejections, list) or len(rejections) == 0:
             errors.append("diagnostic_vocabulary must contain non-empty 'rejections'.")
-        if (
-            not isinstance(diag_vocab.get("check_diagnostics"), list)
-            or len(diag_vocab["check_diagnostics"]) == 0
-        ):
+        else:
+            rejection_codes = [
+                item.get("code") for item in rejections if isinstance(item, dict)
+            ]
+            if len(rejection_codes) != len(set(rejection_codes)):
+                errors.append("diagnostic_vocabulary rejection codes must be unique.")
+            if set(rejection_codes) != EXPECTED_REJECTION_CODES:
+                errors.append(
+                    "diagnostic_vocabulary rejection codes must exactly match the "
+                    f"Member 4 v1 boundary contract: {sorted(EXPECTED_REJECTION_CODES)}."
+                )
+
+        check_diagnostics = diag_vocab.get("check_diagnostics")
+        if not isinstance(check_diagnostics, list) or len(check_diagnostics) == 0:
             errors.append(
                 "diagnostic_vocabulary must contain non-empty 'check_diagnostics'."
             )
+        else:
+            diagnostic_ids = [
+                item.get("check_id")
+                for item in check_diagnostics
+                if isinstance(item, dict)
+            ]
+            objective_check_ids = {
+                check_id
+                for objective in data.get("learning_objectives", [])
+                if isinstance(objective, dict)
+                for check_id in objective.get("check_ids", [])
+            }
+            if len(diagnostic_ids) != len(set(diagnostic_ids)):
+                errors.append("check_diagnostics check_id values must be unique.")
+            if set(diagnostic_ids) != objective_check_ids:
+                errors.append(
+                    "check_diagnostics must cover every learning objective check_id exactly once."
+                )
 
     # Learning objectives
     objectives = data.get("learning_objectives")

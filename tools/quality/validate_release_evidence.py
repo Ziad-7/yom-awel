@@ -27,8 +27,8 @@ def validate_release_evidence(
         return ["Source register root must be a YAML dictionary."]
 
     sources = sources_data.get("sources")
-    if not isinstance(sources, list) or len(sources) == 0:
-        errors.append("Source register must contain a non-empty 'sources' list.")
+    if not isinstance(sources, list):
+        errors.append("Source register must contain a 'sources' list.")
         registered_source_ids: set[str] = set()
     else:
         registered_source_ids = set()

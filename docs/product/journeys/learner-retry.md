@@ -12,7 +12,7 @@
 |---|---|
 | **Actor** | Entry-level Egyptian digital/data job seeker (Learner) |
 | **Channels** | Web Application (`apps/web/`) & Telegram Bot (`@yom_awel_bot`) |
-| **Primary Goal** | Guide a learner whose submission did not meet the passing threshold (score < 75%) through actionable Egyptian Arabic feedback, allow them to revise their spreadsheet, submit a retry attempt, and achieve passing completion without state corruption. |
+| **Primary Goal** | Guide a learner whose submission did not meet the passing rule (score below 75 or any critical check failed) through actionable Egyptian Arabic feedback, allow them to revise their spreadsheet, submit a retry attempt, and achieve passing completion without state corruption. |
 | **Preconditions** | 1. Learner has an active assignment in task `clean-sales`.<br>2. Learner previously submitted an artifact that failed one or more deterministic checks.<br>3. Learner lifecycle state is currently `NEEDS_RETRY`. |
 
 ---
@@ -25,13 +25,13 @@
       ▼ (Submit attempt #1 with defects)
   PROCESSING
       │
-      ▼ (Deterministic score < 75)
+      ▼ (Score < 75 OR any critical check failed)
  NEEDS_RETRY
       │
       ▼ (Review feedback, upload corrected file, submit attempt #2)
   PROCESSING
       │
-      ▼ (Deterministic score >= 75)
+      ▼ (Score >= 75 AND every critical check passed)
 TASK_COMPLETED
 ```
 
@@ -86,7 +86,7 @@ TASK_COMPLETED
 ## 5. Failure & Edge Cases
 
 - **Repeated Failure (Attempt #2 Also Fails):**
-  - If the corrected file still fails checks (e.g., duplicates removed, but dates still unformatted: score 75/100 boundary or 50/100), state remains `NEEDS_RETRY`.
+  - If the corrected file still scores below 75 or fails a critical check, state remains `NEEDS_RETRY`.
   - The supervisor feedback offers an additional progressive hint (e.g. referencing Excel date format options).
   - Attempt counter increments to #3 on next submission.
   - Learners are not permanently locked out.

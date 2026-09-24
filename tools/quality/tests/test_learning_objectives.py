@@ -53,3 +53,29 @@ def test_pass_policy_critical_check_and_parity() -> None:
     assert "unique_orders" in pass_policy["critical_checks"]
     assert data["format_policy"]["supported_formats"] == ["csv", "xlsx"]
     assert data["format_policy"]["evaluation_parity"] is True
+
+
+def test_diagnostic_vocabulary_matches_member_4_boundary() -> None:
+    data = yaml.safe_load(MANIFEST_PATH.read_text(encoding="utf-8"))
+    codes = {item["code"] for item in data["diagnostic_vocabulary"]["rejections"]}
+    assert codes == {
+        "unsupported_type",
+        "artifact_too_large",
+        "mime_mismatch",
+        "expanded_size_exceeded",
+        "sheet_limit_exceeded",
+        "artifact_unreadable",
+        "missing_columns",
+        "duplicate_columns",
+        "too_few_rows",
+    }
+
+    objective_checks = {
+        check_id
+        for objective in data["learning_objectives"]
+        for check_id in objective["check_ids"]
+    }
+    diagnostic_checks = {
+        item["check_id"] for item in data["diagnostic_vocabulary"]["check_diagnostics"]
+    }
+    assert diagnostic_checks == objective_checks

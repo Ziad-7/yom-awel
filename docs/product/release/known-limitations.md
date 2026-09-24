@@ -6,7 +6,7 @@
 ---
 
 ## 1. Scope & Task Catalog
-- **Single Active Curriculum:** The initial production release provides task `clean-sales` (v1). Additional tracks (SQL relational analytics, inventory reconciliation) are documented as roadmap items and not currently playable in the live catalog.
+- **No production release yet:** `clean-sales` (v1) is the only planned initial curriculum task. Evaluator, content, and web work must be integrated and accepted before it is described as playable.
 - **Single Concurrent Task per Learner:** By domain design invariant, each learner has at most one active task in progress to enforce sequential competency acquisition.
 
 ---
@@ -18,10 +18,10 @@
 ---
 
 ## 3. AI Rate Limiting & Resilience
-- **Gemini Free Tier Throughput:** Free-tier Gemini API operates under a 15 Requests-Per-Minute (RPM) limit. 
-- **Graceful Degradation:** During high concurrency or temporary API quota exhaustion, the system automatically falls back to deterministic Egyptian Arabic template coaching, guaranteeing zero learner disruption.
+- **Gemini allowance:** Limits depend on the eligible model, account, region, and current provider terms; the final deployment must record the observed allowance instead of assuming a fixed RPM.
+- **Graceful-degradation target:** Unit-tested deterministic Arabic fallback code exists. End-to-end outage behavior is still pending and no uptime guarantee is made.
 
 ---
 
 ## 4. Zero Mandatory Cost Commitment
-- The platform does not use card-backed cloud services, paid queues, or metered infrastructure. All operational boundaries are tuned to live permanently on free-tier allocations (Vercel Hobby + Supabase Free + Gemini Free).
+- The prototype must not require a paid subscription or card-backed dependency. Vercel Hobby, Supabase Free, and any model allowance must be rechecked before deployment; free-tier permanence and unlimited capacity are not guaranteed.

@@ -1,6 +1,6 @@
 version: "1"
 release_version: "1.0.0"
-tested_source_sha: "682085dc3c9597f7596ff1f8b4a70cbdd1408892"
+tested_source_sha: null
 deployment:
   preview_url: null
   production_url: null
@@ -8,29 +8,29 @@ deployment:
 
 quality_gates:
   zero_cost_review:
-    status: "passed"
-    details: "Operates 100% within Vercel Hobby, Supabase Free tier, and Gemini Free API allocations. Zero card-backed or metered dependencies."
+    status: "pending"
+    details: "Architecture targets free plans, but an integrated deployment and quota review have not yet been recorded."
   hobby_non_commercial_eligibility:
-    status: "passed"
-    details: "Educational hackathon prototype qualifying for non-commercial Vercel Hobby tier."
+    status: "pending"
+    details: "Project owners must confirm current Vercel Hobby eligibility before deployment."
   secret_scan:
-    status: "passed"
-    details: "Automated scan confirms zero private tokens, service-role keys, or applicant IDs committed to repository."
+    status: "pending"
+    details: "Run and attach a secret-scan report for the final candidate commit."
   automated_tests:
-    status: "passed"
-    details: "Member 1 quality suite and domain platform contracts passing 100% green."
+    status: "pending"
+    details: "Tests must be rerun and attached for the final integrated candidate commit."
   browser_acceptance:
     status: "pending"
     details: "Awaiting Member 5 web experience merge and live preview deployment verification."
   gemini_fallback_test:
-    status: "passed"
-    details: "Deterministic Egyptian Arabic fallback verified in unit tests; zero learner interruption under provider outage."
+    status: "pending"
+    details: "Unit coverage exists, but integrated outage behavior has not yet been verified."
 
 member_approvals:
   member_1:
     role: "Product, Learning Design & Release"
-    status: "approved"
-    decision_summary: "All claims verified against empirical tests and authoritative sources; bilingual copy and learning contracts frozen."
+    status: "pending_review"
+    decision_summary: "Learning contracts are drafted; final cross-owner and release-candidate review is pending."
   member_2:
     role: "Domain, Persistence & Contracts"
     status: "pending_review"
@@ -51,4 +51,3 @@ member_approvals:
 decision: "no-go"
 decision_timestamp: "2026-09-24T12:00:00Z"
 signoff_lead: "member-1"
-
