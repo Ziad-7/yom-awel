@@ -36,7 +36,7 @@ load_feedback_env() {
 
 wait_for() {
   local name="$1" url="$2" deadline=$((SECONDS + HEALTH_TIMEOUT_SECONDS))
-  until curl -fsS -o /dev/null "$url"; do
+  until curl -fs -o /dev/null "$url"; do
     if ((SECONDS >= deadline)); then
       log "$name did not become healthy at $url within ${HEALTH_TIMEOUT_SECONDS}s"
       return 1
