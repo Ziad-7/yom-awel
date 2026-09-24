@@ -155,6 +155,15 @@ Member 2 cannot approve an interface change until every affected owner acknowled
 - To Member 5: use-case interfaces, OpenAPI schema, auth context, and repository-independent fakes.
 - To Member 1: authoritative state descriptions and profile evidence semantics.
 
+### Member 5 contract gate
+
+The local Member 2/Member 5 integration contract is published in
+[the Member 5 handoff](../operations/member2-member5-contract-handoff.md).
+It defines the canonical artifact MIME values, upload/complete metadata,
+`AssignCurrentTask` consumption, compatibility migration order, and local
+verification evidence. Cloud composition, live RLS, evaluator binding, and
+Vercel release work remain separate gates.
+
 ## Out of scope
 
 - Rendering web or Telegram messages.
