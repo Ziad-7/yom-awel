@@ -6,6 +6,7 @@ dependencies = [
     "defusedxml>=0.7.1",
     "google-genai>=1,<2",
     "openpyxl>=3.1.5",
+    "psycopg[binary]>=3.2,<4",
     "pydantic>=2,<3",
 ]
 
@@ -26,6 +27,7 @@ dev = [
     "hatchling==1.32.3",
     "pre-commit>=4.6.2",
     "types-openpyxl>=3.1.5.20260827",
+    "detect-secrets>=1.5,<2",
 ]
 
 [tool.pytest.ini_options]
