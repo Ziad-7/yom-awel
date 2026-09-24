@@ -75,7 +75,9 @@ async def test_local_round_trip_preserves_authorized_media_type(tmp_path: Path) 
 
 
 @pytest.mark.asyncio
-async def test_second_local_authorization_rejects_different_valid_media_type(tmp_path: Path) -> None:
+async def test_second_local_authorization_rejects_different_valid_media_type(
+    tmp_path: Path,
+) -> None:
     store = LocalArtifactStore(tmp_path)
     artifact, _ = _artifact("retry.csv")
     replacement = artifact.model_copy(

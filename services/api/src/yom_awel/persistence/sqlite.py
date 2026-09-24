@@ -233,10 +233,13 @@ class SQLiteDatabase:
         self._anchor.commit()
 
     def _expand_artifact_content_type(self) -> None:
-        columns = {row["name"] for row in self._anchor.execute("PRAGMA table_info(artifacts)")}
+        anchor = self._anchor
+        if anchor is None:
+            raise RuntimeError("SQLite anchor connection is not initialized")
+        columns = {row["name"] for row in anchor.execute("PRAGMA table_info(artifacts)")}
         if "content_type" not in columns:
-            self._anchor.execute("ALTER TABLE artifacts ADD COLUMN content_type TEXT")
-        self._anchor.execute(
+            anchor.execute("ALTER TABLE artifacts ADD COLUMN content_type TEXT")
+        anchor.execute(
             "UPDATE artifacts SET content_type = CASE "
             "WHEN lower(filename) LIKE '%.csv' THEN 'text/csv' "
             "WHEN lower(filename) LIKE '%.xlsx' THEN "

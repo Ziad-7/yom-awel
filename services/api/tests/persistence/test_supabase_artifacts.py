@@ -350,7 +350,9 @@ class LocalArtifactStorage:
             )
             with urlopen(http_request, timeout=5) as response:
                 value = json.loads(response.read().decode("utf-8"))
-            if not isinstance(value, Mapping) or not isinstance(value.get("user_metadata"), Mapping):
+            if not isinstance(value, Mapping) or not isinstance(
+                value.get("user_metadata"), Mapping
+            ):
                 raise TypeError("storage object metadata was invalid")
             user_metadata = value["user_metadata"]
             size_bytes = user_metadata.get("size_bytes")
@@ -484,7 +486,7 @@ async def test_put_and_download_use_private_signed_uuid_path_and_hash_metadata()
     assert await store.download(artifact_id, learner_id) == content
     assert storage.download_calls == [
         (PRIVATE_BUCKET, generated_object_path(learner_id, artifact_id), 120),
-        (PRIVATE_BUCKET, generated_object_path(learner_id, artifact_id), 120)
+        (PRIVATE_BUCKET, generated_object_path(learner_id, artifact_id), 120),
     ]
     assert metadata.resolved == [(learner_id, artifact_id)]
     assert metadata.activated == [(learner_id, artifact_id, "artifact-uploader")]

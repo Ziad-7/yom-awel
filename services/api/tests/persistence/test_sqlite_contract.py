@@ -134,7 +134,9 @@ async def test_sqlite_download_validates_and_returns_content(tmp_path: Path) -> 
 
 @pytest.mark.asyncio
 async def test_sqlite_round_trip_durably_persists_authorized_media_type(tmp_path: Path) -> None:
-    factory = SQLiteUnitOfWorkFactory(tmp_path / "artifact-media-type.sqlite", clock=FrozenClock(NOW))
+    factory = SQLiteUnitOfWorkFactory(
+        tmp_path / "artifact-media-type.sqlite", clock=FrozenClock(NOW)
+    )
     learner_id, _, artifact = await _seed(factory)
 
     connection = factory.database.connection()
@@ -166,7 +168,14 @@ async def test_sqlite_legacy_artifact_schema_is_expanded_and_backfilled(tmp_path
         )
         connection.execute(
             "INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?)",
-            (str(artifact_id), str(learner_id), "legacy.csv", len(content), sha256(content).hexdigest(), content),
+            (
+                str(artifact_id),
+                str(learner_id),
+                "legacy.csv",
+                len(content),
+                sha256(content).hexdigest(),
+                content,
+            ),
         )
         connection.commit()
     finally:
@@ -180,8 +189,12 @@ async def test_sqlite_legacy_artifact_schema_is_expanded_and_backfilled(tmp_path
 
 
 @pytest.mark.asyncio
-async def test_second_sqlite_authorization_rejects_different_valid_media_type(tmp_path: Path) -> None:
-    factory = SQLiteUnitOfWorkFactory(tmp_path / "artifact-idempotency.sqlite", clock=FrozenClock(NOW))
+async def test_second_sqlite_authorization_rejects_different_valid_media_type(
+    tmp_path: Path,
+) -> None:
+    factory = SQLiteUnitOfWorkFactory(
+        tmp_path / "artifact-idempotency.sqlite", clock=FrozenClock(NOW)
+    )
     _, _, artifact = await _seed(factory)
     replacement = artifact.model_copy(
         update={

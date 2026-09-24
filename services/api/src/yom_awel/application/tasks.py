@@ -64,7 +64,9 @@ class AssignCurrentTask:
                 if progress.current_status != LearnerStatus.READY:
                     task = None
                     if progress.current_task_id:
-                        task = await uow.tasks.get_current_published_version(progress.current_task_id)
+                        task = await uow.tasks.get_current_published_version(
+                            progress.current_task_id
+                        )
                     return CurrentTaskResult(status=progress.current_status.value, task=task)
 
                 task = await uow.tasks.get_current_published_version(self.task_id)
@@ -78,7 +80,9 @@ class AssignCurrentTask:
 
                 new_progress = progress.model_copy(
                     update={
-                        "current_status": transition(progress.current_status, LearnerStatus.IN_TASK),
+                        "current_status": transition(
+                            progress.current_status, LearnerStatus.IN_TASK
+                        ),
                         "current_task_id": task.task_id,
                         "version": progress.version + 1,
                         "updated_at": self.clock.now(),
