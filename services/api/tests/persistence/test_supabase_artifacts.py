@@ -387,7 +387,8 @@ def artifact(learner_id: UUID, artifact_id: UUID, content: bytes) -> Artifact:
     return Artifact(
         artifact_id=artifact_id,
         learner_id=learner_id,
-        filename="answer.txt",
+        filename="answer.csv",
+        content_type="text/csv",
         size_bytes=len(content),
         sha256=hashlib.sha256(content).hexdigest(),
     )
@@ -735,7 +736,8 @@ async def test_real_local_artifact_upload_download_delete_flow() -> None:
     value = Artifact(
         artifact_id=artifact_id,
         learner_id=learner_id,
-        filename="local.txt",
+        filename="local.csv",
+        content_type="text/csv",
         size_bytes=len(content),
         sha256=hashlib.sha256(content).hexdigest(),
     )

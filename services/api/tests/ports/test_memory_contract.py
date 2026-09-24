@@ -75,7 +75,8 @@ def make_artifact(learner_id: UUID, content: bytes = b"hello") -> Artifact:
     return Artifact(
         artifact_id=uuid4(),
         learner_id=learner_id,
-        filename="work.txt",
+        filename="work.csv",
+        content_type="text/csv",
         size_bytes=len(content),
         sha256=sha256(content).hexdigest(),
     )

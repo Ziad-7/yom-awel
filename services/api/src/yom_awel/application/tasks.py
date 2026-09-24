@@ -84,6 +84,7 @@ class CreateArtifactUpload:
                 artifact_id=artifact_id,
                 learner_id=command.learner_id,
                 filename=command.filename,
+                content_type=command.content_type,
                 size_bytes=command.size_bytes,
                 sha256=command.artifact_sha256,
             )
@@ -103,6 +104,7 @@ class CreateArtifactUpload:
                     payload={
                         "artifact_id": str(artifact_id),
                         "filename": command.filename,
+                        "content_type": command.content_type,
                         "size_bytes": command.size_bytes,
                         "sha256": artifact.sha256,
                     },

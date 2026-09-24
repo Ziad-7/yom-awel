@@ -122,7 +122,8 @@ async def test_sqlite_same_key_concurrent_reservation_replays_winner(tmp_path: P
             Artifact(
                 artifact_id=artifact_id,
                 learner_id=learner_id,
-                filename="answer.txt",
+                filename="answer.csv",
+                content_type="text/csv",
                 size_bytes=len(content),
                 sha256=hashlib.sha256(content).hexdigest(),
             ),
@@ -283,7 +284,8 @@ async def test_memory_upload_must_be_complete_before_artifact_is_visible() -> No
     artifact = Artifact(
         artifact_id=artifact_id,
         learner_id=learner_id,
-        filename="upload.txt",
+        filename="upload.csv",
+        content_type="text/csv",
         size_bytes=len(content),
         sha256=hashlib.sha256(content).hexdigest(),
     )

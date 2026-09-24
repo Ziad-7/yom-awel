@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 
+from yom_awel.domain.contracts import artifact_content_type
 from yom_awel.domain.entities import Artifact
 from yom_awel.domain.errors import UniqueConstraintViolation
 from yom_awel.persistence import local_artifacts
@@ -19,6 +20,7 @@ def _artifact(root_name: str) -> tuple[Artifact, bytes]:
             artifact_id=uuid4(),
             learner_id=uuid4(),
             filename=root_name,
+            content_type=artifact_content_type(root_name),
             size_bytes=len(content),
             sha256=hashlib.sha256(content).hexdigest(),
         ),

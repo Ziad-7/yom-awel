@@ -22,6 +22,7 @@ from yom_awel.domain.contracts import (
     SkillSummary,
     SubmissionOutcome,
     TaskVersion,
+    artifact_content_type,
 )
 from yom_awel.domain.entities import (
     Artifact,
@@ -1131,6 +1132,7 @@ def _artifact(row: sqlite3.Row) -> Artifact:
         artifact_id=UUID(row["artifact_id"]),
         learner_id=UUID(row["learner_id"]),
         filename=row["filename"],
+        content_type=artifact_content_type(row["filename"]),
         size_bytes=row["size_bytes"],
         sha256=row["sha256"],
     )

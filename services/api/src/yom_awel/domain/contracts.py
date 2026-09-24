@@ -1,14 +1,29 @@
 from typing import Annotated, Any, Literal, TypeVar
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, JsonValue
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 from yom_awel.domain.enums import ErrorCategory, LearnerStatus, TaskStatus
+
+ArtifactContentType = Literal[
+    "text/csv",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]
+
+
+def artifact_content_type(filename: str) -> ArtifactContentType:
+    lowered = filename.lower()
+    if lowered.endswith(".csv"):
+        return "text/csv"
+    if lowered.endswith(".xlsx"):
+        return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    raise ValueError("artifact filename must end in .csv or .xlsx")
 
 
 class ArtifactRef(BaseModel):
     artifact_id: UUID
     filename: str = Field(strict=True, max_length=255)
+    content_type: ArtifactContentType
     size_bytes: int = Field(strict=True, ge=0)
     sha256: str = Field(strict=True, pattern=r"^[a-f0-9]{64}$")
     # Internal evaluator input. It is deliberately excluded from serialized
@@ -16,6 +31,12 @@ class ArtifactRef(BaseModel):
     # events or API payloads.
     content: bytes = Field(default=b"", repr=False, exclude=True)
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+    @model_validator(mode="after")
+    def validate_content_type(self) -> "ArtifactRef":
+        if self.content_type != artifact_content_type(self.filename):
+            raise ValueError("content_type must match filename")
+        return self
 
 
 class SkillMapping(BaseModel):

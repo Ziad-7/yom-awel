@@ -88,6 +88,7 @@ async def _seed(factory):
         artifact_id=uuid4(),
         learner_id=learner_id,
         filename="work.csv",
+        content_type="text/csv",
         size_bytes=len(content),
         sha256=sha256(content).hexdigest(),
     )

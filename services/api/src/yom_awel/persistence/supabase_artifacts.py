@@ -11,6 +11,7 @@ from uuid import UUID
 
 from pydantic import ValidationError
 
+from yom_awel.domain.contracts import artifact_content_type
 from yom_awel.domain.entities import Artifact
 from yom_awel.domain.errors import ArtifactIntegrityFailure, ArtifactNotReady, PersistenceError
 from yom_awel.persistence.retention import CleanupArtifact, CleanupQueueStore
@@ -256,6 +257,7 @@ def map_artifact_row(value: Mapping[str, object], learner_id: UUID) -> Artifact:
                 "artifact_id": parsed_artifact,
                 "learner_id": parsed_learner,
                 "filename": value["filename"],
+                "content_type": artifact_content_type(str(value["filename"])),
                 "size_bytes": value["size_bytes"],
                 "sha256": value["sha256"],
             }

@@ -11,6 +11,7 @@ from pydantic import BaseModel, ValidationError
 
 from yom_awel.domain.contracts import (
     ApplicationError,
+    ArtifactContentType,
     ArtifactRef,
     EvaluationCheck,
     EvaluationError,
@@ -21,17 +22,83 @@ from yom_awel.domain.contracts import (
     SkillSummary,
     SubmissionOutcome,
     TaskVersion,
+    artifact_content_type,
 )
+from yom_awel.domain.entities import Artifact
 
 ROOT = Path(__file__).resolve().parents[4]
 
 VALID_ARTIFACT_REF = ArtifactRef(
     artifact_id=UUID("00000000-0000-0000-0000-000000000005"),
     filename="sales.xlsx",
+    content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     size_bytes=1024,
     sha256="a" * 64,
     content=b"artifact",
 )
+
+
+@pytest.mark.parametrize(
+    ("filename", "content_type"),
+    [
+        ("sales.csv", "text/csv"),
+        (
+            "sales.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ),
+    ],
+)
+def test_artifact_content_type_is_canonical_for_supported_filenames(
+    filename: str, content_type: ArtifactContentType
+) -> None:
+    assert artifact_content_type(filename) == content_type
+    artifact = ArtifactRef(
+        artifact_id=UUID("00000000-0000-0000-0000-000000000005"),
+        filename=filename,
+        content_type=content_type,
+        size_bytes=1,
+        sha256="a" * 64,
+    )
+    assert artifact.content_type == content_type
+
+
+@pytest.mark.parametrize(
+    ("filename", "content_type"),
+    [
+        ("sales.csv", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        ("sales.xlsx", "text/csv"),
+        ("sales.csv", "application/json"),
+    ],
+)
+def test_artifact_rejects_missing_unknown_or_mismatched_content_type(
+    filename: str, content_type: str
+) -> None:
+    payload = {
+        "artifact_id": UUID("00000000-0000-0000-0000-000000000005"),
+        "filename": filename,
+        "content_type": content_type,
+        "size_bytes": 1,
+        "sha256": "a" * 64,
+    }
+    with pytest.raises(ValidationError):
+        ArtifactRef.model_validate(payload)
+    payload.pop("content_type")
+    with pytest.raises(ValidationError, match="content_type"):
+        ArtifactRef.model_validate(payload)
+
+
+def test_artifact_rejects_extension_content_type_mismatch() -> None:
+    with pytest.raises(ValidationError):
+        Artifact(
+            artifact_id=UUID("00000000-0000-0000-0000-000000000005"),
+            learner_id=UUID("00000000-0000-0000-0000-000000000006"),
+            filename="sales.csv",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            size_bytes=1,
+            sha256="a" * 64,
+        )
+
+
 VALID_SKILL_MAPPING = SkillMapping(skill_id="data_cleaning", check_id="unique_orders", weight=25)
 VALID_SKILL_MAPPINGS = [
     SkillMapping(skill_id="data_cleaning", check_id=check_id, weight=25)
@@ -177,6 +244,7 @@ def test_artifact_boundary_allows_evaluator_to_classify_oversized_inputs() -> No
     common = {
         "artifact_id": UUID("00000000-0000-0000-0000-000000000005"),
         "filename": "sales.xlsx",
+        "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "sha256": "a" * 64,
         "content": b"",
     }
