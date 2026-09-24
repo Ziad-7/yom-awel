@@ -9,15 +9,19 @@ from typing import Any
 import yaml
 
 VALID_CLAIM_TYPES = {"statistical", "capability"}
-VALID_CLAIM_STATUSES = {"current", "experimental", "roadmap", "verified"}
+VALID_CLAIM_STATUSES = {"current", "pending", "roadmap", "verified"}
+EVIDENCE_PATH_KEYS = ("automated_tests", "artifacts")
 VALID_OWNERS = {"member-1", "member-2", "member-3", "member-4", "member-5"}
 
 
 def validate_release_evidence(
-    sources_data: dict[str, Any], claims_data: dict[str, Any]
+    sources_data: dict[str, Any],
+    claims_data: dict[str, Any],
+    root_dir: Path | None = None,
 ) -> list[str]:
     """Validate source register and claim matrix.
 
+    With ``root_dir``, every evidence path a claim cites must exist in the repository.
     Returns a list of human-readable error strings. Empty list indicates validity.
     """
     errors: list[str] = []
@@ -135,7 +139,31 @@ def validate_release_evidence(
                         f"Current capability claim '{c_id}' must name at least one preview check in evidence.preview_checks."
                     )
 
+        if status == "pending":
+            reason = claim.get("pending_reason")
+            if not isinstance(reason, str) or not reason.strip():
+                errors.append(
+                    f"Pending claim '{c_id}' must state its 'pending_reason'."
+                )
+
+        if root_dir is not None:
+            errors.extend(_missing_evidence_paths(c_id or str(idx), claim, root_dir))
+
     return errors
+
+
+def _missing_evidence_paths(
+    claim_id: str, claim: dict[str, Any], root_dir: Path
+) -> list[str]:
+    evidence = claim.get("evidence")
+    if not isinstance(evidence, dict):
+        return []
+    return [
+        f"Claim '{claim_id}' cites {key} path that does not exist: '{path}'."
+        for key in EVIDENCE_PATH_KEYS
+        for path in evidence.get(key) or []
+        if not isinstance(path, str) or not (root_dir / path).exists()
+    ]
 
 
 def main() -> int:
@@ -163,7 +191,7 @@ def main() -> int:
         print(f"Error reading YAML files: {exc}", file=sys.stderr)
         return 1
 
-    errors = validate_release_evidence(sources_data, claims_data)
+    errors = validate_release_evidence(sources_data, claims_data, root_dir=root)
     if errors:
         print(
             f"FAILED: Found {len(errors)} error(s) in release evidence:",

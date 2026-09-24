@@ -97,8 +97,8 @@ capabilities:
   - id: "cap-spreadsheet-delivery"
     name: "Clean-Sales Task Package and Fixtures"
     owner: "member-4"
-    status: "experimental"
-    learner_outcome: "Learners receive a dirty sales CSV/XLSX file featuring realistic workplace defects (duplicates, bad dates, invalid numbers, missing emails)."
+    status: "current"
+    learner_outcome: "Learners receive a dirty sales file featuring realistic workplace defects (duplicates, bad dates, invalid numbers, missing emails)."
     implementation_path:
       - "task_packages/clean-sales/1/task.json"
       - "task_packages/clean-sales/1/data/sales_dirty.csv"
@@ -113,7 +113,7 @@ capabilities:
   - id: "cap-deterministic-eval"
     name: "Deterministic Spreadsheet Evaluation Engine"
     owner: "member-4"
-    status: "experimental"
+    status: "current"
     learner_outcome: "Learners receive objective, reproducible grading (0-100) based on strict data quality rules with zero hallucinations."
     implementation_path:
       - "services/api/src/yom_awel/evaluation/sales_cleaning.py"
@@ -122,8 +122,9 @@ capabilities:
       automated_tests:
         - "services/api/tests/evaluation/test_sales_cleaning.py"
         - "services/api/tests/evaluation/test_reproducibility.py"
+        - "tools/quality/tests/test_demo_kit.py"
       preview_checks:
-        - "Submit reference clean CSV and verify deterministic score of 100/100 under 500ms."
+        - "Grade demo/files/sales_cleaned.csv and sales_cleaned.xlsx and verify 100/100 in both formats."
 
   - id: "cap-feedback-fallback"
     name: "Authentic Egyptian Arabic Coaching and Deterministic Fallback"

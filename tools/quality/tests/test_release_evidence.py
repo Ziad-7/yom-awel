@@ -16,7 +16,7 @@ def test_release_evidence_is_valid() -> None:
     sources_data = yaml.safe_load(SOURCES_PATH.read_text(encoding="utf-8"))
     claims_data = yaml.safe_load(CLAIMS_PATH.read_text(encoding="utf-8"))
 
-    errors = validate_release_evidence(sources_data, claims_data)
+    errors = validate_release_evidence(sources_data, claims_data, root_dir=ROOT)
     assert errors == [], f"Evidence validation errors: {errors}"
 
 
@@ -46,3 +46,55 @@ def test_current_claims_have_concrete_test_and_preview_evidence() -> None:
             assert evidence.get("preview_checks"), (
                 f"Current claim '{claim.get('id')}' lacks preview_checks evidence"
             )
+
+
+def _claim(**overrides: object) -> dict[str, object]:
+    claim: dict[str, object] = {
+        "id": "claim-example",
+        "type": "capability",
+        "wording": "Example capability.",
+        "usage_locations": ["README.md"],
+        "status": "pending",
+        "pending_reason": "Not yet verified end to end.",
+        "owner": "member-1",
+        "evidence": {"automated_tests": [], "artifacts": [], "preview_checks": []},
+    }
+    claim.update(overrides)
+    return claim
+
+
+def test_pending_claim_must_state_why_it_is_pending() -> None:
+    errors = validate_release_evidence(
+        {"sources": []}, {"claims": [_claim(pending_reason="")]}
+    )
+
+    assert errors == ["Pending claim 'claim-example' must state its 'pending_reason'."]
+
+
+def test_cited_evidence_paths_must_exist(tmp_path: Path) -> None:
+    (tmp_path / "exists_test.py").write_text("", encoding="utf-8")
+    evidence = {
+        "automated_tests": ["exists_test.py", "missing_test.py"],
+        "artifacts": ["missing/file.csv"],
+        "preview_checks": [],
+    }
+
+    errors = validate_release_evidence(
+        {"sources": []}, {"claims": [_claim(evidence=evidence)]}, root_dir=tmp_path
+    )
+
+    assert errors == [
+        (
+            "Claim 'claim-example' cites automated_tests path that does not exist: "
+            "'missing_test.py'."
+        ),
+        "Claim 'claim-example' cites artifacts path that does not exist: 'missing/file.csv'.",
+    ]
+
+
+def test_experimental_is_no_longer_a_claim_status() -> None:
+    errors = validate_release_evidence(
+        {"sources": []}, {"claims": [_claim(status="experimental")]}
+    )
+
+    assert any("invalid status 'experimental'" in error for error in errors)
