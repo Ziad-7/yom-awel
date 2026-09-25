@@ -43,20 +43,29 @@ class TelegramClient:
                 raise DomainError("unavailable", "Telegram delivery unavailable")
 
     async def download(self, file_id: str) -> bytes:
+        if not isinstance(file_id, str) or not file_id.strip():
+            raise DomainError("unsupported_artifact", "Invalid file id")
         async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
             response = await client.post(
                 f"https://api.telegram.org/bot{self._token}/getFile", json={"file_id": file_id}
             )
             if response.status_code != 200 or not response.json().get("ok"):
                 raise DomainError("unavailable", "Telegram file unavailable")
-            metadata = response.json()["result"]
+            data = response.json()
+            if not isinstance(data, dict) or not isinstance(data.get("result"), dict):
+                raise DomainError("unavailable", "Telegram file unavailable")
+            metadata = data["result"]
             path = metadata.get("file_path", "")
+            file_size = metadata.get("file_size", 0)
             if (
-                not path
+                not isinstance(path, str)
+                or not path
                 or ".." in path
                 or ":" in path
                 or path.startswith("/")
-                or metadata.get("file_size", 0) > MAX_BYTES
+                or not isinstance(file_size, int)
+                or file_size > MAX_BYTES
+                or file_size < 0
             ):
                 raise DomainError("unsupported_artifact", "Invalid file")
             content = bytearray()
@@ -72,11 +81,18 @@ class TelegramClient:
             return bytes(content)
 
     async def send_file(self, chat_id: int, filename: str, content: bytes) -> None:
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        mime = {
+            "csv": "text/csv",
+            "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "sql": "text/plain",
+            "txt": "text/plain",
+        }.get(ext, "application/octet-stream")
         async with httpx.AsyncClient(timeout=15) as client:
             response = await client.post(
                 f"https://api.telegram.org/bot{self._token}/sendDocument",
                 data={"chat_id": str(chat_id)},
-                files={"document": (filename, content, "text/csv")},
+                files={"document": (filename, content, mime)},
             )
             if response.status_code != 200 or not response.json().get("ok"):
                 raise DomainError("unavailable", "Telegram delivery unavailable")
@@ -87,6 +103,8 @@ class TelegramAdapter:
         self.services, self.client = services, client
 
     async def handle(self, update: dict[str, Any]) -> None:
+        if not isinstance(update.get("update_id"), int):
+            raise DomainError("invalid_request", "Invalid update")
         message = update.get("message")
         if not isinstance(message, dict):
             return
@@ -98,8 +116,6 @@ class TelegramAdapter:
         ):
             return
         chat_id = chat["id"]
-        if not isinstance(update.get("update_id"), int):
-            raise DomainError("invalid_request", "Invalid update")
         identity = Identity("telegram", str(sender["id"]))
         learner = await self.services.onboard(
             identity, OnboardInput(display_name=str(sender.get("first_name") or "متدرّب")[:80])
@@ -140,7 +156,7 @@ class TelegramAdapter:
                 file = dataset(task, "csv")
                 await self.client.send_file(chat_id, file.filename, file.content)
             return
-        if text in ("/skills", "/status"):
+        if command in ("/skills", "/status"):
             profile = await self.services.skills.execute(learner.learner_id)
             await self.client.send(
                 chat_id,
@@ -155,28 +171,51 @@ class TelegramAdapter:
         if not isinstance(document, dict) or current.task is None:
             await self.client.send(chat_id, "استخدم /task لعرض المهمة ثم ابعت ملف الحل.")
             return
-        filename = str(document.get("file_name", ""))
-        allowed = self.services.catalog.get(current.task.task_id).package.limits.extensions
-        if filename.rsplit(".", 1)[-1].lower() not in allowed or any(
-            char in filename for char in ("/", "\\", "\x00")
+
+        file_id = document.get("file_id")
+        file_unique_id = document.get("file_unique_id")
+        file_name = document.get("file_name")
+        file_size = document.get("file_size")
+        if (
+            not isinstance(file_id, str)
+            or not file_id.strip()
+            or not isinstance(file_unique_id, str)
+            or not file_unique_id.strip()
+            or not isinstance(file_name, str)
+            or not file_name.strip()
+        ):
+            await self.client.send(chat_id, "بيانات الملف من تليجرام غير صالحة.")
+            return
+
+        filename = file_name.strip()
+        if (
+            any(char in filename for char in ("/", "\\", "\x00"))
+            or ".." in filename
+            or "." not in filename
         ):
             await self.client.send(chat_id, "صيغة الملف لا تطابق المهمة الحالية.")
             return
-        if (
-            not isinstance(document.get("file_size"), int)
-            or not 0 < document["file_size"] <= MAX_BYTES
-        ):
+
+        allowed = self.services.catalog.get(current.task.task_id).package.limits.extensions
+        if filename.rsplit(".", 1)[-1].lower() not in allowed:
+            await self.client.send(chat_id, "صيغة الملف لا تطابق المهمة الحالية.")
+            return
+
+        if not isinstance(file_size, int) or not 0 < file_size <= MAX_BYTES:
             await self.client.send(chat_id, "حجم الملف لازم يكون أقل من أو يساوي 5 ميجابايت.")
             return
-        key = f"telegram:{update['update_id']}:{document.get('file_unique_id', '')}"
+
+        key = f"telegram:{update['update_id']}:{file_unique_id}"
         async with self.services.factory() as uow:
             prior = await uow.submissions.get_reservation(learner.learner_id, key)
         if prior and prior.outcome:
             await self._result(chat_id, prior.outcome)
             return
-        content = await self.client.download(str(document.get("file_id", "")))
-        if not 0 < len(content) <= MAX_BYTES or len(content) != document["file_size"]:
+
+        content = await self.client.download(file_id)
+        if not 0 < len(content) <= MAX_BYTES or len(content) != file_size:
             raise DomainError("artifact_integrity_failure", "File size mismatch")
+
         fallback_types = {
             "csv": "text/csv",
             "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -190,6 +229,7 @@ class TelegramAdapter:
         except DomainError:
             await self.client.send(chat_id, "محتوى الملف أو نوعه غير صالح. ارفع ملف حل سليم.")
             return
+
         artifact = Artifact(
             artifact_id=uuid5(NAMESPACE_URL, f"{learner.learner_id}:{key}"),
             learner_id=learner.learner_id,
@@ -204,19 +244,29 @@ class TelegramAdapter:
             elif existing != artifact:
                 raise DomainError("idempotency_conflict", "Update changed")
             await uow.commit()
-        result = await self.services.submissions.execute(
-            ProcessSubmissionCommand(
-                learner_id=learner.learner_id,
-                task_version_id=current.task.task_version_id,
-                artifact_id=artifact.artifact_id,
-                artifact_sha256=artifact.sha256,
-                channel=Channel.TELEGRAM,
-                idempotency_key=key,
-                channel_event_id=str(update["update_id"]),
-                learner_note=str(message.get("caption", ""))[:500],
-            ),
-            str(uuid4()),
-        )
+
+        try:
+            result = await self.services.submissions.execute(
+                ProcessSubmissionCommand(
+                    learner_id=learner.learner_id,
+                    task_version_id=current.task.task_version_id,
+                    artifact_id=artifact.artifact_id,
+                    artifact_sha256=artifact.sha256,
+                    channel=Channel.TELEGRAM,
+                    idempotency_key=key,
+                    channel_event_id=str(update["update_id"]),
+                    learner_note=str(message.get("caption", ""))[:500],
+                ),
+                str(uuid4()),
+            )
+        except DomainError as error:
+            if error.code == "invalid_status":
+                await self.client.send(
+                    chat_id, "المهمة مكتملة بالفعل. استخدم /tasks لاختيار مهمة تانية."
+                )
+                return
+            raise
+
         if isinstance(result, ProcessingState):
             await self.client.send(chat_id, "التسليم قيد المراجعة، جرّب تاني بعد شوية.")
         else:
