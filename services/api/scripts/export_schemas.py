@@ -20,7 +20,7 @@ def export_schema(filename: str, model: type[BaseModel]) -> None:
     path = SCHEMAS_DIR / filename
     path.parent.mkdir(parents=True, exist_ok=True)
     schema = model.model_json_schema()
-    with path.open("w", encoding="utf-8") as f:
+    with path.open("w", encoding="utf-8", newline="\n") as f:
         json.dump(schema, f, indent=2, sort_keys=True)
         f.write("\n")
 

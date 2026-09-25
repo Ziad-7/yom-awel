@@ -17,8 +17,8 @@ from yom_awel.domain.contracts import (
     TaskVersion,
 )
 from yom_awel.domain.entities import Artifact, Learner
-from yom_awel.domain.enums import Channel, LearnerStatus, SubmissionStatus, TaskStatus
-from yom_awel.domain.errors import IdempotencyConflict, OptimisticConflict
+from yom_awel.domain.enums import Channel, Language, LearnerStatus, SubmissionStatus, TaskStatus
+from yom_awel.domain.errors import IdempotencyConflict, NotFound, OptimisticConflict
 
 NOW = datetime(2026, 9, 21, tzinfo=UTC)
 Factory = Callable[[], Any]
@@ -164,6 +164,20 @@ async def assert_progress_rollback_and_cas(factory: Factory) -> None:
         await uow.rollback()
     async with factory() as uow:
         assert await uow.learners.get_progress(learner.learner_id) is None
+
+
+async def assert_preferred_language_update(factory: Factory) -> None:
+    learner, _, _ = await seed(factory)
+    later = NOW.replace(hour=1)
+    async with factory() as uow:
+        await uow.learners.set_preferred_language(learner.learner_id, Language.AR_EG, later)
+        await uow.commit()
+    async with factory() as uow:
+        stored = await uow.learners.get(learner.learner_id)
+        assert stored is not None
+        assert (stored.preferred_language, stored.updated_at) == (Language.AR_EG, later)
+        with pytest.raises(NotFound):
+            await uow.learners.set_preferred_language(uuid4(), Language.EN, later)
 
 
 def learner_progress(learner_id: UUID, *, version: int) -> Any:

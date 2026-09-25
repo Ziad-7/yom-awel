@@ -9,6 +9,7 @@ from yom_awel.application.models import (
 from yom_awel.domain.entities import Artifact, OutboxEvent
 from yom_awel.domain.enums import ErrorCategory, LearnerStatus
 from yom_awel.domain.errors import DomainError
+from yom_awel.domain.state_machine import transition
 from yom_awel.ports.artifacts import ArtifactStore
 from yom_awel.ports.clock import Clock
 from yom_awel.ports.id_generator import IDGenerator
@@ -35,6 +36,64 @@ class GetCurrentTask:
                 task = await uow.tasks.get_current_published_version(progress.current_task_id)
 
             return CurrentTaskResult(status=progress.current_status.value, task=task)
+
+
+class StartTask:
+    """Assigns a published task to a READY learner. Starting the current task again is a no-op."""
+
+    def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock, id_gen: IDGenerator):
+        self.uow_factory = uow_factory
+        self.clock = clock
+        self.id_gen = id_gen
+
+    async def execute(self, learner_id: UUID, task_id: str) -> CurrentTaskResult:
+        async with self.uow_factory() as uow:
+            progress = await uow.learners.get_progress(learner_id)
+            if not progress:
+                raise DomainError(
+                    code="not_found",
+                    message="Learner progress not found",
+                    category=ErrorCategory.VALIDATION,
+                    retryable=False,
+                )
+            task = await uow.tasks.get_current_published_version(task_id)
+            if task is None:
+                raise DomainError(
+                    code="not_found",
+                    message="Task not found",
+                    category=ErrorCategory.VALIDATION,
+                    retryable=False,
+                )
+            if progress.current_task_id == task_id:
+                return CurrentTaskResult(status=progress.current_status.value, task=task)
+            if progress.current_status is not LearnerStatus.READY:
+                raise DomainError(
+                    code="invalid_status",
+                    message="Finish the current task before starting another one",
+                    category=ErrorCategory.DOMAIN,
+                    retryable=False,
+                )
+            now = self.clock.now()
+            started = progress.model_copy(
+                update={
+                    "current_status": transition(progress.current_status, LearnerStatus.IN_TASK),
+                    "current_task_id": task_id,
+                    "version": progress.version + 1,
+                    "updated_at": now,
+                }
+            )
+            await uow.learners.save_progress(started, expected_version=progress.version)
+            await uow.outbox.add(
+                OutboxEvent(
+                    event_id=self.id_gen.generate(),
+                    event_type="task.started",
+                    aggregate_id=learner_id,
+                    payload={"task_id": task_id, "task_version_id": str(task.task_version_id)},
+                    created_at=now,
+                )
+            )
+            await uow.commit()
+            return CurrentTaskResult(status=started.current_status.value, task=task)
 
 
 class CreateArtifactUpload:

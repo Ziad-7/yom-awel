@@ -26,7 +26,8 @@ class AsyncGeminiClient(Protocol):
 
 
 TaskContextResolver = Callable[[UUID], Awaitable[TaskVersion | None]]
-FREE_TIER_MODELS = frozenset({"gemini-2.5-flash", "gemini-2.5-flash-lite"})
+# Google closed the 2.5 models to new API keys (404 for new keys, checked 2026-09-24).
+FREE_TIER_MODELS = frozenset({"gemini-3.5-flash-lite"})
 
 
 class GoogleGenAIClient:

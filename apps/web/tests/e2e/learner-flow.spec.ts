@@ -1,9 +1,20 @@
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-const dirty =
-  "order_id,date,quantity,revenue,customer_email\n1,2026/09/01,-2,100,\n1,2026/09/01,-2,100,\n";
-const clean =
-  "order_id,date,quantity,revenue,customer_email\n1,2026-09-01,2,100,customer@example.test\n";
+
+// The learner's real dirty file, and its cleaned version rebuilt by the task generator.
+const dirty = readFileSync(
+  "../../task_packages/clean-sales/1/data/sales_dirty.csv",
+);
+const clean = execFileSync("uv", [
+  "run",
+  "--project",
+  "../../services/api",
+  "python",
+  "-c",
+  "import sys; from yom_awel.evaluation.clean_sales_dataset import LEARNER_SEED, generate, to_csv; sys.stdout.write(to_csv(generate(LEARNER_SEED).clean))",
+]);
 
 test("Arabic onboarding, failure, retry, pass, reload and skills", async ({
   page,
@@ -39,7 +50,7 @@ test("Arabic onboarding, failure, retry, pass, reload and skills", async ({
   await page.locator("#submission").setInputFiles({
     name: "dirty.csv",
     mimeType: "text/csv",
-    buffer: Buffer.from(dirty),
+    buffer: dirty,
   });
   await page.getByRole("button", { name: "سلّم للمراجعة" }).click();
   await expect(page.locator("#result-heading")).toContainText("قربت");
@@ -66,7 +77,7 @@ test("Arabic onboarding, failure, retry, pass, reload and skills", async ({
   await page.locator("#submission").setInputFiles({
     name: "clean.csv",
     mimeType: "text/csv",
-    buffer: Buffer.from(clean),
+    buffer: clean,
   });
   await page.getByRole("button", { name: "سلّم للمراجعة" }).click();
   await expect(page.locator("#result-heading")).toContainText("التسليم اتقبل");

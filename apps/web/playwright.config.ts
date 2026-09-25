@@ -9,7 +9,14 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"], channel: "chromium" },
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chromium",
+        // Lets a machine with a different preinstalled Chromium build run the suite.
+        launchOptions: process.env.PLAYWRIGHT_CHROMIUM_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH }
+          : {},
+      },
     },
   ],
   webServer: [
@@ -22,7 +29,7 @@ export default defineConfig({
       env: {
         APP_ENV: "local",
         LOCAL_DATABASE_PATH: ".local/e2e.sqlite3",
-        LOCAL_AUTH_SECRET: "local-e2e-test-secret-only-0000000000000000",
+        LOCAL_SECRET_PATH: ".local/e2e-session.key",
       },
     },
     {
@@ -31,7 +38,7 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120000,
       env: {
-        NEXT_PUBLIC_API_BASE_URL: "http://127.0.0.1:8000",
+        API_ORIGIN: "http://127.0.0.1:8000",
         NEXT_TELEMETRY_DISABLED: "1",
       },
     },
