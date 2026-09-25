@@ -1,53 +1,59 @@
 version: "1"
 release_version: "1.0.0"
-tested_source_sha: null
+tested_source_sha: "a957768462d628ee4728a38bb44ce99b45401ac0" # pragma: allowlist secret (public Git commit)
 deployment:
-  preview_url: null
-  production_url: null
+  preview_url: "https://yom-awel-web-git-codex-add-sql-e-96bd08-z7yt9730-4677s-projects.vercel.app"
+  production_url: "https://yom-awel-web.vercel.app"
   telegram_bot: null
 
 quality_gates:
   zero_cost_review:
-    status: "pending"
-    details: "Architecture targets free plans, but an integrated deployment and quota review have not yet been recorded."
+    status: "passed"
+    details: "No new paid dependency; local mode needs no key and hosted mode has deterministic feedback fallback. Account eligibility is a separate gate."
   hobby_non_commercial_eligibility:
-    status: "pending"
-    details: "Project owners must confirm current Vercel Hobby eligibility before deployment."
+    status: "passed"
+    details: "Sole owner confirmed on 2026-09-25 that this Vercel Hobby use is non-commercial."
   secret_scan:
-    status: "pending"
-    details: "detect-secrets runs in pre-commit and gitleaks in CI (Secret scan workflow); attach the green run for the final candidate commit."
+    status: "passed"
+    details: "detect-secrets and gitleaks GitHub checks passed for PR #42 after public task-content SHA-256 pins were added to the baseline."
   automated_tests:
-    status: "pending"
-    details: "Tests must be rerun and attached for the final integrated candidate commit."
+    status: "passed"
+    details: "PR #42: 900 Python tests passed (34 live-service tests skipped); 39 release-quality tests, 19 web unit tests, lint, types, build, OpenAPI drift, Postgres CI, and secret scans passed."
   browser_acceptance:
-    status: "pending"
-    details: "Run docs/product/release/product-acceptance.md in Arabic and English with CSV and XLSX from demo/files on the final candidate."
+    status: "passed"
+    details: "14 local and 8 hosted Playwright journeys passed, including Arabic/mobile/Axe, clean-sales CSV/XLSX, SQL/email pass and history. Hosted unsafe SQL scored 0/rejected and negated email scored 75/failed."
   gemini_fallback_test:
-    status: "pending"
-    details: "Unit coverage exists; acceptance Step 8 (FEEDBACK_MODE=fallback) has not yet been run end to end."
+    status: "passed"
+    details: "Local Playwright journeys ran with FEEDBACK_MODE=fallback. Hosted client-email returned Gemini feedback; hosted SQL returned deterministic fallback while keeping a 100/100 grade."
 
 member_approvals:
   member_1:
     role: "Product, Learning Design & Release"
     status: "pending_review"
-    decision_summary: "Learning contracts are drafted; final cross-owner and release-candidate review is pending."
+    decision_summary: "Final product-owner sign-off is still needed; hosted three-task evidence is in docs/quality/three-task-hosted-verification.md."
   member_2:
     role: "Domain, Persistence & Contracts"
     status: "pending_review"
-    decision_summary: "Awaiting cross-owner review on PR #23 head."
+    decision_summary: "No fresh formal contract-owner sign-off was recorded for PR #42; independent integrated review and CI passed."
   member_3:
     role: "AI Personas & Pedagogical Feedback"
     status: "pending_review"
-    decision_summary: "Awaiting cross-owner review on PR #23 head."
+    decision_summary: "No fresh formal feedback-owner sign-off was recorded for PR #42; hosted Gemini and fallback were observed."
   member_4:
     role: "Deterministic Evaluation & Task Data"
     status: "pending_review"
-    decision_summary: "Evaluator and pinned task package are on main; the presenter kit test grades every demo upload with it."
+    decision_summary: "No fresh formal evaluator-owner sign-off was recorded for SQL/email tasks; independent adversarial review and regressions passed."
   member_5:
     role: "Experience, Transport & Deployment"
     status: "pending_review"
-    decision_summary: "Awaiting web experience PR merge and live preview verification."
+    decision_summary: "PR #42 merged and eight hosted browser journeys passed; no separate member sign-off was recorded."
 
-decision: "no-go"
-decision_timestamp: "2026-09-24T20:00:00Z"
-signoff_lead: "member-1"
+owner_override:
+  approved: true
+  approver: "Ziad-7"
+  basis: "Sole active owner explicitly approved release in place of the five inactive member sign-offs in Codex conversation on 2026-09-25. Historical member approvals remain unrecorded."
+  confirmed_at: "2026-09-25T18:36:20Z"
+
+decision: "go"
+decision_timestamp: "2026-09-25T18:36:20Z"
+signoff_lead: "Ziad-7"

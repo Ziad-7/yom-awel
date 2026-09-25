@@ -1,7 +1,7 @@
 # Yom Awel Final Submission & Release Sign-Off Checklist
 
 - **Target Release:** v1.0.0
-- **Verified Commit:** Pending final integrated release candidate
+- **Verified Commit:** `a957768462d628ee4728a38bb44ce99b45401ac0` (three-task application)
 
 ---
 
@@ -11,18 +11,18 @@
 - [ ] **Pitch Presentation:** Export and inspect the Marp-compatible deck.
 - [ ] **Demo Scripts:** Execute the primary and outage scripts against the final deployed candidate.
 - [ ] **Asset Manifest:** Generate exports and record their SHA-256 digests.
-- [ ] **No Leaked Secrets:** Attach a secret-scan report for the final candidate commit.
+- [x] **No Leaked Secrets:** PR #42 detect-secrets and gitleaks checks passed for the final application candidate.
 - [ ] **No Placeholder Tokens:** Scan the final public submission artifacts.
 
 ---
 
 ## 2. Platform & Quality Gates
 
-- [ ] **Automated Tests:** Run all suites on the exact final integrated commit.
+- [x] **Automated Tests:** CI passed on PR #42; results are recorded in `docs/quality/three-task-hosted-verification.md`.
 - [x] **Deterministic Evaluation:** every presenter upload in `demo/files/` is graded by the real evaluator in `tools/quality/tests/test_demo_kit.py`.
-- [ ] **End-to-End Demo:** run `docs/product/release/product-acceptance.md` in Arabic and English, with CSV and XLSX.
+- [x] **End-to-End Demo:** eight hosted Playwright journeys passed in Arabic and English with CSV, XLSX, SQL, and email submissions.
 - [ ] **Local Fallback Run:** start `demo/run_local.sh` and pass both health checks.
 - [ ] **Recorded Video:** record the demo from the verified candidate and link it in `docs/operations/demo-runbook.md`.
-- [ ] **Bilingual Copy:** Verify RTL layout, language, keyboard flow, screen-reader announcements, and contrast in a deployed browser.
-- [ ] **Zero Mandatory Cost:** Confirm eligibility and quotas for Vercel, Supabase, and the selected model without adding a paid or card-backed dependency.
-- [ ] **Five-Member Sign-Off:** Record linked reviews against the exact final candidate commit.
+- [x] **Bilingual Copy:** hosted Arabic/mobile/Axe and local keyboard/accessibility browser checks passed.
+- [x] **Zero Mandatory Cost:** Sole owner confirmed non-commercial Vercel Hobby eligibility; the hosted app has Gemini fallback and no new paid dependency. Monitor free quotas during submission.
+- [x] **Release Sign-Off:** Sole active owner explicitly approved release against the verified commit. Five historical member approvals remain unrecorded and are superseded by the documented owner override.
