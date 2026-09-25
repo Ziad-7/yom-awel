@@ -1,12 +1,28 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page } from "@playwright/test";
 import path from "node:path";
+import { existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { ar } from "../../src/lib/i18n/ar";
 import { en } from "../../src/lib/i18n/en";
 import type { Lang } from "../../src/lib/i18n/keys";
 
 export const copy = { ar, en } as const;
-export const demoFile = (name: string) => path.resolve(__dirname, "../../../../demo/files", name);
+const fixtureDirectory = path.dirname(fileURLToPath(import.meta.url));
+export function demoFile(name: string): string {
+  const presenterFile = path.resolve(fixtureDirectory, "../../../../demo/files", name);
+  if (existsSync(presenterFile)) return presenterFile;
+  const generated = path.resolve(fixtureDirectory, "../../test-results/fixtures");
+  const file = path.join(generated, name);
+  if (!existsSync(file)) {
+    execFileSync("uv", [
+      "run", "--project", path.resolve(fixtureDirectory, "../../../../services/api"),
+      "python", path.join(fixtureDirectory, "generate_files.py"), generated,
+    ]);
+  }
+  return file;
+}
 export const shot = (name: string) => `test-results/screens/${name}.png`;
 
 export async function expectAccessible(page: Page) {

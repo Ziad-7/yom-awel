@@ -67,7 +67,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/local-session": {
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logout */
+        post: operations["logout_api_v1_auth_logout_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/session": {
         parameters: {
             query?: never;
             header?: never;
@@ -77,7 +94,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Session */
-        post: operations["session_api_v1_auth_local_session_post"];
+        post: operations["session_api_v1_auth_session_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -111,6 +128,23 @@ export interface paths {
         /** Me */
         get: operations["me_api_v1_learners_me_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/learners/me/language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Language */
+        put: operations["language_api_v1_learners_me_language_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -203,6 +237,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/{submission_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Feedback */
+        get: operations["feedback_api_v1_submissions__submission_id__feedback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tasks */
+        get: operations["tasks_api_v1_tasks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks/current": {
         parameters: {
             query?: never;
@@ -220,17 +288,51 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/tasks/sample": {
+    "/api/v1/tasks/{task_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Sample */
-        get: operations["sample_api_v1_tasks_sample_get"];
+        /** Task Detail */
+        get: operations["task_detail_api_v1_tasks__task_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/dataset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download */
+        get: operations["download_api_v1_tasks__task_id__dataset_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tasks/{task_id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start */
+        post: operations["start_api_v1_tasks__task_id__start_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -279,6 +381,15 @@ export interface components {
              * Format: uuid
              */
             submission_id: string;
+        };
+        /** CheckInfo */
+        CheckInfo: {
+            /** Check Id */
+            check_id: string;
+            /** Critical */
+            critical: boolean;
+            /** Points */
+            points: number;
         };
         /** CurrentTaskResult */
         CurrentTaskResult: {
@@ -375,6 +486,10 @@ export interface components {
          * @enum {string}
          */
         Language: "ar-EG" | "en";
+        /** LanguageInput */
+        LanguageInput: {
+            preferred_language: components["schemas"]["Language"];
+        };
         /** Learner */
         Learner: {
             /**
@@ -427,19 +542,20 @@ export interface components {
         };
         /** RuntimeResult */
         RuntimeResult: {
-            /** Mode */
-            mode: string;
-            /** Simulated Evaluation */
-            simulated_evaluation: boolean;
+            /**
+             * Feedback Provider
+             * @enum {string}
+             */
+            feedback_provider: "gemini" | "deterministic";
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "local" | "cloud";
         };
         /** SessionResult */
         SessionResult: {
-            /** Access Token */
-            access_token: string;
-            /**
-             * Expires In
-             * @default 604800
-             */
+            /** Expires In */
             expires_in: number;
         };
         /** SkillMapping */
@@ -511,11 +627,73 @@ export interface components {
          * @enum {string}
          */
         SubmissionStatus: "RECEIVED" | "EVALUATING" | "COMPLETED" | "FAILED";
+        /** TaskDetail */
+        TaskDetail: {
+            /** Brief Ar */
+            brief_ar: string;
+            /** Brief En */
+            brief_en: string;
+            /** Checks */
+            checks: components["schemas"]["CheckInfo"][];
+            /** Formats */
+            formats: ("csv" | "xlsx")[];
+            /** Hints Ar */
+            hints_ar: string;
+            /** Hints En */
+            hints_en: string;
+            /** Max Bytes */
+            max_bytes: number;
+            /** Pass Threshold */
+            pass_threshold: number;
+            /** Task Id */
+            task_id: string;
+            /**
+             * Task Version Id
+             * Format: uuid
+             */
+            task_version_id: string;
+            /** Title Ar */
+            title_ar: string;
+            /** Title En */
+            title_en: string;
+            /** Version */
+            version: string;
+        };
+        /** TaskList */
+        TaskList: {
+            /** Tasks */
+            tasks: components["schemas"]["TaskSummary"][];
+        };
         /**
          * TaskStatus
          * @enum {string}
          */
         TaskStatus: "AVAILABLE" | "ACTIVE" | "COMPLETED";
+        /** TaskSummary */
+        TaskSummary: {
+            /** Pass Threshold */
+            pass_threshold: number;
+            /** Points Total */
+            points_total: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "in_progress" | "completed";
+            /** Task Id */
+            task_id: string;
+            /**
+             * Task Version Id
+             * Format: uuid
+             */
+            task_version_id: string;
+            /** Title Ar */
+            title_ar: string;
+            /** Title En */
+            title_en: string;
+            /** Version */
+            version: string;
+        };
         /** TaskVersion */
         TaskVersion: {
             /** Artifact Schema */
@@ -595,11 +773,11 @@ export interface operations {
     authorize_api_v1_artifacts_upload_authorization_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -711,13 +889,13 @@ export interface operations {
     complete_api_v1_artifacts__artifact_id__complete_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path: {
                 artifact_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -827,12 +1005,13 @@ export interface operations {
             query?: never;
             header?: {
                 "x-upload-token"?: string | null;
-                authorization?: string | null;
             };
             path: {
                 artifact_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -940,11 +1119,11 @@ export interface operations {
     attempts_api_v1_attempts_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1049,12 +1228,122 @@ export interface operations {
             };
         };
     };
-    session_api_v1_auth_local_session_post: {
+    logout_api_v1_auth_logout_post: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description State or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Artifact too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Unsupported or unsafe artifact */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Validation or artifact integrity failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Evaluation, persistence or infrastructure unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+        };
+    };
+    session_api_v1_auth_session_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1272,13 +1561,129 @@ export interface operations {
     me_api_v1_learners_me_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Learner"];
+                };
+            };
+            /** @description Malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description State or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Artifact too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Unsupported or unsafe artifact */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Validation or artifact integrity failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Evaluation, persistence or infrastructure unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+        };
+    };
+    language_api_v1_learners_me_language_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LanguageInput"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1384,11 +1789,11 @@ export interface operations {
     onboard_api_v1_learners_onboard_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1610,11 +2015,11 @@ export interface operations {
     skills_api_v1_skills_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1724,10 +2129,11 @@ export interface operations {
             query?: never;
             header: {
                 "idempotency-key": string;
-                authorization?: string | null;
             };
             path?: never;
-            cookie?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -1841,12 +2247,13 @@ export interface operations {
             query?: never;
             header: {
                 "idempotency-key": string;
-                authorization?: string | null;
             };
             path: {
                 submission_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1951,14 +2358,242 @@ export interface operations {
             };
         };
     };
+    feedback_api_v1_submissions__submission_id__feedback_get: {
+        parameters: {
+            query: {
+                language: components["schemas"]["Language"];
+            };
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: {
+                yom_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackResult"];
+                };
+            };
+            /** @description Malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description State or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Artifact too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Unsupported or unsafe artifact */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Validation or artifact integrity failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Evaluation, persistence or infrastructure unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+        };
+    };
+    tasks_api_v1_tasks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskList"];
+                };
+            };
+            /** @description Malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description State or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Artifact too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Unsupported or unsafe artifact */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Validation or artifact integrity failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Evaluation, persistence or infrastructure unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+        };
+    };
     current_api_v1_tasks_current_get: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2063,16 +2698,16 @@ export interface operations {
             };
         };
     };
-    sample_api_v1_tasks_sample_get: {
+    task_detail_api_v1_tasks__task_id__get: {
         parameters: {
-            query?: {
-                clean?: boolean;
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
             };
-            header?: {
-                authorization?: string | null;
+            cookie?: {
+                yom_session?: string | null;
             };
-            path?: never;
-            cookie?: never;
         };
         requestBody?: never;
         responses: {
@@ -2082,7 +2717,238 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["TaskDetail"];
+                };
+            };
+            /** @description Malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description State or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Artifact too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Unsupported or unsafe artifact */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Validation or artifact integrity failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Evaluation, persistence or infrastructure unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+        };
+    };
+    download_api_v1_tasks__task_id__dataset_get: {
+        parameters: {
+            query?: {
+                format?: "csv" | "xlsx";
+            };
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: {
+                yom_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                    "text/csv": unknown;
+                };
+            };
+            /** @description Malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description State or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Artifact too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Unsupported or unsafe artifact */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Validation or artifact integrity failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Evaluation, persistence or infrastructure unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+        };
+    };
+    start_api_v1_tasks__task_id__start_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: {
+                yom_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentTaskResult"];
                 };
             };
             /** @description Malformed request */

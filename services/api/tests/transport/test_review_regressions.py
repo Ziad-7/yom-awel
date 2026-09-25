@@ -5,24 +5,27 @@ import zipfile
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.transport.support import (
+    CLEAN_CSV,
+    CSRF,
+    DIRTY_CSV,
+    onboard,
+    settings_for,
+    start,
+)
 from yom_awel.domain.enums import ErrorCategory
 from yom_awel.domain.errors import ArtifactIntegrityFailure, DomainError, PersistenceError
 from yom_awel.transport.app import create_app
 from yom_awel.transport.dependencies import compose
-from yom_awel.transport.fakes import CLEAN_CSV, DIRTY_CSV
-from yom_awel.transport.settings import Settings
 
 
 @pytest.fixture
 def context(tmp_path):
-    settings = Settings(secret="s" * 48, database_path=str(tmp_path / "review.db"))
+    settings = settings_for(tmp_path)
     services = compose(settings)
-    with TestClient(create_app(settings, services)) as client:
-        token = client.post("/api/v1/auth/local-session").json()["access_token"]
-        client.headers["Authorization"] = "Bearer " + token
-        assert (
-            client.post("/api/v1/learners/onboard", json={"display_name": "نور"}).status_code == 200
-        )
+    with TestClient(create_app(settings, services), headers=CSRF) as client:
+        onboard(client, "نور")
+        start(client)
         yield client, services
 
 

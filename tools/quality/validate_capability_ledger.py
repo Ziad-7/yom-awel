@@ -95,7 +95,9 @@ def validate_ledger(ledger: dict[str, Any], root_dir: Path | None = None) -> lis
 
             # Filesystem existence validation for current capabilities
             if root_dir is not None:
-                paths = [impl_path] if isinstance(impl_path, str) else list(impl_path)
+                paths = (
+                    [impl_path] if isinstance(impl_path, str) else list(impl_path or [])
+                )
                 for p in paths:
                     if not (root_dir / p).exists():
                         errors.append(

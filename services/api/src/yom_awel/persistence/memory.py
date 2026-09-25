@@ -22,7 +22,7 @@ from yom_awel.domain.entities import (
     SubmissionReservation,
     Task,
 )
-from yom_awel.domain.enums import Channel, LearnerStatus, SubmissionStatus
+from yom_awel.domain.enums import Channel, Language, LearnerStatus, SubmissionStatus
 from yom_awel.domain.errors import (
     ArtifactIntegrityFailure,
     ArtifactNotReady,
@@ -117,6 +117,16 @@ class _Learners(_MemoryRepository):
         if learner.learner_id in self._state.learners:
             raise UniqueConstraintViolation("learners.id")
         self._state.learners[learner.learner_id] = _copy(learner)
+
+    async def set_preferred_language(
+        self, learner_id: UUID, language: Language, updated_at: datetime
+    ) -> None:
+        learner = self._state.learners.get(learner_id)
+        if learner is None:
+            raise NotFound("learners.id")
+        self._state.learners[learner_id] = learner.model_copy(
+            update={"preferred_language": language, "updated_at": updated_at}
+        )
 
     async def add_external_identity(
         self, learner_id: UUID, provider: str, provider_subject: str
