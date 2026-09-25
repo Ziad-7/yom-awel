@@ -31,13 +31,17 @@ When making statistical, market, or educational claims (e.g. youth unemployment 
 
 ## 3. Claim Classification Standards
 
-Every claim in the project is assigned one of three classifications:
+Every claim in the project is assigned one of four classifications:
 
 | Status | Definition | Evidence Requirement |
 |---|---|---|
-| `current` | A live, verifiable feature in the release candidate. | Must point to passing automated tests in the repository and a concrete preview deployment check. |
-| `experimental` | An active feature currently implemented in a reviewable PR branch. | Must identify the branch, test files, and pending PR review items. |
+| `current` | A capability on `main`, covered by passing tests. | Must cite at least one automated test and one preview check. Every cited path must exist. |
+| `verified` | A `current` capability that was also exercised end to end on a recorded candidate. | Same as `current`, plus the run is recorded in the release sign-off. |
+| `pending` | Implemented or in review, but not yet verified end to end. | Must state its `pending_reason`. Any cited test or artifact must exist. |
 | `roadmap` | A planned future capability. | Must be explicitly labeled as "Roadmap" or "المستقبل" in all decks and product copy. |
+
+`tools/quality/validate_release_evidence.py` enforces these rules, including that every path under
+`evidence.automated_tests` and `evidence.artifacts` exists in the repository.
 
 ---
 

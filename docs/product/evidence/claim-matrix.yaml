@@ -1,5 +1,5 @@
-version: "1"
-description: "Claim-to-evidence matrix mapping every public product and pitch claim to empirical tests, previews, or authoritative sources."
+version: "2"
+description: "Claim-to-evidence matrix mapping every public product and pitch claim to tests and artifacts that exist in the repository. Anything not yet verified end to end is marked pending with its reason."
 
 claims:
   - id: "claim-cap-state-machine"
@@ -7,7 +7,8 @@ claims:
     wording: "Learner state transitions follow an explicit, deterministic state machine preventing out-of-order progression."
     usage_locations:
       - "README.md"
-      - "docs/product/journeys/learner-first-task.md"
+      - "submission/application.md"
+      - "submission/pitch-deck.md"
     status: "current"
     owner: "member-2"
     evidence:
@@ -15,14 +16,15 @@ claims:
         - "services/api/tests/domain/test_state_machine.py"
         - "services/api/tests/domain/test_learner_progress.py"
       preview_checks:
-        - "Verify learner lifecycle transitions sequentially without skipping states in database session."
+        - "Verify learner lifecycle transitions sequentially without skipping states."
 
   - id: "claim-cap-artifact-upload"
     type: "capability"
-    wording: "Learner spreadsheet uploads are handled through private, signed URLs ensuring zero public exposure."
+    wording: "Learner uploads are stored privately: local files in local mode and a private bucket behind signed URLs in cloud mode."
     usage_locations:
       - "README.md"
-      - "docs/product/journeys/learner-first-task.md"
+      - "submission/application.md"
+      - "submission/pitch-deck.md"
     status: "current"
     owner: "member-2"
     evidence:
@@ -30,27 +32,29 @@ claims:
         - "services/api/tests/persistence/test_local_artifacts.py"
         - "services/api/tests/persistence/test_supabase_artifacts.py"
       preview_checks:
-        - "Verify client requests upload authorization and obtains signed URL restricted to learner submission prefix."
+        - "Verify upload authorization is restricted to the learner's own submission prefix."
 
   - id: "claim-cap-retry-handling"
     type: "capability"
-    wording: "Failed evaluations transition state to NEEDS_RETRY and allow safe resubmission with incremented attempt numbers."
+    wording: "A failed evaluation moves the learner to NEEDS_RETRY and allows resubmission as a new attempt without losing history."
     usage_locations:
-      - "docs/product/journeys/learner-retry.md"
+      - "submission/application.md"
       - "submission/pitch-deck.md"
+      - "submission/demo-contingency.md"
     status: "current"
     owner: "member-2"
     evidence:
       automated_tests:
         - "services/api/tests/application/test_process_submission.py"
+        - "services/api/tests/application/test_outcome_lookup.py"
       preview_checks:
-        - "Verify attempt counter increments on retry and initial attempt history is immutably retained."
+        - "Verify the attempt counter increments on retry and the first attempt is retained."
 
   - id: "claim-cap-skills-projection"
     type: "capability"
-    wording: "Skills profiles are direct, auditable projections of passed deterministic evaluation checks."
+    wording: "Skills evidence is a direct projection of passed deterministic checks."
     usage_locations:
-      - "docs/product/journeys/skills-profile.md"
+      - "submission/application.md"
       - "submission/pitch-deck.md"
     status: "current"
     owner: "member-2"
@@ -58,50 +62,159 @@ claims:
       automated_tests:
         - "services/api/tests/domain/test_skill_evidence.py"
       preview_checks:
-        - "Verify skill profile aggregation returns only competencies backed by recorded evaluation evidence."
+        - "Verify skill aggregation returns only competencies backed by recorded evaluation evidence."
 
   - id: "claim-cap-deterministic-eval"
     type: "capability"
-    wording: "Clean-sales evaluator executes pure, reproducible data quality checks with 0 to 100 scoring."
+    wording: "The clean-sales evaluator grades CSV and XLSX uploads with four deterministic 25-point checks; a submission passes only with score >= 75 and the critical unique_orders check passed."
     usage_locations:
       - "README.md"
+      - "demo/README.md"
+      - "submission/application.md"
       - "submission/pitch-deck.md"
-    status: "experimental"
+      - "submission/demo-script.md"
+    status: "current"
     owner: "member-4"
     evidence:
       automated_tests:
         - "services/api/tests/evaluation/test_sales_cleaning.py"
+        - "services/api/tests/evaluation/test_sales_cleaning_boundaries.py"
+        - "services/api/tests/evaluation/test_reproducibility.py"
+        - "tools/quality/tests/test_demo_kit.py"
+      artifacts:
+        - "task_packages/clean-sales/1/task.json"
       preview_checks:
-        - "Submit reference clean CSV and verify deterministic score of 100/100 under 500ms."
+        - "Upload demo/files/sales_retry_duplicates.csv and verify 75/100 with passed=false because unique_orders failed."
+
+  - id: "claim-cap-safe-ingestion"
+    type: "capability"
+    wording: "Uploads are inspected by signature before parsing; unsupported, oversized, macro, multi-sheet and malformed files are rejected with a coded, bilingual reason."
+    usage_locations:
+      - "README.md"
+      - "submission/application.md"
+    status: "current"
+    owner: "member-4"
+    evidence:
+      automated_tests:
+        - "services/api/tests/evaluation/test_artifact_validation.py"
+        - "tools/quality/tests/test_demo_kit.py"
+      preview_checks:
+        - "Upload demo/files/sales_rejected_missing_columns.csv and verify the missing_columns rejection."
+
+  - id: "claim-cap-bilingual-task"
+    type: "capability"
+    wording: "The clean-sales task brief and hints are published in Egyptian Arabic and English, pinned by SHA-256 so graded content cannot drift."
+    usage_locations:
+      - "README.md"
+      - "submission/application.md"
+    status: "current"
+    owner: "member-4"
+    evidence:
+      automated_tests:
+        - "services/api/tests/evaluation/test_task_package.py"
+      artifacts:
+        - "task_packages/clean-sales/1/content/brief.ar-EG.md"
+        - "task_packages/clean-sales/1/content/brief.en.md"
+        - "task_packages/clean-sales/1/content/hints.ar-EG.md"
+        - "task_packages/clean-sales/1/content/hints.en.md"
+      preview_checks:
+        - "Open the task in each language and compare the brief with the pinned file."
+
+  - id: "claim-cap-demo-kit"
+    type: "capability"
+    wording: "The presenter kit holds five reproducible uploads whose scores (100 CSV, 100 XLSX, 75 retry, 50 retry, rejected) are asserted against the real evaluator."
+    usage_locations:
+      - "demo/README.md"
+      - "submission/application.md"
+      - "submission/pitch-deck.md"
+      - "submission/demo-script.md"
+      - "submission/demo-contingency.md"
+      - "docs/operations/demo-runbook.md"
+    status: "current"
+    owner: "member-1"
+    evidence:
+      automated_tests:
+        - "tools/quality/tests/test_demo_kit.py"
+      artifacts:
+        - "demo/generate_demo_files.py"
+        - "demo/files/sales_cleaned.csv"
+        - "demo/files/sales_cleaned.xlsx"
+        - "demo/files/sales_retry_duplicates.csv"
+        - "demo/files/sales_retry_half.xlsx"
+        - "demo/files/sales_rejected_missing_columns.csv"
+      preview_checks:
+        - "Run uv run --project services/api pytest tools/quality/tests/test_demo_kit.py."
+
+  - id: "claim-cap-secret-hygiene"
+    type: "capability"
+    wording: "Every commit is scanned by detect-secrets in pre-commit and gitleaks in CI, and the feedback layer never logs secrets."
+    usage_locations:
+      - "README.md"
+      - "submission/application.md"
+    status: "current"
+    owner: "member-1"
+    evidence:
+      automated_tests:
+        - "services/api/tests/feedback/test_no_secret_logs.py"
+      artifacts:
+        - ".pre-commit-config.yaml"
+        - ".secrets.baseline"
+        - ".github/workflows/secret-scan.yml"
+      preview_checks:
+        - "Verify the Secret scan check is green on the release candidate commit."
 
   - id: "claim-cap-arabic-feedback"
     type: "capability"
-    wording: "Pedagogical coaching is delivered in authentic Egyptian Arabic with deterministic local fallback."
+    wording: "Tarek explains each deterministic result in Egyptian Arabic or English, using Gemini when configured and a deterministic fallback otherwise; feedback never changes the grade."
     usage_locations:
       - "README.md"
+      - "submission/application.md"
       - "submission/pitch-deck.md"
-    status: "experimental"
+      - "submission/demo-script.md"
+      - "submission/demo-contingency.md"
+    status: "current"
     owner: "member-3"
     evidence:
       automated_tests:
         - "services/api/tests/feedback/test_gemini.py"
         - "services/api/tests/feedback/test_fallback.py"
+        - "services/api/tests/feedback/test_service.py"
+        - "services/api/tests/evaluation/test_feedback_boundary.py"
       preview_checks:
-        - "Disable Gemini API key in staging and verify structured Arabic fallback feedback is served."
+        - "Run with FEEDBACK_MODE=fallback and verify bilingual Tarek feedback is shown for a retry."
 
   - id: "claim-cap-web-experience"
     type: "capability"
-    wording: "Next.js web experience provides accessible RTL Arabic onboarding and task workflow."
+    wording: "A bilingual Next.js web app (Arabic RTL and English) lets a learner pick the task, download the dataset, upload a file and see the score, feedback and progress."
     usage_locations:
       - "README.md"
+      - "submission/application.md"
       - "submission/pitch-deck.md"
-    status: "experimental"
+      - "submission/demo-script.md"
+    status: "current"
     owner: "member-5"
     evidence:
       automated_tests:
-        - "apps/web/tests/e2e/learner-flow.spec.ts"
+        - "apps/web/tests/e2e/demo-flow.spec.ts"
+        - "services/api/tests/transport/test_journey.py"
       preview_checks:
-        - "Verify incognito browser on Vercel preview completes onboarding and displays Arabic workplace brief."
+        - "Complete the demo flow in Arabic and English with CSV and XLSX uploads."
+
+  - id: "claim-cap-local-demo"
+    type: "capability"
+    wording: "demo/run_local.sh starts the API and web app locally with one command and no secrets."
+    usage_locations:
+      - "README.md"
+      - "demo/README.md"
+      - "submission/application.md"
+      - "docs/operations/demo-runbook.md"
+    status: "pending"
+    pending_reason: "The integrated launcher passed all three manual health checks; an automated CI smoke test for the script remains to be added."
+    owner: "member-1"
+    evidence:
+      automated_tests: []
+      preview_checks:
+        - "Run demo/run_local.sh and curl /api/v1/health on the API and through the web proxy."
 
   - id: "claim-cap-sql-sandbox"
     type: "capability"

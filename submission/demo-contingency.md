@@ -1,41 +1,36 @@
-# Yom Awel — Contingency Demo Script (Offline / Gemini-Disabled Fallback)
+# Yom Awel: Contingency Demo Script (Gemini Disabled)
 
-- **Purpose:** Planned acceptance script for deterministic Egyptian Arabic fallback when external AI APIs are blocked, disabled, or rate-limited.
+- **Purpose:** show that grading and progress do not depend on the AI provider.
 - **Presenter:** Member 1 (Lead Presenter)
-- **Pre-Condition:** Gemini API key unset or mocked offline mode enabled (`GEMINI_API_KEY=""`).
+- **Pre-condition:** the API runs with `FEEDBACK_MODE=fallback`, or with no `GEMINI_API_KEY`.
+  `GET /api/v1/runtime` then reports `"feedback_provider": "deterministic"`.
+- **Status:** pending. The feedback fallback is unit-tested on `main`; the switch through the
+  API and the browser has not yet been verified end to end (claim `claim-cap-arabic-feedback`).
 
 <!-- claim: claim-cap-arabic-feedback -->
 <!-- claim: claim-cap-deterministic-eval -->
 <!-- claim: claim-cap-retry-handling -->
-
----
-
-## Scenario Overview
-
-Run this script only after the integrated release candidate passes it. Until then, it specifies expected behavior rather than claiming verified availability.
+<!-- claim: claim-cap-demo-kit -->
 
 ---
 
 ## Timeline & Execution
 
-### 1. Offline Mode Demonstration (0:00 – 0:45)
-- **Speaker:** "في سيناريو انقطاع الإنترنت الخارجي أو نفاد حصة نماذج الذكاء الاصطناعي المجانية، Yom Awel لا يتوقف أبداً عن تقديم تجربة تعليمية كاملة."
-- **Screen Action:**
-  - Show system logs or environment panel indicating `used_fallback: true`.
-  - Confirm whether the learner can access `/workplace`; record failure as a failed release gate.
+### 1. Show the provider is off (0:00-0:30)
+- **Speaker:** "لو الإنترنت وقع أو حصة الذكاء الاصطناعي المجانية خلصت، التصحيح مايقفش، لأنه أصلاً مش معتمد على الذكاء الاصطناعي."
+- **Screen:** show the runtime response with `feedback_provider: deterministic`.
 
-### 2. Evaluator Execution & Deterministic Fallback Notice (0:45 – 1:30)
-- **Speaker:** "التقييم الحتمي البرمجي يعمل محلياً بنسبة 100%. التلميحات والتوجيهات تظهر للمتدرب بالعامية المصرية المنضبطة من محرك الملاحظات الاحتياطي المحلي."
-- **Screen Action:**
-  - Submit test workbook with incomplete date formatting.
-  - Evaluation produces score (e.g. 75/100).
-  - Supervisor card renders local template coaching note with fallback indicator badge:
-    > "تم توليد هذه التوجيهات باستخدام النظام الآلي المباشر لضمان استمرار الخدمة دون انقطاع."
+### 2. A retry with fallback feedback (0:30-1:15)
+- **Speaker:** "المتدرب صلح نص الشغل بس. الدرجة 50 وده إعادة، وطارق بيشرح من القوالب الثابتة بالعامية المصرية."
+- **Screen:** upload `demo/files/sales_retry_half.xlsx`.
+- **Expected:** 50/100, not passed, `standard_dates` and `complete_customer_records` failed, Tarek's
+  feedback from the deterministic templates.
 
-### 3. Retry and Progression Continuity (1:30 – 2:15)
-- **Speaker:** "المتدرب يستطيع تصحيح الخطأ فوراً وإعادة التسليم دون فقدان أي سجلات، ونظام التقدم يواصل العمل بثبات تام."
-- **Screen Action:**
-  - Submit corrected workbook.
-  - Final score reaches 100/100.
-  - Verify that state advances to `TASK_COMPLETED` only when the threshold and critical-check gate pass.
-  - Verify that the competency profile updates; retain evidence for release sign-off.
+### 3. Retry and completion (1:15-2:00)
+- **Speaker:** "المتدرب يقدر يصلح ويسلم تاني من غير ما يخسر المحاولة الأولى."
+- **Screen:** upload `demo/files/sales_cleaned.csv`.
+- **Expected:** 100/100, passed, the task shows as completed, and the attempt history lists both
+  attempts.
+
+If any expected state does not appear, stop and record a failed release gate rather than claiming
+uninterrupted service.

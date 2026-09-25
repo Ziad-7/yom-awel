@@ -26,7 +26,7 @@ repos:
         pass_filenames: false
       - id: mypy-tools-demo
         name: strict mypy (tools/quality and demo)
-        entry: bash -c 'uv run --project services/api mypy --config-file services/api/pyproject.toml --explicit-package-bases tools/quality $(test -d demo && echo demo)'
+        entry: uv run --project services/api mypy --config-file services/api/pyproject.toml --explicit-package-bases tools/quality demo
         language: system
         types_or: [python, pyi]
         pass_filenames: false

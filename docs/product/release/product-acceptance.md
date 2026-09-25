@@ -1,57 +1,61 @@
-# Yom Awel Product Acceptance Protocol & Verification Script
+# Yom Awel Product Acceptance Protocol
 
 - **Release Target:** Release Candidate v1.0.0
 - **Governing Task:** `clean-sales` (v1)
-- **Owners:** Member 1 (Lead), with Member 4 (Evaluator) & Member 5 (Web Experience)
-- **Status:** Protocol frozen; execution pending Member 4 & 5 branch integration
+- **Owners:** Member 1 (Lead), with Member 4 (Evaluator) and Member 5 (Web Experience)
+- **Status:** protocol updated to the demo flow; execution pending the web app (PR #22) and its
+  wiring to the real evaluator
 
 ---
 
-## 1. Acceptance Protocol Overview
+## 1. Overview
 
-This document specifies the exact 8-step scripted end-to-end acceptance run across Web (`apps/web`) and Telegram (`@yom_awel_bot`) channels. It must be executed against the integrated deployment once Member 4 (evaluator) and Member 5 (web experience) PRs are merged to `main`.
+The acceptance run follows the demo flow in the web app, once in Arabic (`ar-EG`) and once in
+English (`en`), uploading CSV in one run and XLSX in the other. Uploads come from `demo/files/`;
+their scores are already asserted against the real evaluator by
+`tools/quality/tests/test_demo_kit.py`, so any different score in the browser is an integration
+defect, not an evaluator change. Telegram is out of scope for this release.
 
----
+## 2. Steps
 
-## 2. Scripted Acceptance Test Steps
+### Step 1: Session and onboarding (`ONBOARDING` to `READY`)
+- **Action:** open the app in a private window, choose a language, enter a display name.
+- **Expected:** an anonymous session cookie is set (HttpOnly, SameSite=Lax); the learner is
+  `READY`; the task list shows `clean-sales` as available with pass threshold 75.
 
-### Step 1: Web Channel Onboarding (`ONBOARDING` ➔ `READY`)
-- **Route:** `/onboarding`
-- **Action:** Open browser in incognito mode at `/onboarding`. Enter display name "نور الدين", select language "العربية (مصر)". Click "ابدأ أول يوم عمل".
-- **Expected Outcome:** Smooth RTL redirect to `/workplace`. Profile initialized with status `READY`. Header displays "نور الدين" with welcome card from supervisor Tarek. Copy ID: `state.empty`.
+### Step 2: Start the task and download (`READY` to `IN_TASK`)
+- **Action:** start clean-sales, read the brief and hints, download the dataset as CSV and as XLSX.
+- **Expected:** the brief matches the pinned `content/brief.<lang>.md`; the CSV equals
+  `task_packages/clean-sales/1/data/sales_dirty.csv`.
 
-### Step 2: Task Assignment & Data Download (`READY` ➔ `IN_TASK`)
-- **Route:** `/workplace`
-- **Action:** Inspect the workplace briefing card. Download `sales_dirty.csv`.
-- **Expected Outcome:** Task ID `clean-sales` version `1` presented with 4 business objectives. Dataset contains known seeded anomalies (duplicates, unformatted dates, invalid prices). State: `IN_TASK`.
+### Step 3: Rejection
+- **Action:** upload `demo/files/sales_rejected_missing_columns.csv`.
+- **Expected:** rejected with `missing_columns`, bilingual reason, no check marked as passed.
 
-### Step 3: Boundary & Rejection Verification
-- **Route:** `/workplace`
-- **Action:** Upload an invalid file (`test.pdf`) and an oversized file (> 5 MiB).
-- **Expected Outcome:** Immediate, accessible Arabic error banner with `aria-describedby` (Copy IDs: `upload.invalid_type`, `upload.oversize`). State remains `IN_TASK` without creating an attempt record.
+### Step 4: Critical-check retry (`IN_TASK` to `NEEDS_RETRY`)
+- **Action:** upload `demo/files/sales_retry_duplicates.csv`.
+- **Expected:** 75/100, `passed=false`, only `unique_orders` failed; Tarek's feedback in the
+  learner's language; status retry.
 
-### Step 4: Deterministic Evaluation & Failing Retry (`IN_TASK` ➔ `NEEDS_RETRY`)
-- **Route:** `/workplace`
-- **Action:** Upload dirty or partially cleaned spreadsheet (e.g., duplicate order IDs intact). Click "سلّم للمراجعة".
-- **Expected Outcome:** Score = 50/100 (below 75 pass threshold, or `unique_orders` critical failure). State transitions to `NEEDS_RETRY`. Focus shifts to `#result-heading`. Supervisor feedback in Egyptian Arabic highlights deduplication. Copy IDs: `evaluation.failure`, `evaluation.retry`. Attempt counter = 1.
+### Step 5: Partial retry
+- **Action:** upload `demo/files/sales_retry_half.xlsx`.
+- **Expected:** 50/100, `passed=false`, `standard_dates` and `complete_customer_records` failed.
 
-### Step 5: Revision & Passing Completion (`NEEDS_RETRY` ➔ `TASK_COMPLETED`)
-- **Route:** `/workplace`
-- **Action:** Upload the fully cleaned reference deliverable (`clean_sales_reference.csv`).
-- **Expected Outcome:** Score = 100/100, critical check passed. State advances to `TASK_COMPLETED`. Green success banner rendered (Copy ID: `evaluation.success`). Attempt counter = 2.
+### Step 6: Pass (`NEEDS_RETRY` to `TASK_COMPLETED`)
+- **Action:** upload `demo/files/sales_cleaned.csv` (or `sales_cleaned.xlsx` in the other run).
+- **Expected:** 100/100, `passed=true`; the task shows completed; the attempt history lists every
+  attempt with its `submission_id`.
 
-### Step 6: Verifiable Skills Profile Projection
-- **Route:** `/skills`
-- **Action:** Click "عرض ملف المهارات" or navigate to `/skills`.
-- **Expected Outcome:** `data_cleaning` competency card rendered with 4 verified sub-skills citing task `clean-sales@1` and completion timestamp. Zero unverified skills displayed. Copy ID: `profile.empty` only if 0 tasks completed.
+### Step 7: Language switch
+- **Action:** switch the language; reopen the last submission.
+- **Expected:** feedback for the stored evaluation in the new language; the score is unchanged.
 
-### Step 7: Deterministic Local Fallback Contingency
-- **Route:** `/workplace`
-- **Action:** Run submission with `GEMINI_API_KEY=""` or simulated provider timeout.
-- **Expected Outcome:** System falls back immediately to local deterministic Arabic feedback (`used_fallback: true`). Structured Egyptian Arabic coaching note rendered instantly (Copy ID: `feedback.gemini_fallback`). Progression is uninterrupted.
+### Step 8: Feedback fallback
+- **Action:** restart the API with `FEEDBACK_MODE=fallback`; repeat Step 4.
+- **Expected:** `GET /api/v1/runtime` reports `feedback_provider: deterministic`; the same score,
+  with deterministic Tarek feedback.
 
-### Step 8: Accessibility & Mobile Viewport (375 px)
-- **Viewport:** 375 px width (iPhone SE standard)
-- **Action:** Navigate entire flow via keyboard (`Tab`, `Shift+Tab`, `Enter`, `Space`, `Escape`) and test on small mobile screen.
-- **Expected Outcome:** Full keyboard operability, visible 2px focus outlines, zero horizontal overflow, minimum 44x44px touch targets.
-
+### Step 9: Accessibility and mobile (375 px)
+- **Action:** run the flow by keyboard only and at 375 px width.
+- **Expected:** full keyboard operability, visible focus, no horizontal overflow, correct `dir`
+  for each language.
