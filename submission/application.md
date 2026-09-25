@@ -2,70 +2,70 @@
 
 ---
 
-### Box 1: Thematic Challenge
+### Box 1: Thematic Challenge (choose one)
 **Assessment Revolution**  
 *(Alternative track: AI Tutor)*
+
+*Why:* Yom Awel fundamentally transforms how applied job skills are evaluated. It replaces passive multiple-choice testing and superficial course certificates with authentic workplace artifact evaluation, while resolving the fatal flaw of many AI education platforms (the "LLM grading fallacy") by keeping assessment deterministic, auditable, and cheat-proof, while using Generative AI strictly for personalized coaching.
 
 ---
 
 ### Box 2: Problem Statement
-Many Egyptian university students and early-career job seekers face an "experience paradox": they understand technical concepts from online courses and university lectures, but have never rehearsed the practical, messy workflows required on Day 1 of a real job (e.g., standardizing corrupted dates, removing duplicate transaction records, querying sales databases, or handling client escalations). 
+Youth and early-career job seekers across Egypt and the MENA region face a severe "experience paradox": they acquire theoretical knowledge from universities and online courses, but employers reject them because they lack practical, day-one job readiness. Traditional education measures learning through abstract multiple-choice quizzes and passive video completion, which fail to evaluate whether a candidate can actually execute real workplace workflows or produce authentic business artifacts.
 
-Existing digital learning platforms fail them in two critical ways:
-1. **The Language and Cultural Disconnect:** Almost all technical training datasets and exercises are in English and detached from local workplace realities.
-2. **The LLM Grading Fallacy:** Many emerging EdTech platforms use Generative AI to directly score student work, leading to hallucinations, non-reproducible grades, and security vulnerabilities (prompt injection). Meanwhile, traditional courses rely on multiple-choice quizzes that test passive recall instead of applied capability.
+Furthermore, existing digital learning solutions suffer from two critical flaws:
+1. **Cultural and Linguistic Detachment:** Training materials and enterprise scenarios are overwhelmingly Western- and English-centric, leaving local youth unprepared for the bilingual and cultural dynamics of regional workplaces.
+2. **The LLM Grading Fallacy:** Emerging EdTech solutions increasingly rely on Generative AI to directly score student work. This introduces grading hallucinations, non-reproducible evaluations, and severe prompt-injection vulnerabilities, undermining the credibility of the resulting credentials.
 
 ---
 
 ### Box 3: Target User / Beneficiary
-* **Primary Users:** Egyptian university students, fresh graduates, and career switchers preparing for entry-level digital, data, and operational roles.
+* **Primary Users:** University students, recent graduates, and career-switchers in Egypt and the MENA region preparing for entry-level digital, operational, and technical roles.
 * **Secondary Beneficiaries:**
-  * **Educators & Training Academies:** Can assign authentic practical tasks and receive auditable, granular evidence of competencies without manually grading hundreds of spreadsheets.
-  * **Employers & Recruiters:** Gain verified proof of demonstrated task execution rather than trusting self-reported course completion certificates.
+  * **Higher Education & Vocational Training Providers:** Can integrate authentic simulation tasks into their curricula and receive automated, auditable competency evidence without manually grading student submissions.
+  * **Employers, HR Teams, and Workforce Development Programs:** Gain verifiable, tamper-proof proof of demonstrated task execution, drastically reducing hiring risk and onboarding ramp-up time compared to traditional resume screening.
 
 ---
 
 ### Box 4: Evidence / Validation So Far
-* **Labor Market Evidence:** The skills gap is documented by authoritative national and regional data:
-  * **ILO & CAPMAS (2024):** *Analytical report: Labour demand and labour market skills needs in Egypt* highlights acute shortages in applied digital and data competencies.
-  * **ILO (2024):** *Skills mapping in Egypt: Opportunity scouting and skills mapping analysis* details high youth underemployment driven by training-to-job mismatch.
-  * **ILO (2025):** *Skills dynamics in the Arab region* emphasizes the urgent need for training that reduces the gap between education and online vacancy demands.
-* **Technical Validation:**
-  * **946+ automated tests** verifying deterministic evaluation, state-machine progression, bilingual feedback generation, and replay safety.
-  * **14 Playwright E2E browser tests** validating full learner journeys, keyboard navigation, WCAG AA accessibility, and mobile RTL responsiveness.
-  * **Production Deployment:** Live on Vercel with managed Postgres and Google Gemini, alongside a production Telegram bot interface.
+* **Labor Market Evidence:** The applied digital skills mismatch is extensively documented by recent national and international research:
+  * **ILO & CAPMAS (2024):** *Analytical report: Labour demand and labour market skills needs in Egypt* identifies severe shortages in applied digital, data, and operational workplace capabilities.
+  * **ILO (2024):** *Skills mapping in Egypt: Opportunity scouting and skills mapping analysis* highlights high youth underemployment driven by the gap between academic theory and practical enterprise needs.
+  * **ILO (2025):** *Skills dynamics in the Arab region* emphasizes that regional growth demands training platforms that build verifiable, job-matched capabilities.
+* **Technical & Platform Validation:**
+  * An extensible, modular simulation platform built on an open Task Package architecture that supports diverse artifact types (spreadsheets, database queries, business communication, with extensible support for code, documents, and workflows).
+  * Validated with three working pilot task packages across two production channels (accessible bilingual web app and Telegram bot).
+  * **946+ automated unit, contract, and regression tests**, plus **14 Playwright E2E browser journeys** verifying zero-cost cloud architecture (Vercel, Supabase Postgres, Google Gemini) and deterministic fallback resilience.
 * **Validation Boundary:** We have validated technical reproducibility, security, and end-to-end task mechanics. Live user satisfaction and post-simulation learning gains will be measured in our upcoming university student pilot.
 
 ---
 
 ### Box 5: Solution Overview
-**Yom Awel ("First Day")** transforms digital skills training into a simulated first day at work in an Egyptian enterprise (*شركة النيل للتوزيع والتجارة*).
+**Yom Awel ("First Day")** is an Arabic-first workplace simulation platform that bridges the gap between education and employment by turning skills training into a simulated first day on the job at regional enterprises.
 
-Instead of watching passive videos, the learner receives a business brief and dataset from their virtual supervisor (**أستاذ طارق**), completes the work using everyday workplace tools (Excel, LibreOffice, SQL editor, or text editor), and submits their actual artifact through either a modern web app or Telegram.
+Instead of passively watching lectures, learners step into the role of a newly hired associate at a simulated company. They receive workplace briefs from a virtual supervisor (**أستاذ طارق**), execute tasks using standard industry tools (spreadsheets, SQL databases, customer communications, business systems), and submit their actual workplace artifacts via web or Telegram.
 
-A transparent, deterministic evaluator checks the submission against rigorous task specifications across three playable tracks:
-1. **`clean-sales`:** Removing duplicate orders, formatting ISO dates, validating positive numeric revenue, and handling missing emails.
-2. **`sql-report`:** Writing aggregated SQL queries to compute paid regional revenue and order counts.
-3. **`client-email`:** Drafting professional bilingual customer responses with exact case facts and resolution commitments.
-
-Each passed check directly updates an auditable skills profile, proving what the learner can actually do.
+**Platform Architecture:**
+1. **Extensible Task Engine:** Organizations and educators can author standardized "Task Packages" containing contextual briefs, synthetic datasets, and evaluation rules across any business discipline.
+2. **Dual-Engine Assessment & Coaching:** Combines a deterministic evaluation core (ensuring factual, auditable, cheat-proof grading) with a Generative AI coaching layer (providing culturally authentic, encouraging Egyptian Arabic mentorship).
+3. **Evidence-Based Competency Profile:** Replaces unverified completion badges with an auditable competency ledger, directly linking acquired skills to the specific checks passed in submitted work.
 
 ---
 
-### Box 6: How Generative AI Is Used
-In Yom Awel, Generative AI (Google Gemini) serves strictly as an **empathetic workplace coach and pedagogical translator**—never as the grading judge.
+### Box 6: How is Generative AI Used?
+In Yom Awel, Generative AI (Google Gemini) serves as an empathetic, culturally authentic workplace mentor—deliberately decoupled from the grading authority.
 
 * **Why it is necessary:**
-  * Translates raw, technical validation errors into supportive, actionable coaching in authentic Egyptian Arabic (*اللهجة المصرية*).
-  * Adapts to the learner's specific mistakes, explaining the business impact of their error and motivating them to retry.
-  * Scales individualized mentorship to thousands of learners at zero marginal cost without requiring human instructors to hand-write feedback for every submission.
-* **Architectural Safety:**
-  * Scoring, pass/fail thresholds, and progression are strictly deterministic code—eliminating prompt injection and grading hallucinations.
-  * A deterministic Arabic fallback is built-in, ensuring uninterrupted coaching even during AI service outages or quota limits.
+  * **Contextual Workplace Coaching:** Translates dry, technical evaluation checks into supportive, natural Egyptian Arabic (*اللهجة المصرية*) feedback in the voice of a seasoned workplace supervisor.
+  * **Actionable Pedagogical Remediation:** Explains the real-world business impact of specific mistakes and guides the learner toward improvement, fostering a safe environment to fail and iterate.
+  * **Scalability at Zero Marginal Cost:** Delivers personalized 1-on-1 mentorship to thousands of learners concurrently without requiring human instructors to hand-grade submissions.
+* **Ethical & Architectural Safety:**
+  * Scores, pass/fail thresholds, and progression are strictly deterministic code, completely eliminating grading hallucinations, bias, and prompt-injection risks.
+  * A deterministic fallback ensures 100% operational availability even during network drops or API quota exhaustion.
 
 ---
 
-### Box 7: Current Development Stage
+### Box 7: Current Development Stage (choose one)
 **Working prototype / MVP**
 
-All three tasks are fully implemented, graded deterministically, and playable across two production channels (Web application and Telegram bot), backed by managed cloud persistence, strict security controls, and Gemini-powered coaching.
+*(Explanation: A fully functional, production-deployed platform running on Vercel and Supabase Postgres, supporting dual-channel access via Web and Telegram. Proven end-to-end with three pilot task packages demonstrating tabular data, database query, and business communication workflows, with 946+ automated quality tests and full Gemini integration).*
