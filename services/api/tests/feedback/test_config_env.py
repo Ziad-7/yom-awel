@@ -5,7 +5,12 @@ import pytest
 
 from yom_awel.domain.contracts import EvaluationResult, TaskVersion
 from yom_awel.domain.enums import Language
-from yom_awel.feedback.config import FeedbackConfig, FeedbackConfigError, build_feedback_provider
+from yom_awel.feedback.config import (
+    DEFAULT_MODEL,
+    FeedbackConfig,
+    FeedbackConfigError,
+    build_feedback_provider,
+)
 from yom_awel.feedback.fallback import DeterministicFeedbackProvider
 
 
@@ -19,21 +24,21 @@ FAKE_KEY = "fake-gemini-key-for-tests-only"
 @pytest.mark.parametrize(
     ("environ", "mode", "api_key", "model"),
     [
-        ({}, "fallback", None, "gemini-2.5-flash"),
-        ({"GEMINI_API_KEY": "  "}, "fallback", None, "gemini-2.5-flash"),
-        ({"GEMINI_API_KEY": FAKE_KEY}, "gemini", FAKE_KEY, "gemini-2.5-flash"),
+        ({}, "fallback", None, None),
+        ({"GEMINI_API_KEY": "  "}, "fallback", None, None),
+        ({"GEMINI_API_KEY": FAKE_KEY}, "gemini", FAKE_KEY, None),
         ({"GEMINI_API_KEY": FAKE_KEY, "FEEDBACK_MODE": "auto"}, "gemini", FAKE_KEY, None),
         ({"GEMINI_API_KEY": FAKE_KEY, "FEEDBACK_MODE": " AUTO "}, "gemini", FAKE_KEY, None),
         ({"GEMINI_API_KEY": FAKE_KEY, "FEEDBACK_MODE": "fallback"}, "fallback", None, None),
         ({"FEEDBACK_MODE": ""}, "fallback", None, None),
-        ({"GEMINI_MODEL": "gemini-2.5-flash-lite"}, "fallback", None, "gemini-2.5-flash-lite"),
+        ({"GEMINI_MODEL": "gemini-3.5-flash-lite"}, "fallback", None, "gemini-3.5-flash-lite"),
         (
-            {"GEMINI_API_KEY": FAKE_KEY, "GEMINI_MODEL": "gemini-2.5-flash-lite"},
+            {"GEMINI_API_KEY": FAKE_KEY, "GEMINI_MODEL": "gemini-3.5-flash-lite"},
             "gemini",
             FAKE_KEY,
-            "gemini-2.5-flash-lite",
+            "gemini-3.5-flash-lite",
         ),
-        ({"GEMINI_MODEL": " "}, "fallback", None, "gemini-2.5-flash"),
+        ({"GEMINI_MODEL": " "}, "fallback", None, None),
     ],
 )
 def test_from_env_selects_mode_key_and_model(
@@ -42,13 +47,14 @@ def test_from_env_selects_mode_key_and_model(
     config = FeedbackConfig.from_env(environ)
     assert config.mode == mode
     assert config.api_key == api_key
-    assert config.model == (model or "gemini-2.5-flash")
+    assert config.model == (model or DEFAULT_MODEL)
 
 
 @pytest.mark.parametrize(
     ("environ", "variable"),
     [
         ({"GEMINI_MODEL": "gemini-2.5-pro"}, "GEMINI_MODEL"),
+        ({"GEMINI_MODEL": "gemini-3.5-flash"}, "GEMINI_MODEL"),
         ({"GEMINI_MODEL": FAKE_KEY, "GEMINI_API_KEY": FAKE_KEY}, "GEMINI_MODEL"),
         ({"FEEDBACK_MODE": "gemini"}, "FEEDBACK_MODE"),
         ({"FEEDBACK_MODE": FAKE_KEY, "GEMINI_API_KEY": FAKE_KEY}, "FEEDBACK_MODE"),

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -16,7 +17,7 @@ from yom_awel.domain.entities import (
     SubmissionReservation,
     Task,
 )
-from yom_awel.domain.enums import Channel
+from yom_awel.domain.enums import Channel, Language
 
 MAX_SUBMISSION_LEASE_SECONDS = 3600
 
@@ -29,6 +30,10 @@ class LearnerRepository(Protocol):
     ) -> Learner | None: ...
 
     async def add(self, learner: Learner) -> None: ...
+
+    async def set_preferred_language(
+        self, learner_id: UUID, language: Language, updated_at: datetime
+    ) -> None: ...
 
     async def add_external_identity(
         self, learner_id: UUID, provider: str, provider_subject: str

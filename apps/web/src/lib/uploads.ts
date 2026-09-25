@@ -1,4 +1,4 @@
-import { API, request, type Schema } from "./api/client";
+import { CSRF_HEADER, request, type Schema } from "./api/client";
 
 export const MAX_BYTES = 5 * 1024 * 1024;
 export function validateFile(file: Pick<File, "name" | "size">): string | null {
@@ -7,7 +7,7 @@ export function validateFile(file: Pick<File, "name" | "size">): string | null {
     return "حجم الملف لازم يكون من 1 بايت لحد 5 ميجابايت.";
   return null;
 }
-export async function uploadFile(file: File, token: string) {
+export async function uploadFile(file: File) {
   const error = validateFile(file);
   if (error) throw new Error(error);
   const digest = Array.from(
@@ -22,7 +22,6 @@ export async function uploadFile(file: File, token: string) {
     : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
   const auth = await request<Schema["UploadAuthorizationResult"]>(
     "/api/v1/artifacts/upload-authorization",
-    token,
     {
       method: "POST",
       body: JSON.stringify({
@@ -33,32 +32,23 @@ export async function uploadFile(file: File, token: string) {
       }),
     },
   );
-  if (!auth.upload_url) throw new Error("رابط الرفع مش متاح.");
-  const local =
-    auth.upload_url.startsWith("/") && !auth.upload_url.startsWith("//");
-  const target = new URL(auth.upload_url, API);
-  const allowedStorage = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (
-    !local &&
-    (!allowedStorage ||
-      target.origin !== new URL(allowedStorage).origin ||
-      target.protocol !== "https:")
-  )
+  // The API only issues same-origin upload paths; anything else is refused.
+  if (!auth.upload_url?.startsWith("/api/v1/artifacts/"))
     throw new Error("رابط الرفع غير صالح.");
-  const response = await fetch(local ? API + auth.upload_url : target.href, {
+  const response = await fetch(auth.upload_url, {
     method: "PUT",
     body: file,
+    credentials: "same-origin",
     signal: AbortSignal.timeout(30000),
     headers: {
       "Content-Type": contentType,
-      ...(local ? { Authorization: "Bearer " + token } : {}),
+      ...CSRF_HEADER,
       ...auth.headers,
     },
   });
   if (!response.ok) throw new Error("الرفع ماكملش. اختار الملف وحاول تاني.");
   await request<Schema["UploadCompletionResult"]>(
     `/api/v1/artifacts/${auth.artifact_id}/complete`,
-    token,
     { method: "POST" },
   );
   return { artifact_id: auth.artifact_id, artifact_sha256: digest };

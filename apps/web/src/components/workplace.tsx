@@ -2,16 +2,16 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  API,
   ApiError,
-  downloadSample,
+  downloadDataset,
   request,
   type Schema,
 } from "../lib/api/client";
-import { cloudAuth, endSession, getToken, startSession } from "../lib/auth";
+import { endSession, startSession } from "../lib/auth";
 import { uploadFile, validateFile } from "../lib/uploads";
 
 type Outcome = Schema["SubmissionOutcome"];
+const TASK_ID = "clean-sales";
 type Pending = {
   body: Schema["SubmissionInput"];
   key: string;
@@ -31,7 +31,6 @@ export default function Workplace({
 }) {
   const [view, setView] = useState(initialView);
   const [runtime, setRuntime] = useState<Schema["RuntimeResult"] | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [user, setUser] = useState<Schema["Learner"] | null>(null);
   const [task, setTask] = useState<Schema["CurrentTaskResult"] | null>(null);
@@ -49,7 +48,6 @@ export default function Workplace({
   const nameInput = useRef<HTMLInputElement>(null);
 
   const clear = useCallback(() => {
-    setToken(null);
     setUser(null);
     setTask(null);
     setSkills(null);
@@ -58,11 +56,11 @@ export default function Workplace({
     setPending(null);
     setFile(null);
   }, []);
-  const refresh = useCallback(async (access: string) => {
+  const refresh = useCallback(async () => {
     const [current, profile, attempts] = await Promise.all([
-      request<Schema["CurrentTaskResult"]>("/api/v1/tasks/current", access),
-      request<Schema["SkillsProfile"]>("/api/v1/skills", access),
-      request<Schema["AttemptResult"][]>("/api/v1/attempts", access),
+      request<Schema["CurrentTaskResult"]>("/api/v1/tasks/current"),
+      request<Schema["SkillsProfile"]>("/api/v1/skills"),
+      request<Schema["AttemptResult"][]>("/api/v1/attempts"),
     ]);
     setTask(current);
     setSkills(profile);
@@ -82,38 +80,34 @@ export default function Workplace({
     let alive = true;
     async function restore() {
       try {
-        const config = await request<Schema["RuntimeResult"]>(
-          "/api/v1/runtime",
-          null,
-        );
+        const config =
+          await request<Schema["RuntimeResult"]>("/api/v1/runtime");
         if (!alive) return;
         setRuntime(config);
-        const access = await getToken(config.mode);
-        if (access && alive) {
-          setToken(access);
-          try {
-            const learner = await request<Schema["Learner"]>(
-              "/api/v1/learners/me",
-              access,
-            );
-            await refresh(access);
-            if (alive) {
-              setUser(learner);
-              const saved = sessionStorage.getItem("yom-awel.pending");
-              if (saved) {
-                try {
-                  const item = JSON.parse(saved);
-                  if (item.learnerId === learner.learner_id)
-                    setPending(item.pending);
-                } catch {
-                  sessionStorage.removeItem("yom-awel.pending");
-                }
+        try {
+          const learner = await request<Schema["Learner"]>(
+            "/api/v1/learners/me",
+          );
+          await refresh();
+          if (alive) {
+            setUser(learner);
+            const saved = sessionStorage.getItem("yom-awel.pending");
+            if (saved) {
+              try {
+                const item = JSON.parse(saved);
+                if (item.learnerId === learner.learner_id)
+                  setPending(item.pending);
+              } catch {
+                sessionStorage.removeItem("yom-awel.pending");
               }
             }
-          } catch (cause) {
-            if (!(cause instanceof ApiError && cause.status === 404))
-              throw cause;
           }
+        } catch (cause) {
+          if (!(
+            cause instanceof ApiError &&
+            (cause.status === 401 || cause.status === 404)
+          ))
+            throw cause;
         }
       } catch (cause) {
         if (alive) report(cause);
@@ -126,17 +120,6 @@ export default function Workplace({
       alive = false;
     };
   }, [refresh, report]);
-  useEffect(() => {
-    if (runtime?.mode !== "cloud") return;
-    const {
-      data: { subscription },
-    } = cloudAuth().auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session))
-        clear();
-      else if (session) setToken(session.access_token);
-    });
-    return () => subscription.unsubscribe();
-  }, [runtime, clear]);
   useEffect(() => {
     if (outcome) resultHeading.current?.focus();
   }, [outcome]);
@@ -154,24 +137,15 @@ export default function Workplace({
     else sessionStorage.removeItem("yom-awel.pending");
   }, [pending, user]);
 
-  async function accessToken() {
-    if (!runtime) throw new Error("الخدمة لسه مش جاهزة.");
-    const access = await getToken(runtime.mode);
-    if (!access)
-      throw new ApiError(401, "unauthorized", "الجلسة انتهت. ابدأ جلسة جديدة.");
-    return access;
-  }
   async function begin(event: React.FormEvent) {
     event.preventDefault();
     if (!runtime) return;
     setBusy("بنجهّز مكتبك…");
     setError("");
     try {
-      const access = token || (await startSession(runtime.mode, API));
-      setToken(access);
+      await startSession();
       const learner = await request<Schema["Learner"]>(
         "/api/v1/learners/onboard",
-        access,
         {
           method: "POST",
           body: JSON.stringify({
@@ -180,8 +154,12 @@ export default function Workplace({
           }),
         },
       );
+      await request<Schema["CurrentTaskResult"]>(
+        `/api/v1/tasks/${TASK_ID}/start`,
+        { method: "POST" },
+      );
       setUser(learner);
-      await refresh(access);
+      await refresh();
     } catch (cause) {
       report(cause);
     } finally {
@@ -194,10 +172,9 @@ export default function Workplace({
     setError("");
     setBusy(pending ? "بنتأكد من نتيجة التسليم…" : "بنرفع الملف بأمان…");
     try {
-      const access = await accessToken();
       let attempt = pending;
       if (!attempt) {
-        const artifact = await uploadFile(file!, access);
+        const artifact = await uploadFile(file!);
         attempt = {
           key: crypto.randomUUID(),
           body: { ...artifact, task_version_id: task.task.task_version_id },
@@ -207,7 +184,6 @@ export default function Workplace({
       setBusy("بنراجع التسليم…");
       const result = await request<Outcome | Schema["ProcessingState"]>(
         "/api/v1/submissions",
-        access,
         {
           method: "POST",
           headers: { "Idempotency-Key": attempt.key },
@@ -218,7 +194,7 @@ export default function Workplace({
         setOutcome(result);
         setPending(null);
         setFile(null);
-        await refresh(access);
+        await refresh();
       } else {
         setPending({ ...attempt, submissionId: result.submission_id });
         setError("التسليم لسه قيد المراجعة. استخدم تحقق من النتيجة بعد شوية.");
@@ -229,17 +205,17 @@ export default function Workplace({
       setBusy("");
     }
   }
-  async function sample(clean = false) {
+  async function download(format: "csv" | "xlsx") {
     setError("");
     try {
-      await downloadSample(await accessToken(), clean);
+      await downloadDataset(TASK_ID, format);
     } catch (cause) {
       report(cause);
     }
   }
   async function logout() {
     try {
-      await endSession(runtime?.mode || "local");
+      await endSession();
       clear();
       setName("");
       setLogoutOpen(false);
@@ -349,12 +325,6 @@ export default function Workplace({
               اليوم <b>01</b>
             </span>
           </div>
-          {runtime?.simulated_evaluation && (
-            <div className="demo-notice">
-              <span>وضع التجربة</span> التقييم هنا محاكاة لاختبار الرحلة. استخدم
-              ملفات التجربة، والنتائج مش شهادة مهارة.
-            </div>
-          )}
           {error && (
             <div
               className="error-banner"
@@ -512,23 +482,27 @@ export default function Workplace({
                     <span>③ راجع القيم الرقمية</span>
                     <span>④ كمّل البيانات المطلوبة</span>
                   </div>
-                  {runtime?.simulated_evaluation && (
-                    <div className="file-card">
-                      <div className="file-icon">CSV</div>
-                      <div>
-                        <strong>
-                          <bdi>sales-demo.csv</bdi>
-                        </strong>
-                        <small>ملف التجربة · بيانات مبيعات</small>
-                      </div>
-                      <button
-                        className="secondary"
-                        onClick={() => void sample()}
-                      >
-                        تنزيل الملف <span aria-hidden="true">↓</span>
-                      </button>
+                  <div className="file-card">
+                    <div className="file-icon">CSV</div>
+                    <div>
+                      <strong>
+                        <bdi>sales_dirty.csv</bdi>
+                      </strong>
+                      <small>ملف المبيعات الخام · CSV أو Excel</small>
                     </div>
-                  )}
+                    <button
+                      className="secondary"
+                      onClick={() => void download("csv")}
+                    >
+                      نزّل CSV <span aria-hidden="true">↓</span>
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => void download("xlsx")}
+                    >
+                      نزّل Excel <span aria-hidden="true">↓</span>
+                    </button>
+                  </div>
                 </section>
                 <section className="submission-card">
                   <div className="section-heading">
@@ -584,15 +558,6 @@ export default function Workplace({
                           <span aria-hidden="true">←</span>
                         </button>
                       </div>
-                      {runtime?.simulated_evaluation && (
-                        <button
-                          type="button"
-                          className="text-button"
-                          onClick={() => void sample(true)}
-                        >
-                          نزّل ملف النجاح لاختبار إعادة التسليم
-                        </button>
-                      )}
                     </form>
                   )}
                 </section>
@@ -611,10 +576,7 @@ export default function Workplace({
                         <bdi>{outcome.evaluation.score}/100</bdi>
                       </strong>
                     </div>
-                    <p className="eyebrow">
-                      نتيجة الفحوصات{" "}
-                      {runtime?.simulated_evaluation ? "المحاكية" : "الحتمية"}
-                    </p>
+                    <p className="eyebrow">نتيجة الفحوصات الحتمية</p>
                     <ul className="result-checks">
                       {outcome.evaluation.checks.map((check) => (
                         <li key={check.check_id}>

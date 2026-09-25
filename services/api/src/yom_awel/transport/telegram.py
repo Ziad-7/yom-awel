@@ -2,20 +2,20 @@
 
 import hashlib
 from typing import Any, Protocol
-from uuid import NAMESPACE_URL, uuid4, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import httpx
 
 from yom_awel.application.commands import ProcessSubmissionCommand
-from yom_awel.application.models import ProcessingState
+from yom_awel.application.models import CurrentTaskResult, ProcessingState
 from yom_awel.domain.contracts import SubmissionOutcome
 from yom_awel.domain.entities import Artifact
-from yom_awel.domain.enums import Channel
+from yom_awel.domain.enums import Channel, LearnerStatus
 from yom_awel.domain.errors import DomainError
+from yom_awel.evaluation.catalog import dataset
 from yom_awel.transport.artifact_validation import validate_content
 from yom_awel.transport.auth import Identity
 from yom_awel.transport.dependencies import Services
-from yom_awel.transport.fakes import DIRTY_CSV
 from yom_awel.transport.models import OnboardInput
 
 MAX_BYTES = 5 * 1024 * 1024
@@ -105,22 +105,18 @@ class TelegramAdapter:
             identity, OnboardInput(display_name=str(sender.get("first_name") or "متدرّب")[:80])
         )
         text = str(message.get("text", "")).split("@", 1)[0]
-        current = await self.services.tasks.execute(learner.learner_id)
+        current = await self._current_task(learner.learner_id)
         if text in ("/start", "/task"):
-            instructions = (
-                current.task.instructions_ar if current.task else "المهمة مش متاحة دلوقتي."
-            )
+            task = self.services.catalog.get(current.task.task_id) if current.task else None
             await self.client.send(
                 chat_id,
                 "أهلاً بيك في يوم أول!\n"
-                + instructions
-                + "\nابعت ملف CSV أو XLSX، أو استخدم /skills.",
+                + (task.title_ar if task else "المهمة مش متاحة دلوقتي.")
+                + "\nنزّل الملف، نضّفه، وابعته هنا CSV أو XLSX. استخدم /skills لمهاراتك.",
             )
-            if self.services.simulated:
-                await self.client.send(
-                    chat_id, "ملف محاكاة لاختبار رحلة التسليم، مش تقييم مهارة فعلي."
-                )
-                await self.client.send_file(chat_id, "sales-demo.csv", DIRTY_CSV)
+            if task:
+                file = dataset(task, "csv")
+                await self.client.send_file(chat_id, file.filename, file.content)
             return
         if text in ("/skills", "/status"):
             profile = await self.services.skills.execute(learner.learner_id)
@@ -205,11 +201,19 @@ class TelegramAdapter:
         else:
             await self._result(chat_id, result)
 
+    async def _current_task(self, learner_id: UUID) -> CurrentTaskResult:
+        """Telegram has no task picker, so a READY learner starts the first published task."""
+
+        current = await self.services.tasks.execute(learner_id)
+        tasks = self.services.catalog.tasks()
+        if current.task is None and current.status == LearnerStatus.READY and tasks:
+            return await self.services.start.execute(learner_id, tasks[0].task_id)
+        return current
+
     async def _result(self, chat_id: int, result: SubmissionOutcome) -> None:
         decision = "التسليم مقبول" if result.evaluation.passed else "محتاج تعديل وإعادة تسليم"
         label = "إرشادات بديلة" if result.feedback.used_fallback else "ملاحظات المدرب"
-        simulation = "تجربة ببيانات محاكاة\n" if self.services.simulated else ""
         await self.client.send(
             chat_id,
-            f"{simulation}{decision} — {result.evaluation.score}/100\n{label}\n{result.feedback.feedback_text}\n/skills لعرض مهاراتك",
+            f"{decision} — {result.evaluation.score}/100\n{label}\n{result.feedback.feedback_text}\n/skills لعرض مهاراتك",
         )

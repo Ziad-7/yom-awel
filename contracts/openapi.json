@@ -31,6 +31,7 @@
         "type": "object"
       },
       "AttemptResult": {
+        "additionalProperties": false,
         "properties": {
           "attempt_number": {
             "title": "Attempt Number",
@@ -55,6 +56,30 @@
           "feedback"
         ],
         "title": "AttemptResult",
+        "type": "object"
+      },
+      "CheckInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "critical": {
+            "title": "Critical",
+            "type": "boolean"
+          },
+          "points": {
+            "title": "Points",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "check_id",
+          "points",
+          "critical"
+        ],
+        "title": "CheckInfo",
         "type": "object"
       },
       "CurrentTaskResult": {
@@ -297,6 +322,7 @@
         "type": "object"
       },
       "HealthResult": {
+        "additionalProperties": false,
         "properties": {
           "status": {
             "default": "ok",
@@ -315,6 +341,19 @@
         ],
         "title": "Language",
         "type": "string"
+      },
+      "LanguageInput": {
+        "additionalProperties": false,
+        "properties": {
+          "preferred_language": {
+            "$ref": "#/components/schemas/Language"
+          }
+        },
+        "required": [
+          "preferred_language"
+        ],
+        "title": "LanguageInput",
+        "type": "object"
       },
       "Learner": {
         "additionalProperties": false,
@@ -424,37 +463,42 @@
         "type": "object"
       },
       "RuntimeResult": {
+        "additionalProperties": false,
         "properties": {
-          "mode": {
-            "title": "Mode",
+          "feedback_provider": {
+            "enum": [
+              "gemini",
+              "deterministic"
+            ],
+            "title": "Feedback Provider",
             "type": "string"
           },
-          "simulated_evaluation": {
-            "title": "Simulated Evaluation",
-            "type": "boolean"
+          "mode": {
+            "enum": [
+              "local",
+              "cloud"
+            ],
+            "title": "Mode",
+            "type": "string"
           }
         },
         "required": [
           "mode",
-          "simulated_evaluation"
+          "feedback_provider"
         ],
         "title": "RuntimeResult",
         "type": "object"
       },
       "SessionResult": {
+        "additionalProperties": false,
         "properties": {
-          "access_token": {
-            "title": "Access Token",
-            "type": "string"
-          },
           "expires_in": {
-            "default": 604800,
             "title": "Expires In",
             "type": "integer"
           }
         },
         "required": [
-          "access_token"
+          "expires_in"
         ],
         "title": "SessionResult",
         "type": "object"
@@ -631,6 +675,108 @@
         "title": "SubmissionStatus",
         "type": "string"
       },
+      "TaskDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "brief_ar": {
+            "title": "Brief Ar",
+            "type": "string"
+          },
+          "brief_en": {
+            "title": "Brief En",
+            "type": "string"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckInfo"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "formats": {
+            "items": {
+              "enum": [
+                "csv",
+                "xlsx"
+              ],
+              "type": "string"
+            },
+            "title": "Formats",
+            "type": "array"
+          },
+          "hints_ar": {
+            "title": "Hints Ar",
+            "type": "string"
+          },
+          "hints_en": {
+            "title": "Hints En",
+            "type": "string"
+          },
+          "max_bytes": {
+            "title": "Max Bytes",
+            "type": "integer"
+          },
+          "pass_threshold": {
+            "title": "Pass Threshold",
+            "type": "integer"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "task_version_id": {
+            "format": "uuid",
+            "title": "Task Version Id",
+            "type": "string"
+          },
+          "title_ar": {
+            "title": "Title Ar",
+            "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "version",
+          "task_version_id",
+          "title_ar",
+          "title_en",
+          "brief_ar",
+          "brief_en",
+          "hints_ar",
+          "hints_en",
+          "pass_threshold",
+          "formats",
+          "max_bytes",
+          "checks"
+        ],
+        "title": "TaskDetail",
+        "type": "object"
+      },
+      "TaskList": {
+        "additionalProperties": false,
+        "properties": {
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskSummary"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tasks"
+        ],
+        "title": "TaskList",
+        "type": "object"
+      },
       "TaskStatus": {
         "enum": [
           "AVAILABLE",
@@ -639,6 +785,61 @@
         ],
         "title": "TaskStatus",
         "type": "string"
+      },
+      "TaskSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "pass_threshold": {
+            "title": "Pass Threshold",
+            "type": "integer"
+          },
+          "points_total": {
+            "title": "Points Total",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "available",
+              "in_progress",
+              "completed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          },
+          "task_version_id": {
+            "format": "uuid",
+            "title": "Task Version Id",
+            "type": "string"
+          },
+          "title_ar": {
+            "title": "Title Ar",
+            "type": "string"
+          },
+          "title_en": {
+            "title": "Title En",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "version",
+          "task_version_id",
+          "title_ar",
+          "title_en",
+          "status",
+          "pass_threshold",
+          "points_total"
+        ],
+        "title": "TaskSummary",
+        "type": "object"
       },
       "TaskVersion": {
         "additionalProperties": false,
@@ -832,8 +1033,8 @@
         "operationId": "authorize_api_v1_artifacts_upload_authorization_post",
         "parameters": [
           {
-            "in": "header",
-            "name": "authorization",
+            "in": "cookie",
+            "name": "yom_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -844,7 +1045,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Yom Session"
             }
           }
         ],
@@ -988,8 +1189,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "authorization",
+            "in": "cookie",
+            "name": "yom_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1000,7 +1201,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Yom Session"
             }
           }
         ],
@@ -1150,8 +1351,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "authorization",
+            "in": "cookie",
+            "name": "yom_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1162,7 +1363,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Yom Session"
             }
           }
         ],
@@ -1286,8 +1487,8 @@
         "operationId": "attempts_api_v1_attempts_get",
         "parameters": [
           {
-            "in": "header",
-            "name": "authorization",
+            "in": "cookie",
+            "name": "yom_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1298,7 +1499,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Yom Session"
             }
           }
         ],
@@ -1421,9 +1622,138 @@
         "summary": "Attempts"
       }
     },
-    "/api/v1/auth/local-session": {
+    "/api/v1/auth/logout": {
       "post": {
-        "operationId": "session_api_v1_auth_local_session_post",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Malformed request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Access denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "State or idempotency conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Artifact too large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Unsupported or unsafe artifact"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Validation or artifact integrity failure"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Evaluation, persistence or infrastructure unavailable"
+          }
+        },
+        "summary": "Logout"
+      }
+    },
+    "/api/v1/auth/session": {
+      "post": {
+        "operationId": "session_api_v1_auth_session_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "yom_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Yom Session"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1662,8 +1992,8 @@
         "operationId": "me_api_v1_learners_me_get",
         "parameters": [
           {
-            "in": "header",
-            "name": "authorization",
+            "in": "cookie",
+            "name": "yom_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1674,7 +2004,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Yom Session"
             }
           }
         ],
@@ -1793,13 +2123,13 @@
         "summary": "Me"
       }
     },
-    "/api/v1/learners/onboard": {
-      "post": {
-        "operationId": "onboard_api_v1_learners_onboard_post",
+    "/api/v1/learners/me/language": {
+      "put": {
+        "operationId": "language_api_v1_learners_me_language_put",
         "parameters": [
           {
-            "in": "header",
-            "name": "authorization",
+            "in": "cookie",
+            "name": "yom_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1810,7 +2140,153 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Yom Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LanguageInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Learner"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Malformed request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Access denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "State or idempotency conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Artifact too large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Unsupported or unsafe artifact"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Validation or artifact integrity failure"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Evaluation, persistence or infrastructure unavailable"
+          }
+        },
+        "summary": "Language"
+      }
+    },
+    "/api/v1/learners/onboard": {
+      "post": {
+        "operationId": "onboard_api_v1_learners_onboard_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "yom_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Yom Session"
             }
           }
         ],
@@ -2062,8 +2538,8 @@
         "operationId": "skills_api_v1_skills_get",
         "parameters": [
           {
-            "in": "header",
-            "name": "authorization",
+            "in": "cookie",
+            "name": "yom_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2074,7 +2550,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Yom Session"
             }
           }
         ],
@@ -2209,8 +2685,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "authorization",
+            "in": "cookie",
+            "name": "yom_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2221,7 +2697,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Yom Session"
             }
           }
         ],
@@ -2384,8 +2860,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "authorization",
+            "in": "cookie",
+            "name": "yom_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2396,7 +2872,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Yom Session"
             }
           }
         ],
@@ -2523,13 +2999,31 @@
         "summary": "Outcome"
       }
     },
-    "/api/v1/tasks/current": {
+    "/api/v1/submissions/{submission_id}/feedback": {
       "get": {
-        "operationId": "current_api_v1_tasks_current_get",
+        "operationId": "feedback_api_v1_submissions__submission_id__feedback_get",
         "parameters": [
           {
-            "in": "header",
-            "name": "authorization",
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Submission Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "language",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Language"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "yom_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2540,7 +3034,279 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Yom Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Malformed request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Access denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "State or idempotency conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Artifact too large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Unsupported or unsafe artifact"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Validation or artifact integrity failure"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Evaluation, persistence or infrastructure unavailable"
+          }
+        },
+        "summary": "Feedback"
+      }
+    },
+    "/api/v1/tasks": {
+      "get": {
+        "operationId": "tasks_api_v1_tasks_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "yom_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Yom Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Malformed request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Access denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "State or idempotency conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Artifact too large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Unsupported or unsafe artifact"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Validation or artifact integrity failure"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Evaluation, persistence or infrastructure unavailable"
+          }
+        },
+        "summary": "Tasks"
+      }
+    },
+    "/api/v1/tasks/current": {
+      "get": {
+        "operationId": "current_api_v1_tasks_current_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "yom_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Yom Session"
             }
           }
         ],
@@ -2659,23 +3425,22 @@
         "summary": "Current"
       }
     },
-    "/api/v1/tasks/sample": {
+    "/api/v1/tasks/{task_id}": {
       "get": {
-        "operationId": "sample_api_v1_tasks_sample_get",
+        "operationId": "task_detail_api_v1_tasks__task_id__get",
         "parameters": [
           {
-            "in": "query",
-            "name": "clean",
-            "required": false,
+            "in": "path",
+            "name": "task_id",
+            "required": true,
             "schema": {
-              "default": false,
-              "title": "Clean",
-              "type": "boolean"
+              "title": "Task Id",
+              "type": "string"
             }
           },
           {
-            "in": "header",
-            "name": "authorization",
+            "in": "cookie",
+            "name": "yom_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2686,7 +3451,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Authorization"
+              "title": "Yom Session"
             }
           }
         ],
@@ -2694,7 +3459,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/TaskDetail"
+                }
               }
             },
             "description": "Successful Response"
@@ -2800,7 +3567,308 @@
             "description": "Evaluation, persistence or infrastructure unavailable"
           }
         },
-        "summary": "Sample"
+        "summary": "Task Detail"
+      }
+    },
+    "/api/v1/tasks/{task_id}/dataset": {
+      "get": {
+        "operationId": "download_api_v1_tasks__task_id__dataset_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "csv",
+              "enum": [
+                "csv",
+                "xlsx"
+              ],
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "yom_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Yom Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {},
+              "text/csv": {}
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Malformed request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Access denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "State or idempotency conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Artifact too large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Unsupported or unsafe artifact"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Validation or artifact integrity failure"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Evaluation, persistence or infrastructure unavailable"
+          }
+        },
+        "summary": "Download"
+      }
+    },
+    "/api/v1/tasks/{task_id}/start": {
+      "post": {
+        "operationId": "start_api_v1_tasks__task_id__start_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_id",
+            "required": true,
+            "schema": {
+              "title": "Task Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "yom_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Yom Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CurrentTaskResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Malformed request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Access denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "State or idempotency conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Artifact too large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Unsupported or unsafe artifact"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Validation or artifact integrity failure"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Evaluation, persistence or infrastructure unavailable"
+          }
+        },
+        "summary": "Start"
       }
     },
     "/api/v1/telegram/webhook": {
