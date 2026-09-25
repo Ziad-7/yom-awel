@@ -146,6 +146,17 @@ locally. Hosted task details and upload authorization cap files at 4,000,000
 bytes, below [Vercel Functions' 4.5 MB request-body limit](https://vercel.com/docs/functions/limitations).
 The web form reads the task's advertised limit before uploading.
 
+For an isolated HTTPS preview, run the real API browser journeys against the
+deployed web URL after setting the API and web preview pair:
+
+```sh
+HOSTED_WEB_URL=https://your-web-preview.vercel.app npm run test:hosted --prefix apps/web
+```
+
+This mode starts no local servers. It creates throwaway learners and artifacts,
+so use a preview database rather than production data. The web preview's
+`API_ORIGIN` must point to the exact API preview being tested.
+
 1. Health, direct and through the web proxy:
 
    ```sh
