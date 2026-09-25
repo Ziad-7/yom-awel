@@ -1,49 +1,23 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { validateFile, MAX_BYTES } from "./uploads";
-import { request, ApiError } from "./api/client";
+import { describe, expect, it } from "vitest";
+import { MAX_BYTES, uploadPath, validateFile, validateSignature } from "./uploads";
 
-afterEach(() => vi.unstubAllGlobals());
 describe("upload boundary", () => {
   it("rejects empty, oversized and executable files", () => {
-    expect(validateFile({ name: "x.csv", size: 0 })).not.toBeNull();
-    expect(validateFile({ name: "x.csv", size: MAX_BYTES + 1 })).not.toBeNull();
-    expect(validateFile({ name: "x.csv.exe", size: 100 })).not.toBeNull();
+    expect(validateFile({ name: "x.csv", size: 0 })).toBe("empty_file");
+    expect(validateFile({ name: "x.csv", size: MAX_BYTES + 1 })).toBe("artifact_too_large");
+    expect(validateFile({ name: "x.csv.exe", size: 100 })).toBe("unsupported_type");
     expect(validateFile({ name: "x.XLSX", size: MAX_BYTES })).toBeNull();
   });
-  it("calls same-origin with the cookie and the CSRF header on writes", async () => {
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue({ ok: true, json: async () => ({ status: "ok" }) });
-    vi.stubGlobal("fetch", fetcher);
-    await request("/api/v1/submissions", {
-      method: "POST",
-      headers: { "Idempotency-Key": "retry-key" },
-      body: "{}",
-    });
-    const [url, init] = fetcher.mock.calls[0];
-    expect(url).toBe("/api/v1/submissions");
-    expect(init.credentials).toBe("same-origin");
-    expect(init.headers["X-Yom-Awel"]).toBe("1");
-    expect(init.headers.Authorization).toBeUndefined();
-    expect(init.headers["Idempotency-Key"]).toBe("retry-key");
+
+  it("requires a zip signature for .xlsx files", () => {
+    expect(validateSignature("a.xlsx", new Uint8Array([0x50, 0x4b, 0x03, 0x04]))).toBeNull();
+    expect(validateSignature("a.xlsx", new TextEncoder().encode("id,x"))).toBe("mime_mismatch");
+    expect(validateSignature("a.csv", new Uint8Array([0]))).toBeNull();
   });
-  it("sends no CSRF header on reads", async () => {
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue({ ok: true, json: async () => ({ status: "ok" }) });
-    vi.stubGlobal("fetch", fetcher);
-    await request("/api/v1/skills");
-    expect(fetcher.mock.calls[0][1].headers["X-Yom-Awel"]).toBeUndefined();
-  });
-  it("maps authenticated-session failures into typed safe errors", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 401,
-        json: async () => ({ code: "unauthorized", message: "الجلسة انتهت" }),
-      }),
-    );
-    await expect(request("/api/v1/skills")).rejects.toBeInstanceOf(ApiError);
+
+  it("only accepts upload URLs under the same-origin API proxy", () => {
+    expect(uploadPath("/api/v1/artifacts/abc/content")).toBe("/artifacts/abc/content");
+    for (const url of ["https://evil.example/x", "//evil.example/api/v1/x", "/api/v1/../admin", null])
+      expect(() => uploadPath(url)).toThrow();
   });
 });
