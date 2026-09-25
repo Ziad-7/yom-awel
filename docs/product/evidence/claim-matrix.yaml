@@ -209,7 +209,8 @@ claims:
       - "demo/README.md"
       - "submission/application.md"
       - "docs/operations/demo-runbook.md"
-    status: "current"
+    status: "pending"
+    pending_reason: "The integrated launcher passed all three manual health checks; an automated CI smoke test for the script remains to be added."
     owner: "member-1"
     evidence:
       automated_tests: []
