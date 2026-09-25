@@ -1,6 +1,6 @@
 version: "1"
 release_version: "1.0.0"
-tested_source_sha: "a957768462d628ee4728a38bb44ce99b45401ac0"
+tested_source_sha: "a957768462d628ee4728a38bb44ce99b45401ac0" # pragma: allowlist secret (public Git commit)
 deployment:
   preview_url: "https://yom-awel-web-git-codex-add-sql-e-96bd08-z7yt9730-4677s-projects.vercel.app"
   production_url: "https://yom-awel-web.vercel.app"
