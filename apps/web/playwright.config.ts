@@ -38,6 +38,8 @@ export default defineConfig({
         APP_ENV: "local",
         FEEDBACK_MODE: "fallback",
         LOCAL_DATABASE_PATH: ".local/e2e.sqlite3",
+        // The full sequential browser suite shares one loopback IP across learners.
+        RATE_LIMIT: "1000",
         CORS_ORIGINS: `http://127.0.0.1:${WEB_PORT}`,
       },
     },

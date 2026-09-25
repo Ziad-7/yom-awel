@@ -33,11 +33,13 @@ def test_cloud_settings_read_every_documented_variable():
             "GEMINI_API_KEY": FAKE_KEY,
             "GEMINI_MODEL": "gemini-3.5-flash-lite",
             "FEEDBACK_MODE": "auto",
+            "RATE_LIMIT": "1000",
         }
     )
     assert (settings.mode, settings.cors_origins) == ("cloud", ("https://web.test",))
     assert settings.uses_gemini and settings.secure_cookies
     assert settings.feedback.model == "gemini-3.5-flash-lite"
+    assert settings.rate_limit == 1000
     for secret in (SECRET, CLOUD["DATABASE_URL"], FAKE_KEY):
         assert secret not in repr(settings)
 
@@ -61,6 +63,7 @@ def test_cloud_fixture_has_no_password_and_env_example_has_no_values():
         ({"FEEDBACK_MODE": "gemini-only"}, "FEEDBACK_MODE"),
         ({"GEMINI_MODEL": "gemini-pro"}, "GEMINI_MODEL"),
         ({"CORS_ORIGINS": "http://web.test"}, "HTTPS"),
+        ({"RATE_LIMIT": "0"}, "RATE_LIMIT"),
     ],
 )
 def test_cloud_settings_fail_closed(overrides, message):

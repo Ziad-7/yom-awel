@@ -71,6 +71,7 @@ export function TaskWorkspace(props: TaskWorkspaceProps) {
             attempt={result}
             passThreshold={task.pass_threshold}
             criticalIds={criticalIds}
+            canRevise={!props.completed}
             onRevise={revise}
             onSkills={props.onSkills}
           />

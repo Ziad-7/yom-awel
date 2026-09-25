@@ -52,7 +52,6 @@ from yom_awel.transport.models import (
 )
 from yom_awel.transport.settings import Settings
 
-MAX_BYTES = 5 * 1024 * 1024
 CSRF_HEADER = "x-yom-awel"
 # Telegram authenticates with its own secret header and cannot send the CSRF header.
 CSRF_EXEMPT = frozenset({"/api/v1/telegram/webhook"})
@@ -127,7 +126,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         ):
             return error_response("forbidden", 403)
         if request.method in ("POST", "PUT", "PATCH"):
-            maximum = MAX_BYTES if request.method == "PUT" else 65536
+            maximum = config.max_upload_bytes if request.method == "PUT" else 65536
             try:
                 if int(request.headers.get("content-length", "0")) > maximum:
                     return error_response("too_large", 413)
@@ -136,9 +135,9 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
             # Buffer only bounded input, including chunked JSON. File uploads are bounded too.
             content = bytearray()
             async for chunk in request.stream():
-                content.extend(chunk)
-                if len(content) > maximum:
+                if len(content) + len(chunk) > maximum:
                     return error_response("too_large", 413)
+                content.extend(chunk)
             request._body = bytes(content)
         try:
             response = await call_next(request)
@@ -258,7 +257,10 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
 
     @app.get("/api/v1/tasks/{task_id}", response_model=TaskDetail)
     async def task_detail(task_id: str, user: Annotated[Learner, Depends(learner)]) -> TaskDetail:
-        return service().task_detail(task_id)
+        detail = service().task_detail(task_id)
+        return detail.model_copy(
+            update={"max_bytes": min(detail.max_bytes, config.max_upload_bytes)}
+        )
 
     @app.post("/api/v1/tasks/{task_id}/start", response_model=CurrentTaskResult)
     async def start(task_id: str, user: Annotated[Learner, Depends(learner)]) -> CurrentTaskResult:
@@ -286,6 +288,8 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         body: UploadInput, user: Annotated[Learner, Depends(learner)]
     ) -> UploadAuthorizationResult:
         validate_file(body)
+        if body.size_bytes > config.max_upload_bytes:
+            raise DomainError("too_large", "Upload exceeds the hosted request limit")
         result = await service().uploads.execute(
             CreateUploadCommand(
                 learner_id=user.learner_id,

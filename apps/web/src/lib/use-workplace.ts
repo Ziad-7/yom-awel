@@ -56,12 +56,15 @@ export const latestAttempt = (attempts: Attempt[]): GradedAttempt | null =>
     null,
   );
 
-async function awaitOutcome(first: SubmissionOutcome | ProcessingState): Promise<SubmissionOutcome> {
+async function awaitOutcome(
+  first: SubmissionOutcome | ProcessingState,
+  idempotencyKey: string,
+): Promise<SubmissionOutcome> {
   let result = first;
   for (let poll = 0; !isOutcome(result); poll++) {
     if (poll >= MAX_POLLS) throw new StillProcessing();
     await wait(result.retry_after_seconds);
-    result = await api.submission(result.submission_id);
+    result = await api.submission(result.submission_id, idempotencyKey);
   }
   return result;
 }
@@ -200,16 +203,16 @@ export function useWorkplace(initialView: View) {
   async function evaluate(attempt: Pending) {
     setBusy("evaluating");
     const first = attempt.submissionId
-      ? await api.submission(attempt.submissionId)
+      ? await api.submission(attempt.submissionId, attempt.key)
       : await api.submit(attempt.body, attempt.key);
     if (!isOutcome(first)) setPending({ ...attempt, submissionId: first.submission_id });
-    await finish(await awaitOutcome(first));
+    await finish(await awaitOutcome(first, attempt.key));
   }
 
   const submit = (file: File) =>
     run("uploading", async () => {
       if (!detail) return;
-      const artifact = await uploadFile(file);
+      const artifact = await uploadFile(file, detail.max_bytes);
       const attempt: Pending = {
         key: crypto.randomUUID(),
         body: { ...artifact, task_version_id: detail.task_version_id },
@@ -226,9 +229,10 @@ export function useWorkplace(initialView: View) {
 
   const restart = () =>
     run("joining", async () => {
-      await api.createSession();
+      await api.logout();
       writePending("", null);
       reset();
+      await api.createSession();
     });
 
   const viewAttempt = (attempt: GradedAttempt) => {

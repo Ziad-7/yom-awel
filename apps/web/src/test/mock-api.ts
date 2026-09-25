@@ -76,12 +76,18 @@ export const feedback = (language: ApiLanguage): FeedbackResult => ({
   duration_ms: 1,
 });
 
-export function createMockApi(outcome: EvaluationResult) {
+export function createMockApi(
+  outcome: EvaluationResult,
+  options: { deferSubmission?: boolean; failFirstPoll?: boolean } = {},
+) {
   const calls: Call[] = [];
   let session = false;
   let learner: Learner | null = null;
   let status: TaskSummary["status"] = "available";
   const attempts: Attempt[] = [];
+  let pendingResult: SubmissionOutcome | null = null;
+  let submissionKey: string | null = null;
+  let failFirstPoll = options.failFirstPoll ?? false;
   const runtime: Runtime = { mode: "local", feedback_provider: "deterministic" };
   const tasks = (): TaskList => ({
     tasks: [
@@ -102,7 +108,7 @@ export function createMockApi(outcome: EvaluationResult) {
     skills: attempts.length ? [{ skill_id: "data_cleaning", score: outcome.score }] : [],
   });
 
-  function route(path: string, body: unknown): [number, unknown] {
+  function route(path: string, body: unknown, headers: Record<string, string>): [number, unknown] {
     if (path === "/api/v1/runtime") return [200, runtime];
     if (path === "/api/v1/auth/session") return (session = true), [200, {}];
     if (!session) return [401, { code: "unauthorized" }];
@@ -135,6 +141,7 @@ export function createMockApi(outcome: EvaluationResult) {
     if (path.endsWith("/content") || path.endsWith("/complete"))
       return [200, { artifact_id: "00000000-0000-4000-8000-00000000000c" }];
     if (path === "/api/v1/submissions") {
+      submissionKey = headers["idempotency-key"] ?? null;
       const result: SubmissionOutcome = {
         submission_id: SUBMISSION,
         attempt_id: SUBMISSION,
@@ -145,8 +152,25 @@ export function createMockApi(outcome: EvaluationResult) {
         task_status: outcome.passed ? "COMPLETED" : "ACTIVE",
         skills: [],
       };
+      if (options.deferSubmission) {
+        pendingResult = result;
+        return [202, { submission_id: SUBMISSION, status: "PROCESSING", retry_after_seconds: 0 }];
+      }
       attempts.push(result);
       status = outcome.passed ? "completed" : "in_progress";
+      return [200, result];
+    }
+    if (path === `/api/v1/submissions/${SUBMISSION}` && pendingResult) {
+      if (!submissionKey || headers["idempotency-key"] !== submissionKey)
+        return [422, { code: "idempotency_key_required" }];
+      if (failFirstPoll) {
+        failFirstPoll = false;
+        return [503, { code: "evaluation_failed", category: "evaluation", retryable: true }];
+      }
+      attempts.push(pendingResult);
+      status = outcome.passed ? "completed" : "in_progress";
+      const result = pendingResult;
+      pendingResult = null;
       return [200, result];
     }
     const language = new URL(path, "http://x").searchParams.get("language") as ApiLanguage | null;
@@ -163,7 +187,7 @@ export function createMockApi(outcome: EvaluationResult) {
     calls.push({ method, path: url, headers, body });
     if (method !== "GET" && headers["x-yom-awel"] !== "1")
       return new Response(JSON.stringify({ code: "csrf" }), { status: 403 });
-    const [code, payload] = route(url, body);
+    const [code, payload] = route(url, body, headers);
     return new Response(JSON.stringify(payload), { status: code, headers: { "Content-Type": "application/json" } });
   };
   return { fetch, calls };

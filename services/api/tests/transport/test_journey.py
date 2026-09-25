@@ -22,6 +22,8 @@ from tests.transport.support import (
 )
 from yom_awel.evaluation.catalog import csv_to_xlsx
 from yom_awel.transport.app import create_app
+from yom_awel.transport.dependencies import compose
+from yom_awel.transport.settings import HOSTED_UPLOAD_MAX_BYTES
 
 
 @pytest.fixture
@@ -113,6 +115,57 @@ def test_catalog_start_detail_and_downloads(client):
     assert client.get(f"/api/v1/tasks/{TASK_ID}/dataset", params={"format": "pdf"}).status_code == (
         422
     )
+
+
+def test_cloud_task_and_upload_advertise_the_same_hosted_limit(tmp_path):
+    local = settings_for(tmp_path)
+    cloud = settings_for(
+        tmp_path,
+        mode="cloud",
+        database_url="postgresql://unused-in-injected-services",
+        cors_origins=("https://example.test",),
+    )
+    with TestClient(
+        create_app(cloud, compose(local)), headers=CSRF, base_url="https://example.test"
+    ) as hosted:
+        onboard(hosted)
+        start(hosted)
+        assert hosted.get(f"/api/v1/tasks/{TASK_ID}").json()["max_bytes"] == (
+            HOSTED_UPLOAD_MAX_BYTES
+        )
+        too_large = hosted.post(
+            "/api/v1/artifacts/upload-authorization",
+            json={
+                "filename": "sales.csv",
+                "content_type": "text/csv",
+                "size_bytes": HOSTED_UPLOAD_MAX_BYTES + 1,
+                "artifact_sha256": "a" * 64,
+            },
+        )
+        assert too_large.status_code == 413
+        assert too_large.json()["code"] == "too_large"
+        allowed = hosted.post(
+            "/api/v1/artifacts/upload-authorization",
+            json={
+                "filename": "sales.csv",
+                "content_type": "text/csv",
+                "size_bytes": HOSTED_UPLOAD_MAX_BYTES,
+                "artifact_sha256": "a" * 64,
+            },
+        )
+        assert allowed.status_code == 200
+        oversized_put = hosted.put(
+            allowed.json()["upload_url"],
+            content=b"a" * (HOSTED_UPLOAD_MAX_BYTES + 1),
+            headers=allowed.json()["headers"],
+        )
+        assert oversized_put.status_code == 413
+        chunked_put = hosted.put(
+            allowed.json()["upload_url"],
+            content=iter((b"a" * HOSTED_UPLOAD_MAX_BYTES, b"b")),
+            headers=allowed.json()["headers"],
+        )
+        assert chunked_put.status_code == 413
 
 
 def test_real_evaluator_journey_fail_critical_retry_pass_and_restart(client, settings):

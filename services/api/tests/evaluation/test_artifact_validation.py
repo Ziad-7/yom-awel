@@ -212,12 +212,28 @@ def test_trailing_empty_cells_and_rows_do_not_count_against_xlsx_limits() -> Non
     assert inspect_artifact(ref("s.xlsx", content), LIMITS).rows == (("a", "b"), ("1", "2"))
 
 
-def test_xlsx_cells_past_the_read_window_are_never_read() -> None:
-    forged = sheet_xml(
-        '<row r="1"><c r="A1" t="inlineStr"><is><t>h</t></is></c></row>'
-        '<row r="999999999"><c r="A999999999"><v>1</v></c></row>'
-    )
+@pytest.mark.parametrize(
+    "overflow",
+    [
+        '<row r="6"><c r="A6" t="inlineStr"><is><t>hidden row</t></is></c></row>',
+        '<row r="2"><c r="F2" t="inlineStr"><is><t>hidden column</t></is></c></row>',
+        '<row r="999999999"><c r="A999999999" t="inlineStr"><is><t>forged row</t></is></c></row>',
+    ],
+    ids=["sparse-row", "sparse-column", "forged-row"],
+)
+def test_xlsx_nonempty_cells_past_the_read_window_are_rejected(overflow: str) -> None:
+    forged = sheet_xml('<row r="1"><c r="A1" t="inlineStr"><is><t>h</t></is></c></row>' + overflow)
     content = repackaged(workbook(("h",)), **{SHEET: forged})
+
+    assert rejection("s.xlsx", content) == TABLE_LIMIT_CODE
+
+
+def test_xlsx_empty_cells_past_the_read_window_do_not_count_against_limits() -> None:
+    empty = sheet_xml(
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>h</t></is></c></row>'
+        '<row r="999999999"><c r="A999999999"/></row>'
+    )
+    content = repackaged(workbook(("h",)), **{SHEET: empty})
 
     assert inspect_artifact(ref("s.xlsx", content), LIMITS).rows == (("h",),)
 

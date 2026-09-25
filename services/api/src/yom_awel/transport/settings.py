@@ -11,6 +11,7 @@ from yom_awel.feedback.config import FeedbackConfig
 REPOSITORY_ROOT = Path(__file__).resolve().parents[5]
 BUNDLED_TASK_PACKAGES = Path(__file__).resolve().parents[1] / "task_packages"
 MIN_SECRET_LENGTH = 32
+HOSTED_UPLOAD_MAX_BYTES = 4_000_000
 
 Mode = Literal["local", "cloud"]
 
@@ -35,6 +36,11 @@ class Settings:
     @property
     def secure_cookies(self) -> bool:
         return self.mode == "cloud"
+
+    @property
+    def max_upload_bytes(self) -> int:
+        # Vercel's function ingress limit is 4.5 MB, including request overhead.
+        return HOSTED_UPLOAD_MAX_BYTES if self.mode == "cloud" else 5 * 1024 * 1024
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "Settings":
@@ -61,11 +67,14 @@ class Settings:
             feedback=FeedbackConfig.from_env(env),
             telegram_token=env.get("TELEGRAM_BOT_TOKEN", ""),
             telegram_secret=env.get("TELEGRAM_WEBHOOK_SECRET", ""),
+            rate_limit=int(env.get("RATE_LIMIT", "120")),
         )
         settings.validate()
         return settings
 
     def validate(self) -> None:
+        if self.rate_limit < 1:
+            raise ValueError("RATE_LIMIT must be positive")
         if len(self.secret) < MIN_SECRET_LENGTH:
             raise ValueError(f"AUTH_SECRET must have at least {MIN_SECRET_LENGTH} characters")
         if self.mode == "cloud" and not self.database_url.startswith(

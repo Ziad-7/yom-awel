@@ -47,8 +47,8 @@ export function uploadPath(url: string | null | undefined): string {
   return url.slice(API_BASE.length);
 }
 
-export async function uploadFile(file: File): Promise<UploadedArtifact> {
-  const invalid = await inspectFile(file);
+export async function uploadFile(file: File, maxBytes = MAX_BYTES): Promise<UploadedArtifact> {
+  const invalid = await inspectFile(file, maxBytes);
   if (invalid) throw new ApiError(0, invalid);
   const digest = await sha256(file);
   const contentType = contentTypeOf(file.name);
