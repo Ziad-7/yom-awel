@@ -22,8 +22,8 @@ every database round trip stays inside Frankfurt.
 
 1. Create a Supabase project in region **Central EU (Frankfurt),
    eu-central-1**. Keep the generated database password in your password
-   manager; it belongs to the `postgres` administrator and the app never uses
-   it.
+   manager; it belongs to the `postgres` administrator. Prefer the restricted
+   role below; the temporary demo fallback is described after the SQL block.
 2. Open **SQL Editor** and run the block below as `postgres`, replacing
    `<strong-password>` with a new random password (for example the output of
    `python -c "import secrets; print(secrets.token_urlsafe(32))"`). Do not
@@ -37,6 +37,13 @@ CREATE ROLE yom_awel_app WITH LOGIN PASSWORD '<strong-password>'
 GRANT yom_awel_app TO postgres;
 CREATE SCHEMA yom_awel AUTHORIZATION yom_awel_app;
 ```
+
+Supabase's `postgres` role is not an unrestricted superuser. The SQL above is
+tested in the Postgres CI container; managed-role grants and pooler login must
+also be tested on the actual project. If either fails, use the dashboard's
+default `postgres.<project-ref>` transaction-pooler URI for this hackathon demo.
+Record the use of the administrator role as a post-hackathon least-privilege fix.
+Do not apply the unrelated migrations under `supabase/migrations`.
 
 What this grants, and nothing more:
 
@@ -94,7 +101,7 @@ API project (`services/api`):
 | `AUTH_SECRET` | yes | At least 32 characters: `python -c "import secrets; print(secrets.token_urlsafe(48))"`. Signs the `yom_session` cookie; rotating it signs everyone out. |
 | `CORS_ORIGINS` | yes | The web origin, exactly, for example `https://yom-awel-web.vercel.app` (no trailing slash). |
 | `GEMINI_API_KEY` | no | Google AI Studio > **Get API key**. Without it feedback uses the deterministic Tarek fallback. |
-| `GEMINI_MODEL` | no | `gemini-2.5-flash` or `gemini-2.5-flash-lite`. |
+| `GEMINI_MODEL` | no | `gemini-3.5-flash-lite` (default). Its free tier is listed on Google's pricing page; verify account access and quota. |
 | `FEEDBACK_MODE` | no | `auto` (Gemini when a key is set, otherwise fallback) or `fallback` (never call Gemini). |
 | `TELEGRAM_BOT_TOKEN` | no | BotFather token. Not part of the demo; leave unset. |
 | `TELEGRAM_WEBHOOK_SECRET` | no | Random string for the Telegram webhook header. Not part of the demo; leave unset. |
@@ -132,6 +139,10 @@ Do the API first, because the web project needs its URL.
 ## 5. Verify the deployment
 
 Replace the hosts with your production URLs.
+
+Use the supplied small presenter files. The evaluator accepts up to 5 MiB
+locally, but [Vercel Functions cap request and response bodies at 4.5 MB](https://vercel.com/docs/functions/limitations).
+Keep hosted uploads below 4 MB; the proxy cannot raise the platform limit.
 
 1. Health, direct and through the web proxy:
 

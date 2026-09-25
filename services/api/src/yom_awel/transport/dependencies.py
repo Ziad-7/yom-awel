@@ -24,6 +24,7 @@ from yom_awel.domain.enums import Language, LearnerStatus
 from yom_awel.domain.errors import DomainError, UniqueConstraintViolation
 from yom_awel.evaluation.catalog import CatalogTask, TaskCatalog
 from yom_awel.feedback.config import build_feedback_provider
+from yom_awel.persistence.postgres import PostgresUnitOfWorkFactory
 from yom_awel.persistence.sqlite import SQLiteUnitOfWorkFactory
 from yom_awel.ports.artifacts import ArtifactStore
 from yom_awel.ports.evaluation import Evaluator
@@ -204,7 +205,7 @@ def compose(settings: Settings) -> Services:
 
 def _unit_of_work_factory(settings: Settings) -> UnitOfWorkFactory:
     if settings.mode == "cloud":
-        raise ValueError("APP_ENV=cloud needs the Postgres persistence adapter")
+        return cast(UnitOfWorkFactory, PostgresUnitOfWorkFactory(settings.database_url))
     Path(settings.database_path).parent.mkdir(parents=True, exist_ok=True)
     return cast(UnitOfWorkFactory, SQLiteUnitOfWorkFactory(settings.database_path))
 

@@ -123,3 +123,19 @@ def test_startup_refuses_an_empty_task_catalog(tmp_path):
         compose(
             Settings(secret=SECRET, task_packages=tmp_path, database_path=str(tmp_path / "x.db"))
         )
+
+
+def test_cloud_composition_uses_database_url_without_local_storage(monkeypatch, tmp_path):
+    from yom_awel.transport import dependencies
+
+    selected = []
+    factory = object()
+
+    def postgres(dsn):
+        selected.append(dsn)
+        return factory
+
+    monkeypatch.setattr(dependencies, "PostgresUnitOfWorkFactory", postgres)
+    settings = Settings.from_env(CLOUD)
+    assert dependencies._unit_of_work_factory(settings) is factory
+    assert selected == [CLOUD["DATABASE_URL"]]

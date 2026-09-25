@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
-import pwd
 import re
 import secrets
 import shutil
@@ -30,6 +29,7 @@ from psycopg import conninfo, sql
 from tests.evaluation.support import PACKAGE, REFERENCE, TASK_VERSION, to_xlsx
 from tests.persistence import test_sqlite_contract as parity
 from tests.persistence.repository_contract import (
+    assert_preferred_language_update,
     assert_progress_rollback_and_cas,
     assert_reservation_and_finalization,
 )
@@ -68,8 +68,10 @@ def _free_port() -> int:
 def _cluster_owner() -> list[str]:
     """initdb refuses to run as root, so run the cluster as the postgres user."""
 
-    if os.geteuid() != 0:
+    if os.name == "nt" or os.geteuid() != 0:
         return []
+    import pwd
+
     try:
         pwd.getpwnam("postgres")
     except KeyError:
@@ -120,6 +122,10 @@ def factory(postgres_dsn: str) -> PostgresUnitOfWorkFactory:
 
 
 # Shared contract and SQLite parity: the same test bodies the other adapters run.
+
+
+async def test_preferred_language_update(factory: PostgresUnitOfWorkFactory) -> None:
+    await assert_preferred_language_update(factory)
 
 
 async def test_repository_contract_reservation_and_finalization(

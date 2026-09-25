@@ -50,7 +50,7 @@ from yom_awel.domain.entities import (
     SubmissionReservation,
     Task,
 )
-from yom_awel.domain.enums import Channel, ErrorCategory, LearnerStatus, SubmissionStatus
+from yom_awel.domain.enums import Channel, ErrorCategory, Language, LearnerStatus, SubmissionStatus
 from yom_awel.domain.errors import (
     ArtifactIntegrityFailure,
     ArtifactNotReady,
@@ -243,6 +243,16 @@ class _Repo:
 
 
 class _Learners(_Repo):
+    async def set_preferred_language(
+        self, learner_id: UUID, language: Language, updated_at: datetime
+    ) -> None:
+        updated = await self._execute(
+            "UPDATE learners SET preferred_language=%s, updated_at=%s WHERE learner_id=%s",
+            (language.value, _utc(updated_at), learner_id),
+        )
+        if updated.rowcount != 1:
+            raise NotFound("learners.id")
+
     async def get(self, learner_id: UUID) -> Learner | None:
         row = await self._one("SELECT * FROM learners WHERE learner_id=%s", (learner_id,))
         return _learner(row) if row else None
