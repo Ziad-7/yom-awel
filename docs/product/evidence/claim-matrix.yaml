@@ -172,8 +172,7 @@ claims:
       - "submission/pitch-deck.md"
       - "submission/demo-script.md"
       - "submission/demo-contingency.md"
-    status: "pending"
-    pending_reason: "Bilingual deterministic fallback is verified through the real API and web app; live Gemini response still needs verification with the configured key."
+    status: "current"
     owner: "member-3"
     evidence:
       automated_tests:

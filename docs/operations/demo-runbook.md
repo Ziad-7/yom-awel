@@ -87,7 +87,7 @@ Status of each fallback on the day of writing:
 - Uploads: `.csv` and single-sheet `.xlsx`, at most 5 MiB and 10,000 rows. Macros, password
   protected and multi-sheet workbooks are rejected.
 - Sessions are anonymous; there is no account recovery. A new private window is a new learner.
-- Gemini quality and latency depend on the free-tier quota; the deterministic fallback is always
+- Gemini 3.5 Flash-Lite responded for Arabic and English feedback in a live key check; latency and quota can vary. The deterministic fallback is always
   available and never changes the grade.
 - Telegram is not part of the demo.
 - The Arabic dataset download is the same data as the English one; column names stay in English
