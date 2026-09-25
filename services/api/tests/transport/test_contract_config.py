@@ -106,6 +106,7 @@ def test_deployment_has_separate_roots_and_bounded_function():
     function = api["functions"]["api/index.py"]
     assert function["maxDuration"] <= 60
     assert "tests/**" in function["excludeFiles"]
+    assert (ROOT / "services/api/.python-version").read_text(encoding="utf-8").strip() == ("3.12")
     assert "memory" not in function
     assert "crons" not in api
 
