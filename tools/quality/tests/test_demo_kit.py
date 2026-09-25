@@ -3,6 +3,7 @@
 import asyncio
 import hashlib
 import io
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID
@@ -98,7 +99,10 @@ def test_committed_demo_file_equals_a_fresh_regeneration(name: str) -> None:
 
 @pytest.mark.parametrize("name", ["sales_cleaned.xlsx", "sales_retry_half.xlsx"])
 def test_workbook_has_one_sheet_and_fixed_properties(name: str) -> None:
-    book = load_workbook(io.BytesIO((OUTPUT_DIR / name).read_bytes()), read_only=True)
+    content = (OUTPUT_DIR / name).read_bytes()
+    with zipfile.ZipFile(io.BytesIO(content)) as archive:
+        assert all(info.create_system == 3 for info in archive.infolist())
+    book = load_workbook(io.BytesIO(content), read_only=True)
     try:
         header = next(book.active.iter_rows(max_row=1, values_only=True))  # type: ignore[union-attr]
         assert book.sheetnames == ["sales"]

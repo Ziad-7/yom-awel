@@ -75,7 +75,7 @@ capabilities:
       - "apps/web/src/components/workplace.tsx"
     evidence:
       automated_tests:
-        - "apps/web/tests/e2e/learner-flow.spec.ts"
+        - "apps/web/tests/e2e/demo-flow.spec.ts"
         - "services/api/tests/transport/test_journey.py"
       preview_checks:
         - "Verify incognito browser on Vercel preview completes onboarding and displays Arabic workplace brief."

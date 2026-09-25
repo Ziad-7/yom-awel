@@ -127,6 +127,7 @@ def normalized_zip(content: bytes, replacements: Mapping[str, bytes]) -> bytes:
     ):
         for name in sorted(source.namelist()):
             info = zipfile.ZipInfo(name, date_time=ZIP_TIMESTAMP)
+            info.create_system = 3
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o644 << 16
             target.writestr(info, replacements.get(name) or source.read(name))

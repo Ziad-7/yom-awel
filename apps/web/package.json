@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=22 <25"
   },
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
@@ -12,12 +12,12 @@
     "lint": "eslint .",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=mock --project=real",
     "api:generate": "node scripts/api-types.mjs",
-    "api:check": "node scripts/api-types.mjs --check"
+    "api:check": "node scripts/api-types.mjs --check",
+    "demo:record": "playwright test --project=record"
   },
   "dependencies": {
-    "@supabase/supabase-js": "2.117.1",
     "next": "16.3.6",
     "react": "19.3.0",
     "react-dom": "19.3.0"

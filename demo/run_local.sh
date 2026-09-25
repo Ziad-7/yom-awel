@@ -24,6 +24,7 @@ load_feedback_env() {
     [[ "$line" =~ ^[[:space:]]*(export[[:space:]]+)?([A-Z_][A-Z0-9_]*)=(.*)$ ]] || continue
     key="${BASH_REMATCH[2]}"
     value="${BASH_REMATCH[3]}"
+    value="${value%$'\r'}"
     value="${value%\"}"; value="${value#\"}"; value="${value%\'}"; value="${value#\'}"
     for allowed in "${FEEDBACK_VARIABLES[@]}"; do
       if [[ "$key" == "$allowed" && -n "$value" ]]; then
@@ -66,7 +67,7 @@ export LOCAL_DATABASE_PATH="$ROOT/.local/learning.sqlite3"
 export LOCAL_SECRET_PATH="$ROOT/.local/session.key"
 export CORS_ORIGINS="http://127.0.0.1:$WEB_PORT"
 # Server-only origin for the web app's /api rewrite; the browser never sees it.
-API_ORIGIN="http://127.0.0.1:${API_PORT}"
+export API_ORIGIN="http://127.0.0.1:${API_PORT}"
 
 if [[ ! -d "$ROOT/apps/web/node_modules" ]]; then
   log "installing web dependencies (npm ci)"
@@ -78,7 +79,7 @@ set -m
 (cd "$ROOT/services/api" && exec uv run uvicorn api.index:app --host 127.0.0.1 --port "$API_PORT") &
 PIDS+=("$!")
 log "starting web app on http://127.0.0.1:$WEB_PORT"
-(cd "$ROOT/apps/web" && API_ORIGIN="$API_ORIGIN" exec npm run dev -- --port "$WEB_PORT") &
+(cd "$ROOT/apps/web" && exec npm run dev -- --port "$WEB_PORT") &
 PIDS+=("$!")
 set +m
 

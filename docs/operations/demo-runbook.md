@@ -77,8 +77,8 @@ Status of each fallback on the day of writing:
 
 | Fallback | Status |
 |---|---|
-| `FEEDBACK_MODE=fallback` switch | Pending: the switch is part of the API lane; not yet verified end to end |
-| Local run | Pending: health checks pass with the web lane's `/api` rewrite; that rewrite is not yet on main |
+| `FEEDBACK_MODE=fallback` switch | Verified in real-API Playwright Arabic/CSV and English/XLSX journeys |
+| Local run | Verified: `demo/run_local.sh` passed API, web, and web proxy health checks on the integrated branch |
 | Recorded video | Pending: to be produced by the web lane and linked here |
 
 ## Known limitations / حدود معروفة
