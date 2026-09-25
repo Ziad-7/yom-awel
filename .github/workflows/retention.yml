@@ -1,8 +1,11 @@
 name: Artifact retention cleanup
 
+# Manual only. This job targets the Supabase Storage bucket and REST/RPC
+# retention design in docs/operations/data-retention.md. The hosted demo does
+# not use that design: it stores uploads as bytea in the yom_awel Postgres
+# schema, so this job has nothing to purge there. The former daily trigger,
+# cron: "17 3 * * *", is intentionally removed; do not re-enable it for the demo.
 on:
-  schedule:
-    - cron: "17 3 * * *"
   workflow_dispatch:
 
 permissions:

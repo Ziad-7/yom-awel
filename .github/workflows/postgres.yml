@@ -1,0 +1,53 @@
+name: Postgres adapter
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          # Ephemeral, job-local container reachable only from this runner.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_TEST_DSN: postgresql://postgres@127.0.0.1:5432/postgres?sslmode=disable
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Sync dependencies
+        run: cd services/api && uv sync --locked --group dev
+      - name: Postgres contract, concurrency and ProcessSubmission round trip
+        # Explicit bash adds pipefail, so a failing pytest cannot hide behind tee.
+        shell: bash
+        run: |
+          uv run --project services/api pytest services/api/tests/persistence/test_postgres.py -v -rs \
+            | tee pytest.out
+          if grep -q SKIPPED pytest.out; then echo "::error::Postgres tests were skipped"; exit 1; fi
