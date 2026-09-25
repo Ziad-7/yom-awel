@@ -124,8 +124,7 @@ Do the API first, because the web project needs its URL.
 2. API project: name `yom-awel-api`, **Root Directory** `services/api`,
    framework preset **FastAPI** (from `services/api/vercel.json`). Keep
    **Include files outside the root directory in the Build Step** enabled:
-   the API wheel build copies `../../task_packages` into the package, and
-   `vercel.json` also bundles `task_packages/clean-sales` with the function.
+   the API wheel build copies `../../task_packages` into the package.
    The API must be installed non-editably so the wheel's copy is present;
    step 5 checks that the task catalog actually loaded. Add the API variables
    from step 3, then **Deploy**.
