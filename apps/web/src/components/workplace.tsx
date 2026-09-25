@@ -56,9 +56,9 @@ export default function Workplace({ initialView = "tasks" }: { initialView?: Vie
           task={detail}
           result={state.result}
           completed={completed}
-          attemptNumber={state.attempts.length + 1}
+          attemptNumber={state.attempts.filter((attempt) => attempt.evaluation.task_version_id === detail.task_version_id).length + 1}
           busy={busy}
-          pending={!!state.pending}
+          pending={state.pending?.body.task_version_id === detail.task_version_id}
           onSubmit={actions.submit}
           onCheck={actions.checkPending}
           onSkills={() => actions.setView("skills")}

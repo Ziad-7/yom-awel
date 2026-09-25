@@ -720,6 +720,19 @@
             "title": "Pass Threshold",
             "type": "integer"
           },
+          "submission_formats": {
+            "items": {
+              "enum": [
+                "csv",
+                "xlsx",
+                "sql",
+                "txt"
+              ],
+              "type": "string"
+            },
+            "title": "Submission Formats",
+            "type": "array"
+          },
           "task_id": {
             "title": "Task Id",
             "type": "string"
@@ -754,6 +767,7 @@
           "hints_en",
           "pass_threshold",
           "formats",
+          "submission_formats",
           "max_bytes",
           "checks"
         ],
@@ -3617,7 +3631,7 @@
         "responses": {
           "200": {
             "content": {
-              "application/octet-stream": {},
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {},
               "text/csv": {}
             },
             "description": "Successful Response"

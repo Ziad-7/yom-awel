@@ -28,6 +28,11 @@ async def world():
     factory = MemoryUnitOfWorkFactory(clock=clock)
     async with factory() as uow:
         await uow.tasks.add(TASK.task_version)
+        await uow.tasks.add(
+            TASK.task_version.model_copy(
+                update={"task_version_id": uuid4(), "task_id": "second-task"}
+            )
+        )
         await uow.commit()
     learner = await OnboardLearner(factory, clock, IDs()).execute(
         OnboardLearnerCommand(
@@ -65,21 +70,53 @@ async def test_unknown_task_and_unknown_learner_are_not_found(world):
     factory, clock, learner = world
     start = StartTask(factory, clock, IDs())
 
-    for learner_id, task_id in ((learner.learner_id, "sql-report"), (uuid4(), "clean-sales")):
+    for learner_id, task_id in ((learner.learner_id, "unknown-task"), (uuid4(), "clean-sales")):
         with pytest.raises(DomainError) as error:
             await start.execute(learner_id, task_id)
         assert error.value.code == "not_found"
 
 
-async def test_a_learner_busy_with_another_task_cannot_start_a_new_one(world):
+@pytest.mark.parametrize(
+    "status",
+    [
+        LearnerStatus.IN_TASK,
+        LearnerStatus.NEEDS_RETRY,
+        LearnerStatus.TASK_COMPLETED,
+        LearnerStatus.PROGRAM_COMPLETED,
+    ],
+)
+async def test_switching_tasks_preserves_progress_and_selects_new_task(world, status):
     factory, clock, learner = world
     async with factory() as uow:
         progress = await uow.learners.get_progress(learner.learner_id)
         await uow.learners.save_progress(
             progress.model_copy(
                 update={
-                    "current_status": LearnerStatus.IN_TASK,
+                    "current_status": status,
                     "current_task_id": "other-task",
+                    "version": progress.version + 1,
+                }
+            ),
+            expected_version=progress.version,
+        )
+        await uow.commit()
+
+    result = await StartTask(factory, clock, IDs()).execute(learner.learner_id, "clean-sales")
+    assert result.status == LearnerStatus.IN_TASK.value
+    async with factory() as uow:
+        progress = await uow.learners.get_progress(learner.learner_id)
+    assert progress.current_task_id == "clean-sales"
+
+
+async def test_switching_is_blocked_during_processing(world):
+    factory, clock, learner = world
+    async with factory() as uow:
+        progress = await uow.learners.get_progress(learner.learner_id)
+        await uow.learners.save_progress(
+            progress.model_copy(
+                update={
+                    "current_status": LearnerStatus.PROCESSING,
+                    "current_task_id": "second-task",
                     "version": progress.version + 1,
                 }
             ),

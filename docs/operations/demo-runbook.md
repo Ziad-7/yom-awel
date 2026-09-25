@@ -83,9 +83,8 @@ Status of each fallback on the day of writing:
 
 ## Known limitations / حدود معروفة
 
-- One task only: `clean-sales` version 1.
-- Uploads: `.csv` and single-sheet `.xlsx`, at most 5 MiB and 10,000 rows. Macros, password
-  protected and multi-sheet workbooks are rejected.
+- Three playable tasks: `clean-sales`, `sql-report`, and `client-email`, all version 1. The timed script above demonstrates `clean-sales`; use the other two in questions or a longer demo.
+- `clean-sales` submissions are `.csv` or single-sheet `.xlsx`, at most 5 MiB locally and 10,000 rows; the hosted API caps uploads at 4,000,000 bytes. `sql-report` accepts `.sql` and `client-email` accepts `.txt`, each up to 65,536 bytes. Macros, password-protected and multi-sheet workbooks are rejected.
 - Sessions are anonymous; there is no account recovery. A new private window is a new learner.
 - Gemini 3.5 Flash-Lite responded for Arabic and English feedback in a live key check; latency and quota can vary. The deterministic fallback is always
   available and never changes the grade.

@@ -39,7 +39,7 @@ class GetCurrentTask:
 
 
 class StartTask:
-    """Assigns a published task to a READY learner. Starting the current task again is a no-op."""
+    """Select a published task; keep prior attempts when moving between tasks."""
 
     def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock, id_gen: IDGenerator):
         self.uow_factory = uow_factory
@@ -66,17 +66,21 @@ class StartTask:
                 )
             if progress.current_task_id == task_id:
                 return CurrentTaskResult(status=progress.current_status.value, task=task)
-            if progress.current_status is not LearnerStatus.READY:
+            if progress.current_status in (LearnerStatus.ONBOARDING, LearnerStatus.PROCESSING):
                 raise DomainError(
                     code="invalid_status",
-                    message="Finish the current task before starting another one",
+                    message="Cannot switch tasks while onboarding or processing a submission",
                     category=ErrorCategory.DOMAIN,
                     retryable=False,
                 )
             now = self.clock.now()
             started = progress.model_copy(
                 update={
-                    "current_status": transition(progress.current_status, LearnerStatus.IN_TASK),
+                    "current_status": (
+                        transition(progress.current_status, LearnerStatus.IN_TASK)
+                        if progress.current_status is LearnerStatus.READY
+                        else LearnerStatus.IN_TASK
+                    ),
                     "current_task_id": task_id,
                     "version": progress.version + 1,
                     "updated_at": now,

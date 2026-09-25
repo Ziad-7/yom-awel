@@ -138,6 +138,7 @@ class ProcessSubmission:
         artifact_filename = ""
         artifact_size = 0
         artifact_content = b""
+        reserved_progress_version: int | None = None
 
         try:
             async with self.uow_factory() as uow:
@@ -174,8 +175,9 @@ class ProcessSubmission:
                     existing_reservation.status == SubmissionStatus.COMPLETED
                     or existing_reservation.lease_expires_at > self.clock.now()
                 )
+                progress = await uow.learners.get_progress(command.learner_id)
+                reserved_progress_version = progress.version if progress else None
                 if not existing_is_replay:
-                    progress = await uow.learners.get_progress(command.learner_id)
                     if progress is None:
                         raise DomainError(
                             "progress_not_found",
@@ -393,6 +395,19 @@ class ProcessSubmission:
                         category=ErrorCategory.VALIDATION,
                         retryable=False,
                     )
+                # A learner may select another task while external grading is
+                # running. Never let the old result overwrite that selection,
+                # or finalize against a progress generation that has changed.
+                if (
+                    curr_progress.current_task_id is not None
+                    and curr_progress.current_task_id != task_version.task_id
+                ):
+                    raise TaskNotCurrent()
+                if (
+                    reserved_progress_version is None
+                    or curr_progress.version != reserved_progress_version
+                ):
+                    raise FinalizationConflict("Learner progress changed during grading")
 
                 from yom_awel.domain.state_machine import evaluate_transition, transition
 
@@ -462,6 +477,13 @@ class ProcessSubmission:
             TaskNotCurrent,
             LearnerNotEligible,
         ) as validation_error:
+            await _expire_reservation(
+                self.uow_factory,
+                command.learner_id,
+                command.idempotency_key,
+                res.version,
+                lease_owner,
+            )
             raise DomainError(
                 code=validation_error.code,
                 message=validation_error.message,
@@ -475,6 +497,13 @@ class ProcessSubmission:
             ReservationOwnerConflict,
             SubmissionMismatch,
         ):
+            await _expire_reservation(
+                self.uow_factory,
+                command.learner_id,
+                command.idempotency_key,
+                res.version,
+                lease_owner,
+            )
             raise DomainError(
                 code="finalization_conflict",
                 message="Finalization conflicted",

@@ -40,7 +40,7 @@ class _Frozen(BaseModel):
 
 
 class ArtifactLimits(_Frozen):
-    extensions: tuple[Literal["csv", "xlsx"], ...] = Field(min_length=1)
+    extensions: tuple[Literal["csv", "xlsx", "sql", "txt"], ...] = Field(min_length=1)
     max_bytes: int = Field(strict=True, gt=0, le=MAX_ARTIFACT_BYTES)
     max_expanded_bytes: int = Field(strict=True, gt=0)
     max_sheets: int = Field(strict=True, gt=0)
@@ -68,6 +68,32 @@ class CleaningPolicy(_Frozen):
         return self
 
 
+class SqlReportPolicy(_Frozen):
+    kind: Literal["sql-report"]
+    source_path: NonEmpty
+    max_query_steps: int = Field(strict=True, gt=0)
+    max_output_rows: int = Field(strict=True, gt=0)
+
+    @model_validator(mode="after")
+    def _source_is_local(self) -> Self:
+        _validate_relative_path(self.source_path)
+        return self
+
+
+class ClientEmailPolicy(_Frozen):
+    kind: Literal["client-email"]
+    case_file: NonEmpty
+    min_words: int = Field(strict=True, gt=0)
+    max_words: int = Field(strict=True, gt=0)
+
+    @model_validator(mode="after")
+    def _word_range(self) -> Self:
+        if self.max_words <= self.min_words:
+            raise ValueError("max_words must exceed min_words")
+        _validate_relative_path(self.case_file)
+        return self
+
+
 class CheckSpec(_Frozen):
     check_id: Identifier
     points: int = Field(strict=True, ge=0, le=TOTAL_POINTS)
@@ -84,9 +110,7 @@ class ContentFile(_Frozen):
 
     @model_validator(mode="after")
     def _path_stays_inside_package(self) -> Self:
-        parts = PurePosixPath(self.path).parts
-        if PurePosixPath(self.path).is_absolute() or ".." in parts or "\\" in self.path:
-            raise ValueError("content path must be relative to the package")
+        _validate_relative_path(self.path)
         return self
 
 
@@ -100,7 +124,7 @@ class TaskPackage(_Frozen):
     dataset_seed: int = Field(strict=True, ge=0)
     generator_version: NonEmpty
     limits: ArtifactLimits
-    policy: CleaningPolicy
+    policy: CleaningPolicy | SqlReportPolicy | ClientEmailPolicy
     checks: tuple[CheckSpec, ...] = Field(min_length=1)
     content: tuple[ContentFile, ...]
 
@@ -121,7 +145,21 @@ class TaskPackage(_Frozen):
     def _published_content_is_pinned(self) -> Self:
         if self.status == "published" and not self.content:
             raise ValueError("a published package must pin its content files")
+        if isinstance(self.policy, (SqlReportPolicy, ClientEmailPolicy)):
+            source_path = (
+                self.policy.source_path
+                if isinstance(self.policy, SqlReportPolicy)
+                else self.policy.case_file
+            )
+            if source_path not in {item.path for item in self.content}:
+                raise ValueError("the task source file must be pinned")
         return self
+
+
+def _validate_relative_path(path: str) -> None:
+    parts = PurePosixPath(path).parts
+    if not parts or PurePosixPath(path).is_absolute() or ".." in parts or "\\" in path:
+        raise ValueError("content path must be relative to the package")
 
 
 def parse_task_package(manifest: str) -> TaskPackage:

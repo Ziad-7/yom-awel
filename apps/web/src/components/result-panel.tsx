@@ -7,6 +7,7 @@ import { FeedbackCard } from "./feedback-card";
 
 type ResultPanelProps = {
   attempt: GradedAttempt;
+  taskId: string;
   passThreshold: number;
   criticalIds: ReadonlySet<string>;
   canRevise: boolean;
@@ -48,14 +49,14 @@ function CheckRows({ evaluation }: { evaluation: EvaluationResult }) {
   );
 }
 
-export function ResultPanel({ attempt, passThreshold, criticalIds, canRevise, onRevise, onSkills }: ResultPanelProps) {
+export function ResultPanel({ attempt, taskId, passThreshold, criticalIds, canRevise, onRevise, onSkills }: ResultPanelProps) {
   const { t } = useLanguage();
   const heading = useRef<HTMLHeadingElement>(null);
   const { evaluation } = attempt;
   const verdict = verdictOf(evaluation, passThreshold, criticalIds);
   useEffect(() => heading.current?.focus(), [attempt.submission_id]);
   const title = {
-    passed: t.result.passTitle,
+    passed: taskId === "clean-sales" ? t.result.passTitle : t.result.passTitleGeneric,
     rejected: t.result.rejectedTitle,
     critical_failed: t.result.failTitle,
     failed: t.result.failTitle,
@@ -77,7 +78,7 @@ export function ResultPanel({ attempt, passThreshold, criticalIds, canRevise, on
           {verdict === "passed" && <p>{t.result.success(evaluation.score)}</p>}
           {verdict === "rejected" &&
             evaluation.errors.map((error) => <p key={error.code}>{rejectionMessage(t, error.code)}</p>)}
-          {verdict === "critical_failed" && <p>{t.result.criticalFailed(evaluation.score, passThreshold)}</p>}
+          {verdict === "critical_failed" && <p>{taskId === "clean-sales" ? t.result.criticalFailed(evaluation.score, passThreshold) : t.result.criticalFailedGeneric(evaluation.score, passThreshold)}</p>}
           {verdict === "failed" && <p>{t.result.failure(evaluation.score)}</p>}
           {verdict !== "passed" && canRevise && <p>{t.result.retry}</p>}
         </div>

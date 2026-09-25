@@ -35,6 +35,11 @@ export function CheckList({ task }: { task: TaskDetail }) {
 export function DatasetDownloads({ task }: { task: TaskDetail }) {
   const { t } = useLanguage();
   const labels = { csv: t.workspace.downloadCsv, xlsx: t.workspace.downloadXlsx };
+  const hint = task.task_id === "sql-report"
+    ? t.workspace.sqlDatasetHint
+    : task.task_id === "client-email"
+      ? t.workspace.emailDatasetHint
+      : t.workspace.datasetHint;
   return (
     <section className="file-card" aria-labelledby="dataset-title">
       <div className="file-icon" aria-hidden="true">
@@ -42,7 +47,7 @@ export function DatasetDownloads({ task }: { task: TaskDetail }) {
       </div>
       <div className="file-text">
         <h2 id="dataset-title">{t.workspace.dataset}</h2>
-        <small>{t.workspace.datasetHint}</small>
+        <small>{hint}</small>
       </div>
       <div className="file-actions">
         {task.formats.map((format) => (
@@ -59,10 +64,15 @@ export function TaskBrief({ task }: { task: TaskDetail }) {
   const { lang, t } = useLanguage();
   const brief = lang === "ar" ? task.brief_ar : task.brief_en;
   const hints = lang === "ar" ? task.hints_ar : task.hints_en;
+  const intro = task.task_id === "sql-report"
+    ? t.persona.introSql
+    : task.task_id === "client-email"
+      ? t.persona.introEmail
+      : t.persona.intro;
   return (
     <section className="card task-card" aria-labelledby="brief-title">
       <PersonaHeader />
-      <p className="persona-intro">{t.persona.intro}</p>
+      <p className="persona-intro">{intro}</p>
       <h2 id="brief-title" className="visually-hidden">
         {t.workspace.brief}
       </h2>

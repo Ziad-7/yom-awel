@@ -104,15 +104,37 @@ class TelegramAdapter:
         learner = await self.services.onboard(
             identity, OnboardInput(display_name=str(sender.get("first_name") or "متدرّب")[:80])
         )
-        text = str(message.get("text", "")).split("@", 1)[0]
+        text = str(message.get("text", "")).strip()
+        command, _, argument = text.partition(" ")
+        command = command.split("@", 1)[0]
         current = await self._current_task(learner.learner_id)
-        if text in ("/start", "/task"):
+        if command == "/tasks":
+            await self.client.send(
+                chat_id,
+                "المهام المتاحة:\n"
+                + "\n".join(
+                    f"/task {item.task_id} — {item.title_ar}"
+                    for item in self.services.catalog.tasks()
+                ),
+            )
+            return
+        if command == "/task" and argument.strip():
+            try:
+                current = await self.services.start.execute(learner.learner_id, argument.strip())
+            except DomainError:
+                await self.client.send(chat_id, "المهمة غير متاحة. استخدم /tasks لعرض المهام.")
+                return
+        if command in ("/start", "/task"):
             task = self.services.catalog.get(current.task.task_id) if current.task else None
+            formats = (
+                " أو ".join(ext.upper() for ext in task.package.limits.extensions) if task else ""
+            )
             await self.client.send(
                 chat_id,
                 "أهلاً بيك في يوم أول!\n"
                 + (task.title_ar if task else "المهمة مش متاحة دلوقتي.")
-                + "\nنزّل الملف، نضّفه، وابعته هنا CSV أو XLSX. استخدم /skills لمهاراتك.",
+                + f"\nنزّل الملف، نفّذ المهمة، وابعته هنا {formats}. "
+                "استخدم /tasks لتغيير المهمة و /skills لمهاراتك.",
             )
             if task:
                 file = dataset(task, "csv")
@@ -131,13 +153,14 @@ class TelegramAdapter:
             return
         document = message.get("document")
         if not isinstance(document, dict) or current.task is None:
-            await self.client.send(chat_id, "استخدم /task لعرض المهمة أو ابعت ملف CSV أو XLSX.")
+            await self.client.send(chat_id, "استخدم /task لعرض المهمة ثم ابعت ملف الحل.")
             return
         filename = str(document.get("file_name", ""))
-        if filename.rsplit(".", 1)[-1].lower() not in ("csv", "xlsx") or any(
+        allowed = self.services.catalog.get(current.task.task_id).package.limits.extensions
+        if filename.rsplit(".", 1)[-1].lower() not in allowed or any(
             char in filename for char in ("/", "\\", "\x00")
         ):
-            await self.client.send(chat_id, "الملف لازم يكون CSV أو XLSX.")
+            await self.client.send(chat_id, "صيغة الملف لا تطابق المهمة الحالية.")
             return
         if (
             not isinstance(document.get("file_size"), int)
@@ -154,20 +177,18 @@ class TelegramAdapter:
         content = await self.client.download(str(document.get("file_id", "")))
         if not 0 < len(content) <= MAX_BYTES or len(content) != document["file_size"]:
             raise DomainError("artifact_integrity_failure", "File size mismatch")
-        content_type = str(
-            document.get("mime_type")
-            or (
-                "text/csv"
-                if filename.lower().endswith(".csv")
-                else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-        )
+        fallback_types = {
+            "csv": "text/csv",
+            "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "sql": "text/plain",
+            "txt": "text/plain",
+        }
+        extension = filename.rsplit(".", 1)[-1].lower()
+        content_type = str(document.get("mime_type") or fallback_types[extension])
         try:
             validate_content(filename, content_type, content)
         except DomainError:
-            await self.client.send(
-                chat_id, "محتوى الملف أو نوعه غير صالح. ارفع ملف CSV أو XLSX سليم."
-            )
+            await self.client.send(chat_id, "محتوى الملف أو نوعه غير صالح. ارفع ملف حل سليم.")
             return
         artifact = Artifact(
             artifact_id=uuid5(NAMESPACE_URL, f"{learner.learner_id}:{key}"),

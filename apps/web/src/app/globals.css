@@ -830,6 +830,29 @@ footer {
   flex-wrap: wrap;
   gap: 8px;
 }
+.answer-editor {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.answer-editor label {
+  font-weight: 700;
+}
+.answer-editor textarea {
+  width: 100%;
+  min-height: 210px;
+  padding: 12px;
+  border: 1px solid #b9c8b2;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+.answer-editor textarea:focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 2px;
+}
 .upload-zone {
   display: flex;
   flex-direction: column;

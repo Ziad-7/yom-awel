@@ -21,6 +21,8 @@ MIME_TYPES = {
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "application/octet-stream",
     },
+    "sql": {"application/sql", "text/plain", "application/octet-stream"},
+    "txt": {"text/plain", "application/octet-stream"},
 }
 
 
@@ -31,7 +33,7 @@ def validate_metadata(filename: str, content_type: str) -> None:
         or any(char in filename for char in ("/", "\\", "\x00"))
         or content_type not in MIME_TYPES.get(extension, set())
     ):
-        raise DomainError("unsupported_artifact", "Only matching CSV/XLSX uploads are accepted")
+        raise DomainError("unsupported_artifact", "Unsupported filename or content type")
 
 
 def validate_content(filename: str, content_type: str, content: bytes) -> None:
@@ -41,8 +43,10 @@ def validate_content(filename: str, content_type: str, content: bytes) -> None:
     try:
         if filename.lower().endswith(".csv"):
             _csv(content)
-        else:
+        elif filename.lower().endswith(".xlsx"):
             _xlsx(content)
+        else:
+            _plain_text(content)
     except (
         ValueError,
         UnicodeError,
@@ -67,6 +71,16 @@ def _csv(content: bytes) -> None:
     for row in csv.reader(io.StringIO(text, newline=""), strict=True):
         # Parsing verifies CSV syntax, without inspecting any business values.
         del row
+
+
+def _plain_text(content: bytes) -> None:
+    if content.startswith(
+        (b"MZ", b"PK", b"\xd0\xcf\x11\xe0", b"\x7fELF", b"%PDF", b"\x89PNG", b"GIF8")
+    ):
+        raise ValueError("Binary signature")
+    text = content.decode("utf-8-sig")
+    if not text.strip() or any(ord(char) < 32 and char not in "\r\n\t" for char in text):
+        raise ValueError("Empty or binary text")
 
 
 def _xlsx(content: bytes) -> None:

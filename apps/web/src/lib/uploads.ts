@@ -9,7 +9,7 @@ const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04];
 type Candidate = Pick<File, "name" | "size">;
 export type UploadedArtifact = { artifact_id: string; artifact_sha256: string };
 
-export const extensionOf = (name: string) => name.toLowerCase().match(/\.(csv|xlsx)$/)?.[1];
+export const extensionOf = (name: string) => name.toLowerCase().match(/\.(csv|xlsx|sql|txt)$/)?.[1];
 
 /** Client-side checks mirror the server boundary; the API stays authoritative. */
 export function validateFile(file: Candidate, maxBytes = MAX_BYTES): RejectionCode | null {
@@ -32,8 +32,12 @@ export async function inspectFile(file: File, maxBytes = MAX_BYTES): Promise<Rej
   return validateSignature(file.name, head);
 }
 
-export const contentTypeOf = (name: string) =>
-  extensionOf(name) === "csv" ? "text/csv" : XLSX_TYPE;
+export const contentTypeOf = (name: string) => {
+  const extension = extensionOf(name);
+  if (extension === "csv") return "text/csv";
+  if (extension === "xlsx") return XLSX_TYPE;
+  return "text/plain";
+};
 
 async function sha256(file: File) {
   const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());

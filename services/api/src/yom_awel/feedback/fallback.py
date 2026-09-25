@@ -71,6 +71,193 @@ CHECK_GUIDANCE: dict[str, dict[Language, _Guidance]] = {
     },
 }
 
+TASK_GUIDANCE: dict[str, dict[Language, _Guidance]] = {
+    "report_columns": {
+        Language.AR_EG: (
+            "أعمدة التقرير مش مطابقة للمطلوب، فصعب قراءة النتيجة",
+            "راجع أسماء الأعمدة وترتيبها في الاستعلام",
+        ),
+        Language.EN: (
+            "the report columns do not match the requested output",
+            "check the SQL output column names and order",
+        ),
+    },
+    "paid_regions": {
+        Language.AR_EG: (
+            "التقرير ناقص منطقة أو مكرر منطقة، فالمقارنة بين المناطق مش دقيقة",
+            "اظهر كل منطقة فيها طلبات مدفوعة مرة واحدة",
+        ),
+        Language.EN: (
+            "missing or duplicate regions make the comparison unreliable",
+            "return each region with paid orders exactly once",
+        ),
+    },
+    "paid_order_counts": {
+        Language.AR_EG: ("عدد الطلبات المدفوعة غير دقيق", "احسب الطلبات المدفوعة فقط لكل منطقة"),
+        Language.EN: (
+            "the paid-order counts are inaccurate",
+            "count only paid orders in each region",
+        ),
+    },
+    "paid_revenue": {
+        Language.AR_EG: (
+            "إجمالي الإيراد في التقرير غير دقيق",
+            "اجمع حاصل الكمية في سعر الوحدة للطلبات المدفوعة",
+        ),
+        Language.EN: (
+            "the report revenue totals are inaccurate",
+            "sum quantity times unit price for paid orders",
+        ),
+    },
+    "recipient_and_subject": {
+        Language.AR_EG: (
+            "العميل قد لا يتعرف على الرسالة أو رقم طلبه",
+            "راجع عنوان المستلم والموضوع ورقم الطلب",
+        ),
+        Language.EN: (
+            "the client may not recognize the message or order",
+            "check the recipient, subject and order ID",
+        ),
+    },
+    "case_facts": {
+        Language.AR_EG: (
+            "المعلومات الناقصة قد تخلق وعداً خاطئاً للعميل",
+            "راجع رقم الطلب والتاريخين ومبلغ الاسترداد من ملف الحالة",
+        ),
+        Language.EN: (
+            "missing facts could create a wrong promise to the client",
+            "check the order ID, both dates and refund amount against the case file",
+        ),
+    },
+    "action_plan": {
+        Language.AR_EG: ("العميل مش عارف الخطوة القادمة", "وضح خطة التصرف ومتى سيتلقى الرد"),
+        Language.EN: (
+            "the client cannot see what happens next",
+            "state the action plan and response window",
+        ),
+    },
+    "professional_closing": {
+        Language.AR_EG: (
+            "الرسالة تحتاج خاتمة واضحة ومهنية",
+            "اختم الرسالة باعتذار مناسب وتوقيع مهني",
+        ),
+        Language.EN: (
+            "the message needs a clear professional close",
+            "end with an appropriate apology and professional signature",
+        ),
+    },
+}
+
+# These reasons are keyed by evaluator and error code. Error.message can contain
+# untrusted learner input, so it is never copied into learner-visible feedback.
+TASK_REJECTION_GUIDANCE: dict[str, dict[str, dict[Language, _Guidance]]] = {
+    "sql-report": {
+        "unsupported_type": {
+            Language.AR_EG: (
+                "ملف الاستعلام لم يُقيَّم لأنه ليس بصيغة SQL",
+                "احفظ استعلام SELECT واحداً في ملف UTF-8 بامتداد .sql",
+            ),
+            Language.EN: (
+                "the query was not graded because the file is not SQL",
+                "save one SELECT query in a UTF-8 .sql file",
+            ),
+        },
+        "artifact_too_large": {
+            Language.AR_EG: (
+                "ملف الاستعلام أكبر من حد المعالجة الآمن",
+                "اختصر ملف SQL ليكون أقل من 64 كيلوبايت",
+            ),
+            Language.EN: (
+                "the query file exceeds the safe processing limit",
+                "shorten the SQL file to under 64 KiB",
+            ),
+        },
+        "artifact_unreadable": {
+            Language.AR_EG: (
+                "تعذر قراءة الاستعلام كنص UTF-8",
+                "احفظ ملف SQL بترميز UTF-8 ثم أعد رفعه",
+            ),
+            Language.EN: (
+                "the query could not be read as UTF-8 text",
+                "save the SQL file as UTF-8 text",
+            ),
+        },
+        "sql_query_rejected": {
+            Language.AR_EG: (
+                "الاستعلام لم يعمل، فلا يوجد تقرير مبيعات قابل للتقييم",
+                "اكتب استعلام SELECT واحداً للقراءة فقط من جدول sales وراجع صياغته",
+            ),
+            Language.EN: (
+                "the query could not run, so no sales report was graded",
+                "submit one valid read-only SELECT query from the sales table",
+            ),
+        },
+        "sql_output_too_large": {
+            Language.AR_EG: (
+                "مخرجات الاستعلام أكبر من حد التقييم الآمن",
+                "ارجع أعمدة التقرير الثلاثة المطلوبة وصفاً واحداً لكل منطقة فقط",
+            ),
+            Language.EN: (
+                "the query output exceeds the safe grading limit",
+                "return only the three requested report columns and one row per region",
+            ),
+        },
+    },
+    "client-email": {
+        "unsupported_type": {
+            Language.AR_EG: (
+                "الرسالة لم تُقيَّم لأن الصيغة ليست ملفاً نصياً",
+                "احفظ الرسالة في ملف UTF-8 بامتداد .txt",
+            ),
+            Language.EN: (
+                "the email was not graded because the file is not plain text",
+                "save the email as a UTF-8 .txt file",
+            ),
+        },
+        "artifact_too_large": {
+            Language.AR_EG: (
+                "ملف الرسالة أكبر من حد المعالجة الآمن",
+                "اختصر الرسالة ليصبح الملف أقل من 64 كيلوبايت",
+            ),
+            Language.EN: (
+                "the email file exceeds the safe processing limit",
+                "shorten the email file to under 64 KiB",
+            ),
+        },
+        "mime_mismatch": {
+            Language.AR_EG: (
+                "محتوى الملف ليس نصاً عادياً رغم امتداد .txt",
+                "احفظ الرسالة كنص UTF-8 عادي بدلاً من إعادة تسمية الملف",
+            ),
+            Language.EN: (
+                "the .txt file does not contain plain text",
+                "save the email as plain UTF-8 text instead of renaming another file",
+            ),
+        },
+        "artifact_unreadable": {
+            Language.AR_EG: (
+                "تعذر قراءة الرسالة كنص UTF-8",
+                "احفظ الرسالة بترميز UTF-8 ثم أعد رفعها",
+            ),
+            Language.EN: (
+                "the email could not be read as UTF-8 text",
+                "save the email with UTF-8 encoding",
+            ),
+        },
+    },
+}
+
+_UNKNOWN_TASK_REJECTION: dict[Language, _Guidance] = {
+    Language.AR_EG: (
+        "تعذر تقييم الملف، لذلك لا يمكن الاعتماد على نتيجته بعد",
+        "راجع صيغة الملف وتعليمات المهمة ثم أعد رفعه",
+    ),
+    Language.EN: (
+        "the file could not be graded, so its result cannot be used yet",
+        "check the file format and task instructions before retrying",
+    ),
+}
+
 _GENERIC_GUIDANCE: dict[Language, _Guidance] = {
     Language.AR_EG: (
         "المشكلة المسجّلة بتقلل الثقة في النتيجة لما نستخدمها في الشغل",
@@ -302,10 +489,74 @@ class DeterministicFeedbackProvider(FeedbackProvider):
     @staticmethod
     def render_text(evaluation: EvaluationResult, language: Language) -> str:
         """The sole approved learner-visible rendering for this evaluation."""
+        if evaluation.evaluator_id in ("sql-report", "client-email"):
+            return _compose(_task_sections(evaluation, language), language)
         text = _compose(_sections(evaluation, language, compact=False), language)
         if len(text) > ACTIVE_FEEDBACK_POLICY.maximum_characters:
             text = _compose(_sections(evaluation, language, compact=True), language)
         return text
+
+
+def _task_sections(evaluation: EvaluationResult, language: Language) -> _Sections:
+    if evaluation.errors:
+        code = evaluation.errors[0].code
+        reason, action = TASK_REJECTION_GUIDANCE.get(evaluation.evaluator_id, {}).get(
+            code, _UNKNOWN_TASK_REJECTION
+        )[language]
+        if language is Language.AR_EG:
+            return (
+                f"التسليم محتاج إعادة شغل. الملف ما اتقيّمش: {reason}.",
+                "لا يمكن استخدام النتيجة في الشغل قبل تقييم الملف.",
+                f"{action}، وبعدين ارفع الملف تاني.",
+                f"حصلت على {evaluation.score} من 100 لأن الفحوصات ما اتشغلتش على الملف.",
+            )
+        return (
+            f"submission needs rework. The file was not graded: {reason}.",
+            "the result cannot be used for work until the file is graded.",
+            f"{action}, then upload the file again.",
+            f"{evaluation.score} of 100 because the checks could not run on this file.",
+        )
+    failed = next((check for check in evaluation.checks if not check.passed), None)
+    guidance = (
+        TASK_GUIDANCE.get(failed.check_id, _GENERIC_GUIDANCE) if failed else _GENERIC_GUIDANCE
+    )
+    impact, action = guidance[language]
+    is_sql = evaluation.evaluator_id == "sql-report"
+    if language is Language.AR_EG:
+        if evaluation.passed:
+            return (
+                "التسليم مقبول. شغل مضبوط.",
+                "التقرير يمكن الاعتماد عليه في قرار المبيعات."
+                if is_sql
+                else "العميل هيستلم رسالة واضحة ودقيقة.",
+                "كمّل على المهمة الجاية بنفس الدقة.",
+                f"حصلت على {evaluation.score} من 100، وعدّيت حد النجاح 75.",
+            )
+        return (
+            "التسليم محتاج إعادة شغل. فحص أساسي لازم ينجح."
+            if evaluation.score >= 75
+            else "التسليم محتاج إعادة شغل.",
+            impact + ".",
+            action + "، وبعدين ارفع الملف تاني.",
+            f"حصلت على {evaluation.score} من 100، وحد النجاح 75.",
+        )
+    if evaluation.passed:
+        return (
+            "submission accepted. Solid work.",
+            "the sales report is reliable for decisions."
+            if is_sql
+            else "the client will receive a clear, accurate message.",
+            "carry this care into the next task.",
+            f"{evaluation.score} of 100 meets the pass mark of 75.",
+        )
+    return (
+        "submission needs rework. A required check must pass."
+        if evaluation.score >= 75
+        else "submission needs rework.",
+        impact + ".",
+        action + ", then upload the file again.",
+        f"{evaluation.score} of 100; the pass mark is 75.",
+    )
 
 
 def _rejection_code(evaluation: EvaluationResult) -> str | None:

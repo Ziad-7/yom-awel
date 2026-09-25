@@ -1,4 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
+import os from "node:os";
+import path from "node:path";
 
 const API_PORT = 8000;
 const WEB_PORT = 3000;
@@ -19,7 +21,7 @@ export default defineConfig({
     // Browser flows against the typed contract mock: no API process involved.
     { name: "mock", testMatch: /mock-flow\.spec\.ts/, use: chromium },
     // The full demo against uvicorn, the real evaluator and Lane D's presenter files.
-    { name: "real", testMatch: /demo-flow\.spec\.ts/, use: chromium },
+    { name: "real", testMatch: /(demo-flow|three-tasks)\.spec\.ts/, use: chromium },
     // `npm run demo:record`: the whole flow in Arabic then English, on video.
     {
       name: "record",
@@ -37,7 +39,7 @@ export default defineConfig({
       env: {
         APP_ENV: "local",
         FEEDBACK_MODE: "fallback",
-        LOCAL_DATABASE_PATH: ".local/e2e.sqlite3",
+        LOCAL_DATABASE_PATH: path.join(os.tmpdir(), `yom-awel-e2e-${process.pid}.sqlite3`),
         // The full sequential browser suite shares one loopback IP across learners.
         RATE_LIMIT: "1000",
         CORS_ORIGINS: `http://127.0.0.1:${WEB_PORT}`,

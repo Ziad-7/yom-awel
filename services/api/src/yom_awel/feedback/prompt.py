@@ -7,6 +7,7 @@ from yom_awel.domain.enums import Language
 from yom_awel.feedback.fallback import (
     CHECK_GUIDANCE,
     REJECTION_MESSAGES,
+    TASK_GUIDANCE,
     DeterministicFeedbackProvider,
 )
 from yom_awel.feedback.policy import ACTIVE_FEEDBACK_POLICY
@@ -23,7 +24,7 @@ _STORAGE_PATH = re.compile(
     r"(?i)(?:supabase://|storage://|(?:bucket|object_path)\s*[:=]\s*)[^\s,;]+"
 )
 _LEARNER_PATH = re.compile(r"(?i)learners/[0-9a-f-]{32,}/[^\s,;]+")
-_CHECK_IDS = frozenset(CHECK_GUIDANCE)
+_CHECK_IDS = frozenset(CHECK_GUIDANCE) | frozenset(TASK_GUIDANCE)
 _DIAGNOSTIC_CODES = frozenset(
     f"{check_id}_{state}" for check_id in _CHECK_IDS for state in ("passed", "failed")
 )

@@ -79,7 +79,9 @@ def test_session_cookie_is_http_only_lax_and_reused(client):
 
 def test_catalog_start_detail_and_downloads(client):
     onboard(client)
-    [summary] = client.get("/api/v1/tasks").json()["tasks"]
+    summaries = client.get("/api/v1/tasks").json()["tasks"]
+    assert {item["task_id"] for item in summaries} == {"clean-sales", "client-email", "sql-report"}
+    summary = next(item for item in summaries if item["task_id"] == TASK_ID)
     assert summary["task_id"] == TASK_ID
     assert summary["status"] == "available"
     assert (summary["pass_threshold"], summary["points_total"]) == (75, 100)
@@ -101,6 +103,7 @@ def test_catalog_start_detail_and_downloads(client):
         ("complete_customer_records", 25, False),
     ]
     assert detail["formats"] == ["csv", "xlsx"]
+    assert detail["submission_formats"] == ["csv", "xlsx"]
     assert detail["hints_ar"] and detail["hints_en"] and detail["brief_ar"]
     assert client.get("/api/v1/tasks/unknown").status_code == 404
 

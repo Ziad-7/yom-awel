@@ -16,10 +16,14 @@ from openpyxl import Workbook
 
 from yom_awel.domain.contracts import TaskVersion
 from yom_awel.domain.errors import DomainError
+from yom_awel.evaluation.client_email import ClientEmailEvaluator
 from yom_awel.evaluation.registry import EvaluatorRegistry
 from yom_awel.evaluation.sales_cleaning import SalesCleaningEvaluator
+from yom_awel.evaluation.sql_report import SqlReportEvaluator
 from yom_awel.evaluation.task_package import (
     MANIFEST_NAME,
+    ClientEmailPolicy,
+    SqlReportPolicy,
     TaskPackage,
     TaskPackageError,
     content_hash,
@@ -50,6 +54,8 @@ class CatalogTask:
     hints_ar: str
     hints_en: str
     dataset_csv: bytes
+    package_root: Path
+    dataset_stem: str = DATASET_STEM
 
     @property
     def task_id(self) -> str:
@@ -103,9 +109,7 @@ class TaskCatalog:
     def evaluator_registry(self) -> EvaluatorRegistry:
         return EvaluatorRegistry(
             {
-                (task.package.evaluator_id, task.package.evaluator_version): (
-                    SalesCleaningEvaluator(task.package)
-                )
+                (task.package.evaluator_id, task.package.evaluator_version): _evaluator(task)
                 for task in self._tasks.values()
             }
         )
@@ -149,8 +153,8 @@ def build_task_version(package: TaskPackage, brief_ar: str, brief_en: str) -> Ta
 
 def dataset(task: CatalogTask, file_format: DatasetFormat) -> Dataset:
     if file_format == "csv":
-        return Dataset(f"{DATASET_STEM}.csv", "text/csv; charset=utf-8", task.dataset_csv)
-    return Dataset(f"{DATASET_STEM}.xlsx", XLSX_MEDIA_TYPE, csv_to_xlsx(task.dataset_csv))
+        return Dataset(f"{task.dataset_stem}.csv", "text/csv; charset=utf-8", task.dataset_csv)
+    return Dataset(f"{task.dataset_stem}.xlsx", XLSX_MEDIA_TYPE, csv_to_xlsx(task.dataset_csv))
 
 
 def csv_to_xlsx(content: bytes) -> bytes:
@@ -176,8 +180,14 @@ def _catalog_task(package: TaskPackage, root: Path) -> CatalogTask:
     unpinned = sorted(set(CONTENT_FILES.values()) - {item.path for item in package.content})
     if unpinned:
         raise TaskPackageError(f"published package does not pin {', '.join(unpinned)}")
-    if not (root / DATASET_PATH).is_file():
-        raise TaskPackageError(f"{DATASET_PATH} is missing")
+    if isinstance(package.policy, SqlReportPolicy):
+        dataset_path = package.policy.source_path
+    elif isinstance(package.policy, ClientEmailPolicy):
+        dataset_path = package.policy.case_file
+    else:
+        dataset_path = DATASET_PATH
+    if not (root / dataset_path).is_file():
+        raise TaskPackageError(f"{dataset_path} is missing")
     text = {key: (root / path).read_text(encoding="utf-8") for key, path in CONTENT_FILES.items()}
     return CatalogTask(
         package=package,
@@ -188,5 +198,22 @@ def _catalog_task(package: TaskPackage, root: Path) -> CatalogTask:
         brief_en=text["brief_en"],
         hints_ar=text["hints_ar"],
         hints_en=text["hints_en"],
-        dataset_csv=(root / DATASET_PATH).read_bytes(),
+        dataset_csv=(root / dataset_path).read_bytes(),
+        package_root=root,
+        dataset_stem=(
+            DATASET_STEM
+            if package.task_id == "clean-sales"
+            else package.task_id.replace("-", "_") + "_source"
+        ),
     )
+
+
+def _evaluator(
+    task: CatalogTask,
+) -> SalesCleaningEvaluator | SqlReportEvaluator | ClientEmailEvaluator:
+    package = task.package
+    if isinstance(package.policy, SqlReportPolicy):
+        return SqlReportEvaluator(package, task.dataset_csv)
+    if isinstance(package.policy, ClientEmailPolicy):
+        return ClientEmailEvaluator(package, task.package_root)
+    return SalesCleaningEvaluator(package)

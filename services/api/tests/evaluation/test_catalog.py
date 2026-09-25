@@ -28,7 +28,11 @@ def copy_package(tmp_path: Path, version: str, **manifest_changes: object) -> Pa
 def test_catalog_builds_the_task_version_from_the_published_package():
     version = TASK.task_version
 
-    assert [task.task_id for task in CATALOG.tasks()] == ["clean-sales"]
+    assert [task.task_id for task in CATALOG.tasks()] == [
+        "clean-sales",
+        "client-email",
+        "sql-report",
+    ]
     assert (version.task_id, version.version, version.pass_threshold) == ("clean-sales", "1", 75)
     assert (version.evaluator_id, version.evaluator_version) == ("sales-cleaning", "1")
     assert version.content_hash == content_hash(TASK.package)
@@ -50,7 +54,7 @@ def test_titles_come_from_the_briefs():
 
 def test_unknown_tasks_are_not_found():
     with pytest.raises(DomainError) as error:
-        CATALOG.get("sql-report")
+        CATALOG.get("unknown-task")
     assert error.value.code == "not_found"
 
 
