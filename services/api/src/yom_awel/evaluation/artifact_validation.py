@@ -6,13 +6,16 @@ upload format.
 
 import csv
 import io
+import re
 import warnings
 import zipfile
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, time
 from pathlib import PurePosixPath
+from xml.etree.ElementTree import Element
 
+from defusedxml.ElementTree import iterparse  # type: ignore[import-untyped]
 from openpyxl import load_workbook
 from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 
@@ -30,6 +33,7 @@ PROHIBITED_XLSX_PARTS = ("xl/vbaProject.bin", "xl/macrosheets/", "xl/externalLin
 # The v1 vocabulary has no row or column code; a table past either bound exceeds the
 # safe processing limit.
 TABLE_LIMIT_CODE = "expanded_size_exceeded"
+CELL_REFERENCE = re.compile(r"^([A-Z]+)([1-9][0-9]*)$")
 
 # Rejection vocabulary v1, verbatim from task_packages/clean-sales/1/learning-objectives.yaml.
 REJECTION_MESSAGES: Mapping[str, tuple[str, str]] = {
@@ -140,13 +144,64 @@ def _read_xlsx(content: bytes, limits: ArtifactLimits) -> list[Row]:
         raise ArtifactRejected("mime_mismatch")
     _check_package(content, limits)
     try:
+        _reject_nonempty_xlsx_overflow(content, limits)
         values = _active_sheet_values(content, limits)
+    except ArtifactRejected:
+        raise
     except Exception as error:  # Any parser failure on untrusted input is unreadable.
         raise ArtifactRejected("artifact_unreadable") from error
     rows = [_text_row(row) for row in values]
     while rows and not rows[-1]:
         rows.pop()
     return rows
+
+
+def _reject_nonempty_xlsx_overflow(content: bytes, limits: ArtifactLimits) -> None:
+    """Reject real cells past the bounded reader's window before reading their values.
+
+    ``openpyxl`` stops at the requested row/column window. A sparse cell beyond
+    an empty boundary would otherwise disappear from the table and be graded as
+    though it were never uploaded. The package has one worksheet, so scanning
+    its cell references is bounded by the already-checked expanded ZIP size.
+    """
+
+    with zipfile.ZipFile(io.BytesIO(content)) as archive:
+        sheets = [name for name in archive.namelist() if _is_sheet(name)]
+        if len(sheets) != 1:
+            raise ArtifactRejected("artifact_unreadable")
+        with archive.open(sheets[0]) as source:
+            for _, element in iterparse(source, events=("end",)):
+                if element.tag.endswith("}row"):
+                    element.clear()
+                    continue
+                if not element.tag.endswith("}c"):
+                    continue
+                if not _cell_has_value(element):
+                    element.clear()
+                    continue
+                reference = element.attrib.get("r")
+                match = CELL_REFERENCE.fullmatch(reference or "")
+                if match is None:
+                    raise ArtifactRejected("artifact_unreadable")
+                column = _column_number(match.group(1))
+                row = int(match.group(2))
+                if row > limits.max_rows + 1 or column > limits.max_columns:
+                    raise ArtifactRejected(TABLE_LIMIT_CODE)
+                element.clear()
+
+
+def _cell_has_value(element: Element) -> bool:
+    return any(
+        child.tag.endswith(("}v", "}f", "}is")) and (child.text or list(child))
+        for child in element.iter()
+    )
+
+
+def _column_number(letters: str) -> int:
+    value = 0
+    for letter in letters:
+        value = value * 26 + ord(letter) - ord("A") + 1
+    return value
 
 
 def _check_package(content: bytes, limits: ArtifactLimits) -> None:

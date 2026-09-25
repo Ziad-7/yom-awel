@@ -186,7 +186,7 @@ export const en = {
   },
   rejections: {
     unsupported_type: "Unsupported file type. Accepted formats are CSV or Excel (.xlsx) spreadsheets only.",
-    artifact_too_large: "File size exceeds the allowed limit (5 MB). Please reduce file size and try again.",
+    artifact_too_large: "File size exceeds the limit shown for this task. Please reduce it and try again.",
     mime_mismatch:
       "File content does not match its extension. Please ensure the file is a valid spreadsheet.",
     expanded_size_exceeded:

@@ -24,6 +24,7 @@ const task = (taskId: string) => "/tasks/" + encodeURIComponent(taskId);
 export const api = {
   runtime: () => request<Runtime>("/runtime"),
   createSession: () => send("/auth/session", { method: "POST" }).then(() => undefined),
+  logout: () => send("/auth/logout", { method: "POST" }).then(() => undefined),
   me: () => request<Learner>("/learners/me"),
   onboard: (display_name: string, preferred_language: ApiLanguage) =>
     request<Learner>("/learners/onboard", json("POST", { display_name, preferred_language })),
@@ -40,9 +41,10 @@ export const api = {
       ...json("POST", body),
       headers: { "Idempotency-Key": idempotencyKey },
     }),
-  submission: (submissionId: string) =>
+  submission: (submissionId: string, idempotencyKey: string) =>
     request<SubmissionOutcome | ProcessingState>(
       "/submissions/" + encodeURIComponent(submissionId),
+      { headers: { "Idempotency-Key": idempotencyKey } },
     ),
   feedback: (submissionId: string, language: ApiLanguage) =>
     request<FeedbackResult>(

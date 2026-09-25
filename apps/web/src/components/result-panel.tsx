@@ -9,6 +9,7 @@ type ResultPanelProps = {
   attempt: GradedAttempt;
   passThreshold: number;
   criticalIds: ReadonlySet<string>;
+  canRevise: boolean;
   onRevise: () => void;
   onSkills: () => void;
 };
@@ -47,7 +48,7 @@ function CheckRows({ evaluation }: { evaluation: EvaluationResult }) {
   );
 }
 
-export function ResultPanel({ attempt, passThreshold, criticalIds, onRevise, onSkills }: ResultPanelProps) {
+export function ResultPanel({ attempt, passThreshold, criticalIds, canRevise, onRevise, onSkills }: ResultPanelProps) {
   const { t } = useLanguage();
   const heading = useRef<HTMLHeadingElement>(null);
   const { evaluation } = attempt;
@@ -78,7 +79,7 @@ export function ResultPanel({ attempt, passThreshold, criticalIds, onRevise, onS
             evaluation.errors.map((error) => <p key={error.code}>{rejectionMessage(t, error.code)}</p>)}
           {verdict === "critical_failed" && <p>{t.result.criticalFailed(evaluation.score, passThreshold)}</p>}
           {verdict === "failed" && <p>{t.result.failure(evaluation.score)}</p>}
-          {verdict !== "passed" && <p>{t.result.retry}</p>}
+          {verdict !== "passed" && canRevise && <p>{t.result.retry}</p>}
         </div>
         {verdict !== "rejected" && <CheckRows evaluation={evaluation} />}
         <div className="result-actions">
@@ -86,11 +87,11 @@ export function ResultPanel({ attempt, passThreshold, criticalIds, onRevise, onS
             <button type="button" className="primary" onClick={onSkills}>
               {t.result.viewSkills} <span aria-hidden="true" className="arrow" />
             </button>
-          ) : (
+          ) : canRevise ? (
             <button type="button" className="primary" onClick={onRevise}>
               {t.result.uploadRevision} <span aria-hidden="true">↑</span>
             </button>
-          )}
+          ) : null}
         </div>
       </section>
       <FeedbackCard key={attempt.submission_id} submissionId={attempt.submission_id} initial={attempt.feedback} />

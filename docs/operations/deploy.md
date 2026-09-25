@@ -103,6 +103,7 @@ API project (`services/api`):
 | `GEMINI_API_KEY` | no | Google AI Studio > **Get API key**. Without it feedback uses the deterministic Tarek fallback. |
 | `GEMINI_MODEL` | no | `gemini-3.5-flash-lite` (default). Its free tier is listed on Google's pricing page; verify account access and quota. |
 | `FEEDBACK_MODE` | no | `auto` (Gemini when a key is set, otherwise fallback) or `fallback` (never call Gemini). |
+| `RATE_LIMIT` | no | Positive per-IP requests per minute; defaults to `120`. The browser test server uses `1000` because its sequential learners share one loopback IP. |
 | `TELEGRAM_BOT_TOKEN` | no | BotFather token. Not part of the demo; leave unset. |
 | `TELEGRAM_WEBHOOK_SECRET` | no | Random string for the Telegram webhook header. Not part of the demo; leave unset. |
 
@@ -141,8 +142,9 @@ Do the API first, because the web project needs its URL.
 Replace the hosts with your production URLs.
 
 Use the supplied small presenter files. The evaluator accepts up to 5 MiB
-locally, but [Vercel Functions cap request and response bodies at 4.5 MB](https://vercel.com/docs/functions/limitations).
-Keep hosted uploads below 4 MB; the proxy cannot raise the platform limit.
+locally. Hosted task details and upload authorization cap files at 4,000,000
+bytes, below [Vercel Functions' 4.5 MB request-body limit](https://vercel.com/docs/functions/limitations).
+The web form reads the task's advertised limit before uploading.
 
 1. Health, direct and through the web proxy:
 
