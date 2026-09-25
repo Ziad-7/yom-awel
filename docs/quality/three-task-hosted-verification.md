@@ -26,12 +26,12 @@ throwaway anonymous learners and confirmed submission, history, language, and
 progress through the same-origin web proxy. Local browser tests ran with
 `FEEDBACK_MODE=fallback`, so feedback remained available without Gemini.
 
-## Boundaries still needing owner action
+## Release decision and remaining boundaries
 
-- Confirm that the project and intended submission use satisfy current Vercel
-  Hobby non-commercial eligibility and free quotas. The code adds no paid dependency.
-- Five formal member approvals in `release-signoff.yaml` are still unrecorded.
-  The independent agent review is technical evidence, not those approvals.
+- The sole active owner confirmed non-commercial Vercel Hobby use and explicitly
+  approved release in place of the inactive member sign-offs on 2026-09-25.
+  The five historical member approvals remain unrecorded; they are not presented
+  as teammate approvals. The code adds no paid dependency.
 - Telegram is outside the web demo release; no bot token or live webhook was
   configured or tested. The hosted Postgres demo keeps uploaded artifacts until
   the dedicated `yom_awel` schema is removed after the event.
@@ -39,5 +39,5 @@ progress through the same-origin web proxy. Local browser tests ran with
   environment; the eight hosted journeys provide end-to-end evidence for the
   deployed application, but do not exercise every skipped negative case.
 
-The application is playable on the production URLs. Formal release sign-off
-remains `no-go` until the owner confirms the eligibility and approval gates.
+The application is playable on the production URLs. The release record now has
+an explicit `go` decision from the sole active owner for the verified web app.

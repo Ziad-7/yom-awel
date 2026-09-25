@@ -11,6 +11,7 @@ from typing import Any
 import yaml
 
 SHA_REGEX = re.compile(r"^[0-9a-f]{40}$")
+UTC_TIMESTAMP_REGEX = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 REQUIRED_GATES = [
     "zero_cost_review",
     "hobby_non_commercial_eligibility",
@@ -70,7 +71,31 @@ def validate_release_signoff(
                     f"Cannot issue 'go' decision: quality gate '{gate_name}' is '{gate_info.get('status')}' (must be 'passed')."
                 )
 
-    # Member approvals
+    # Member approvals can be superseded by an explicit, traceable sole-owner decision.
+    override = data.get("owner_override")
+    override_valid = False
+    if override is not None:
+        if not isinstance(override, dict):
+            errors.append("owner_override must be a dictionary.")
+        else:
+            approver = override.get("approver")
+            basis = override.get("basis")
+            confirmed_at = override.get("confirmed_at")
+            override_valid = (
+                override.get("approved") is True
+                and isinstance(approver, str)
+                and bool(approver.strip())
+                and isinstance(basis, str)
+                and bool(basis.strip())
+                and isinstance(confirmed_at, str)
+                and bool(UTC_TIMESTAMP_REGEX.fullmatch(confirmed_at))
+                and data.get("signoff_lead") == approver
+            )
+            if not override_valid:
+                errors.append(
+                    "owner_override requires approval, approver/signoff lead, basis, and a UTC confirmation timestamp."
+                )
+
     approvals = data.get("member_approvals")
     if not isinstance(approvals, dict):
         errors.append("Missing 'member_approvals' dictionary.")
@@ -79,7 +104,11 @@ def validate_release_signoff(
             m_info = approvals.get(member_key)
             if not isinstance(m_info, dict):
                 errors.append(f"Missing approval entry for '{member_key}'.")
-            elif decision == "go" and m_info.get("status") != "approved":
+            elif (
+                decision == "go"
+                and not override_valid
+                and m_info.get("status") != "approved"
+            ):
                 errors.append(
                     f"Cannot issue 'go' decision: '{member_key}' approval is '{m_info.get('status')}' (must be 'approved')."
                 )

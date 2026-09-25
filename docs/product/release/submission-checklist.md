@@ -24,5 +24,5 @@
 - [ ] **Local Fallback Run:** start `demo/run_local.sh` and pass both health checks.
 - [ ] **Recorded Video:** record the demo from the verified candidate and link it in `docs/operations/demo-runbook.md`.
 - [x] **Bilingual Copy:** hosted Arabic/mobile/Axe and local keyboard/accessibility browser checks passed.
-- [ ] **Zero Mandatory Cost:** Confirm eligibility and quotas for Vercel, Supabase, and the selected model without adding a paid or card-backed dependency.
-- [ ] **Five-Member Sign-Off:** Record linked reviews against the exact final candidate commit.
+- [x] **Zero Mandatory Cost:** Sole owner confirmed non-commercial Vercel Hobby eligibility; the hosted app has Gemini fallback and no new paid dependency. Monitor free quotas during submission.
+- [x] **Release Sign-Off:** Sole active owner explicitly approved release against the verified commit. Five historical member approvals remain unrecorded and are superseded by the documented owner override.

@@ -11,8 +11,8 @@ quality_gates:
     status: "passed"
     details: "No new paid dependency; local mode needs no key and hosted mode has deterministic feedback fallback. Account eligibility is a separate gate."
   hobby_non_commercial_eligibility:
-    status: "pending"
-    details: "Project owners must confirm current Vercel Hobby eligibility before deployment."
+    status: "passed"
+    details: "Sole owner confirmed on 2026-09-25 that this Vercel Hobby use is non-commercial."
   secret_scan:
     status: "passed"
     details: "detect-secrets and gitleaks GitHub checks passed for PR #42 after public task-content SHA-256 pins were added to the baseline."
@@ -48,6 +48,12 @@ member_approvals:
     status: "pending_review"
     decision_summary: "PR #42 merged and eight hosted browser journeys passed; no separate member sign-off was recorded."
 
-decision: "no-go"
-decision_timestamp: "2026-09-25T18:32:26Z"
-signoff_lead: "member-1"
+owner_override:
+  approved: true
+  approver: "Ziad-7"
+  basis: "Sole active owner explicitly approved release in place of the five inactive member sign-offs in Codex conversation on 2026-09-25. Historical member approvals remain unrecorded."
+  confirmed_at: "2026-09-25T18:36:20Z"
+
+decision: "go"
+decision_timestamp: "2026-09-25T18:36:20Z"
+signoff_lead: "Ziad-7"

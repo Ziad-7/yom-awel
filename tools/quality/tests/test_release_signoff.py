@@ -46,7 +46,7 @@ def test_nonexistent_tested_commit_is_rejected() -> None:
     assert any("not a resolvable Git commit" in error for error in errors)
 
 
-def test_go_decision_has_all_passing_gates_and_five_member_reviews() -> None:
+def test_go_decision_has_all_passing_gates_and_approvals_or_owner_override() -> None:
     data = yaml.safe_load(SIGNOFF_PATH.read_text(encoding="utf-8"))
     decision = data.get("decision")
     assert decision in ["go", "no-go"], f"Invalid decision: '{decision}'"
@@ -62,6 +62,22 @@ def test_go_decision_has_all_passing_gates_and_five_member_reviews() -> None:
         for m_idx in range(1, 6):
             member_key = f"member_{m_idx}"
             assert member_key in reviews, f"Missing approval for '{member_key}'"
-            assert reviews[member_key].get("status") == "approved", (
-                f"Approval for '{member_key}' not approved"
-            )
+        assert (
+            all(reviews[key].get("status") == "approved" for key in reviews)
+            or data.get("owner_override", {}).get("approved") is True
+        )
+
+
+def test_go_rejects_pending_members_without_owner_override() -> None:
+    data = yaml.safe_load(SIGNOFF_PATH.read_text(encoding="utf-8"))
+    data["decision"] = "go"
+    data.pop("owner_override", None)
+    data["member_approvals"]["member_1"]["status"] = "pending_review"
+    assert any("member_1" in error for error in validate_release_signoff(data))
+
+
+def test_go_rejects_incomplete_owner_override() -> None:
+    data = yaml.safe_load(SIGNOFF_PATH.read_text(encoding="utf-8"))
+    data["decision"] = "go"
+    data["owner_override"]["approver"] = ""
+    assert any("owner_override" in error for error in validate_release_signoff(data))
