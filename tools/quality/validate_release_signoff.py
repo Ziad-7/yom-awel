@@ -114,7 +114,10 @@ def main() -> int:
             print(f"  - {err}", file=sys.stderr)
         return 1
 
-    print("SUCCESS: Release sign-off is fully valid and approved.")
+    if data["decision"] == "go":
+        print("SUCCESS: Release sign-off is valid and approved.")
+    else:
+        print("VALID: Release sign-off records a no-go decision.")
     return 0
 
 
