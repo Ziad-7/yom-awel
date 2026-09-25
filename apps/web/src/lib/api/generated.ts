@@ -645,6 +645,8 @@ export interface components {
             max_bytes: number;
             /** Pass Threshold */
             pass_threshold: number;
+            /** Submission Formats */
+            submission_formats: ("csv" | "xlsx" | "sql" | "txt")[];
             /** Task Id */
             task_id: string;
             /**
@@ -2833,7 +2835,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/octet-stream": unknown;
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": unknown;
                     "text/csv": unknown;
                 };
             };

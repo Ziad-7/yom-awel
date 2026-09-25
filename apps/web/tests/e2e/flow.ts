@@ -53,7 +53,7 @@ export async function onboard(page: Page, name: string, lang: Lang) {
 
 export async function openCleanSales(page: Page, lang: Lang) {
   const t = copy[lang];
-  await page.getByRole("button", { name: new RegExp(t.catalogue.action.available) }).click();
+  await page.locator('[aria-labelledby="task-clean-sales"]').getByRole("button", { name: new RegExp(t.catalogue.action.available) }).click();
   await expect(page.getByRole("heading", { name: t.workspace.checks })).toBeVisible();
 }
 

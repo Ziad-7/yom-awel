@@ -115,7 +115,17 @@ class Services:
 
     async def task_list(self, learner_id: UUID) -> TaskList:
         current = await self.tasks.execute(learner_id)
-        return TaskList(tasks=[_summary(task, current) for task in self.catalog.tasks()])
+        completed: set[str] = set()
+        async with self.factory() as uow:
+            for task in self.catalog.tasks():
+                for attempt in await uow.attempts.list_for_task(
+                    learner_id, task.task_version.task_version_id
+                ):
+                    evaluation = await uow.evaluations.get(attempt.evaluation_id)
+                    if evaluation and evaluation.result.passed:
+                        completed.add(task.task_id)
+                        break
+        return TaskList(tasks=[_summary(task, current, completed) for task in self.catalog.tasks()])
 
     def task_detail(self, task_id: str) -> TaskDetail:
         task = self.catalog.get(task_id)
@@ -130,7 +140,8 @@ class Services:
             hints_ar=task.hints_ar,
             hints_en=task.hints_en,
             pass_threshold=task.package.pass_threshold,
-            formats=list(task.package.limits.extensions),
+            formats=["csv", "xlsx"],
+            submission_formats=list(task.package.limits.extensions),
             max_bytes=task.package.limits.max_bytes,
             checks=[
                 CheckInfo(check_id=check.check_id, points=check.points, critical=check.critical)
@@ -139,25 +150,25 @@ class Services:
         )
 
     async def history(self, learner_id: UUID) -> list[AttemptResult]:
-        current = await self.tasks.execute(learner_id)
-        if current.task is None:
-            return []
         async with self.factory() as uow:
-            attempts = await uow.attempts.list_for_task(learner_id, current.task.task_version_id)
             outcomes = []
-            for attempt in attempts:
-                evaluation = await uow.evaluations.get(attempt.evaluation_id)
-                feedback = await uow.feedback.get(attempt.feedback_id)
-                if evaluation and feedback:
-                    outcomes.append(
-                        AttemptResult(
-                            submission_id=attempt.submission_id,
-                            attempt_number=attempt.attempt_number,
-                            evaluation=evaluation.result,
-                            feedback=feedback.result,
+            for task in self.catalog.tasks():
+                attempts = await uow.attempts.list_for_task(
+                    learner_id, task.task_version.task_version_id
+                )
+                for attempt in attempts:
+                    evaluation = await uow.evaluations.get(attempt.evaluation_id)
+                    feedback = await uow.feedback.get(attempt.feedback_id)
+                    if evaluation and feedback:
+                        outcomes.append(
+                            AttemptResult(
+                                submission_id=attempt.submission_id,
+                                attempt_number=attempt.attempt_number,
+                                evaluation=evaluation.result,
+                                feedback=feedback.result,
+                            )
                         )
-                    )
-            return sorted(outcomes, key=lambda item: item.attempt_number)
+            return outcomes
 
     async def feedback_in(
         self, learner_id: UUID, submission_id: UUID, language: Language
@@ -210,20 +221,24 @@ def _unit_of_work_factory(settings: Settings) -> UnitOfWorkFactory:
     return cast(UnitOfWorkFactory, SQLiteUnitOfWorkFactory(settings.database_path))
 
 
-def _summary(task: CatalogTask, current: CurrentTaskResult) -> TaskSummary:
+def _summary(
+    task: CatalogTask, current: CurrentTaskResult, completed: set[str] | None = None
+) -> TaskSummary:
     return TaskSummary(
         task_id=task.task_id,
         version=task.package.version,
         task_version_id=task.task_version.task_version_id,
         title_ar=task.title_ar,
         title_en=task.title_en,
-        status=_status(task.task_id, current),
+        status=_status(task.task_id, current, completed or set()),
         pass_threshold=task.package.pass_threshold,
         points_total=sum(check.points for check in task.package.checks),
     )
 
 
-def _status(task_id: str, current: CurrentTaskResult) -> TaskStatus:
+def _status(task_id: str, current: CurrentTaskResult, completed: set[str]) -> TaskStatus:
+    if task_id in completed:
+        return "completed"
     if current.task is None or current.task.task_id != task_id:
         return "available"
     return "completed" if LearnerStatus(current.status) in COMPLETED else "in_progress"

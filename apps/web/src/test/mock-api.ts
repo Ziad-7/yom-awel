@@ -31,6 +31,7 @@ export const detail: TaskDetail = {
   hints_en: "### Hint\n- Use Remove Duplicates",
   pass_threshold: 75,
   formats: ["csv", "xlsx"],
+  submission_formats: ["csv", "xlsx"],
   max_bytes: 5242880,
   checks: CHECK_IDS.map((check_id) => ({ check_id, points: 25, critical: check_id === "unique_orders" })),
 };

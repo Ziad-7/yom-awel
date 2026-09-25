@@ -67,7 +67,10 @@ class SalesCleaningEvaluator:
             raise UnsupportedTaskPackage()
         if package.status != "published":
             raise UnpublishedTaskPackage()
+        if not isinstance(package.policy, CleaningPolicy):
+            raise UnsupportedTaskPackage()
         self._package = package
+        self._policy = package.policy
         self._clock = clock
 
     @classmethod
@@ -80,12 +83,10 @@ class SalesCleaningEvaluator:
         self._require_matching(task_version)
         started = self._clock()
         try:
-            records = parse_records(
-                inspect_artifact(artifact, self._package.limits), self._package.policy
-            )
+            records = parse_records(inspect_artifact(artifact, self._package.limits), self._policy)
         except ArtifactRejected as rejection:
             return self._rejected(task_version, rejection, started)
-        policy = self._package.policy
+        policy = self._policy
         checks = [
             grade(spec, RULES[spec.check_id](records, policy)) for spec in self._package.checks
         ]
@@ -144,6 +145,7 @@ def _is_supported(package: TaskPackage) -> bool:
     return (
         (package.evaluator_id, package.evaluator_version) == (EVALUATOR_ID, EVALUATOR_VERSION)
         and {spec.check_id for spec in package.checks} == set(RULES)
+        and isinstance(package.policy, CleaningPolicy)
         and GRADED_COLUMNS <= set(package.policy.required_columns)
     )
 

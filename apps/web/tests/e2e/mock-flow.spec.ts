@@ -44,8 +44,7 @@ test("Arabic: onboarding, catalogue, pass, feedback toggle, skills", async ({ pa
   await expectAccessible(page);
   await page.screenshot({ path: shot("mock-ar-onboarding"), fullPage: true });
   await onboard(page, "سارة", "ar");
-  await expect(page.getByText(t.catalogue.teasers[0].title)).toBeVisible();
-  await expect(page.getByText(t.catalogue.comingSoon)).toHaveCount(2);
+  await expect(page.locator(".task-tile")).toHaveCount(1);
   await expectAccessible(page);
   await page.screenshot({ path: shot("mock-ar-catalogue"), fullPage: true });
   await openCleanSales(page, "ar");
@@ -113,8 +112,6 @@ test("an interrupted submission resumes after reload with the same key", async (
   await expect(page.getByRole("alert")).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: copy.en.catalogue.action.in_progress }).click();
-  await expect(page.getByRole("button", { name: copy.en.upload.check })).toBeVisible();
-  await page.getByRole("button", { name: copy.en.upload.check }).click();
   await expect(page.locator("#result-heading")).toHaveText(copy.en.result.passTitle);
   const submission = api.calls.find((call) => call.method === "POST" && call.path === "/api/v1/submissions");
   const polls = api.calls.filter((call) => call.method === "GET" && call.path.startsWith("/api/v1/submissions/"));

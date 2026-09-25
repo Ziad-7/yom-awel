@@ -269,7 +269,14 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     @app.get(
         "/api/v1/tasks/{task_id}/dataset",
         response_class=Response,
-        responses={200: {"content": {"text/csv": {}, "application/octet-stream": {}}}},
+        responses={
+            200: {
+                "content": {
+                    "text/csv": {},
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {},
+                }
+            }
+        },
     )
     async def download(
         task_id: str,
@@ -288,6 +295,12 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         body: UploadInput, user: Annotated[Learner, Depends(learner)]
     ) -> UploadAuthorizationResult:
         validate_file(body)
+        current_task = await service().tasks.execute(user.learner_id)
+        if current_task.task is None:
+            raise DomainError("invalid_status", "Start a task before uploading")
+        allowed = service().catalog.get(current_task.task.task_id).package.limits.extensions
+        if body.filename.rsplit(".", 1)[-1].lower() not in allowed:
+            raise DomainError("unsupported_artifact", "File format does not match the task")
         if body.size_bytes > config.max_upload_bytes:
             raise DomainError("too_large", "Upload exceeds the hosted request limit")
         result = await service().uploads.execute(

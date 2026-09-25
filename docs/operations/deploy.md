@@ -181,16 +181,20 @@ so use a preview database rather than production data. The web preview's
      -H 'Content-Type: application/json' \
      -d '{"display_name":"Deploy check","preferred_language":"en"}' \
      "$WEB/api/v1/learners/onboard"
-   curl -fsS -b "$JAR" "$WEB/api/v1/tasks" | grep -q '"task_id":"clean-sales"' \
-     && echo "catalog ok"
+   for task in clean-sales sql-report client-email; do
+     curl -fsS -b "$JAR" "$WEB/api/v1/tasks" | grep -q "\"task_id\":\"$task\"" \
+       || exit 1
+   done
+   echo "three-task catalog ok"
    rm -f "$JAR"
    ```
 
-4. One full submission, in a private browser window on the web URL: choose
-   Arabic, onboard, start **clean-sales**, download the dirty CSV, upload it
-   unchanged (expect a score below 75 and Tarek's feedback), then upload a
-   cleaned file and confirm the per-check scores, feedback and progress
-   update. Repeat once in English with the XLSX download.
+4. In a private browser window on the web URL, follow
+   [the product acceptance protocol](../product/release/product-acceptance.md).
+   Complete **clean-sales**, **sql-report**, and **client-email** in Arabic and
+   English; check a failed answer and successful retry for each, then reload
+   and reopen each saved result. Confirm the score, per-check details, feedback,
+   completed status, and skill labels.
 5. Confirm the data landed in the dedicated schema (SQL Editor):
 
    ```sql

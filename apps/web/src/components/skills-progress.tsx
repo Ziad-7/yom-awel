@@ -44,26 +44,30 @@ function SkillBars({ skills, onWork }: { skills: SkillsProfile | null; onWork: (
   );
 }
 
-function AttemptTimeline({ attempts, onView }: { attempts: Attempt[]; onView: (attempt: Attempt) => void }) {
-  const { t } = useLanguage();
+function AttemptTimeline({ attempts, tasks, onView }: { attempts: Attempt[]; tasks: TaskSummary[]; onView: (attempt: Attempt) => void }) {
+  const { lang, t } = useLanguage();
   if (!attempts.length) return <p className="muted">{t.skills.noAttempts}</p>;
   return (
     <ol className="attempt-timeline">
-      {[...attempts].reverse().map((attempt) => (
-        <li key={attempt.submission_id} className={attempt.evaluation.passed ? "passed" : "failed"}>
+      {[...attempts].reverse().map((attempt) => {
+        const task = tasks.find((item) => item.task_version_id === attempt.evaluation.task_version_id);
+        return (
+          <li key={attempt.submission_id} className={attempt.evaluation.passed ? "passed" : "failed"}>
           <span className="dot" aria-hidden="true">
             {attempt.evaluation.passed ? "✓" : "!"}
           </span>
           <div>
             <strong>{t.skills.attempt(attempt.attempt_number)}</strong>
+            {task && <small>{lang === "ar" ? task.title_ar : task.title_en}</small>}
             <small>{attempt.evaluation.passed ? t.result.passed : t.result.failed}</small>
           </div>
           <bdi className="points">{attempt.evaluation.score}/100</bdi>
           <button type="button" className="text-button" onClick={() => onView(attempt)}>
             {t.skills.viewResult}
           </button>
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -97,7 +101,7 @@ export function SkillsProgress(props: SkillsProgressProps) {
           <h2 id="attempts-title">{t.skills.attempts}</h2>
           <span className="muted">{t.skills.attemptsCount(props.attempts.length)}</span>
         </div>
-        <AttemptTimeline attempts={props.attempts} onView={props.onViewAttempt} />
+        <AttemptTimeline attempts={props.attempts} tasks={props.tasks} onView={props.onViewAttempt} />
       </section>
     </div>
   );

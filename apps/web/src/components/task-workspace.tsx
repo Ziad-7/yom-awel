@@ -69,6 +69,7 @@ export function TaskWorkspace(props: TaskWorkspaceProps) {
         {!processing && result && (
           <ResultPanel
             attempt={result}
+            taskId={task.task_id}
             passThreshold={task.pass_threshold}
             criticalIds={criticalIds}
             canRevise={!props.completed}
@@ -84,6 +85,8 @@ export function TaskWorkspace(props: TaskWorkspaceProps) {
           </section>
         ) : (
           <UploadForm
+            taskId={task.task_id}
+            submissionFormats={task.submission_formats}
             maxBytes={task.max_bytes}
             attemptNumber={props.attemptNumber}
             busy={props.busy !== ""}

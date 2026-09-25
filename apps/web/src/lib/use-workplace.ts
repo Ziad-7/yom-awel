@@ -50,8 +50,8 @@ function writePending(learnerId: string, pending: Pending | null) {
 export const activeTask = (tasks: TaskSummary[]) =>
   tasks.find((task) => task.status === "in_progress") ?? tasks.find((task) => task.status === "completed");
 
-export const latestAttempt = (attempts: Attempt[]): GradedAttempt | null =>
-  attempts.reduce<Attempt | null>(
+export const latestAttempt = (attempts: Attempt[], taskVersionId?: string): GradedAttempt | null =>
+  attempts.filter((item) => !taskVersionId || item.evaluation.task_version_id === taskVersionId).reduce<Attempt | null>(
     (latest, item) => (!latest || item.attempt_number > latest.attempt_number ? item : latest),
     null,
   );
@@ -138,7 +138,7 @@ export function useWorkplace(initialView: View) {
           const task = await api.task(current.task_id);
           if (!alive) return;
           setDetail(task);
-          setResult(latestAttempt(progress.attempts));
+          setResult(latestAttempt(progress.attempts, current.task_version_id));
         } else if (initialView === "work") setView("tasks");
         setPendingState(readPending(me.learner_id));
         setLearner(me);
@@ -186,10 +186,11 @@ export function useWorkplace(initialView: View) {
 
   const openTask = (task: TaskSummary) =>
     run("starting", async () => {
-      if (task.status !== "completed") await api.startTask(task.task_id);
+      if (pending) await evaluate(pending);
+      await api.startTask(task.task_id);
       const [next, progress] = await Promise.all([api.task(task.task_id), loadProgress()]);
       setDetail(next);
-      setResult(task.status === "available" ? null : latestAttempt(progress.attempts));
+      setResult(latestAttempt(progress.attempts, task.task_version_id));
       setView("work");
     });
 
@@ -212,6 +213,10 @@ export function useWorkplace(initialView: View) {
   const submit = (file: File) =>
     run("uploading", async () => {
       if (!detail) return;
+      if (pending) {
+        await evaluate(pending);
+        return;
+      }
       const artifact = await uploadFile(file, detail.max_bytes);
       const attempt: Pending = {
         key: crypto.randomUUID(),
@@ -224,7 +229,7 @@ export function useWorkplace(initialView: View) {
 
   const checkPending = () =>
     run("checking", async () => {
-      if (pending) await evaluate(pending);
+      if (pending && pending.body.task_version_id === detail?.task_version_id) await evaluate(pending);
     });
 
   const restart = () =>
@@ -235,10 +240,16 @@ export function useWorkplace(initialView: View) {
       await api.createSession();
     });
 
-  const viewAttempt = (attempt: GradedAttempt) => {
-    setResult(attempt);
-    setView("work");
-  };
+  const viewAttempt = (attempt: GradedAttempt) =>
+    run("starting", async () => {
+      const task = tasks.find((item) => item.task_version_id === attempt.evaluation.task_version_id);
+      if (!task) throw new ApiError(404, "task_not_found");
+      if (pending) await evaluate(pending);
+      await api.startTask(task.task_id);
+      setDetail(await api.task(task.task_id));
+      setResult(attempt);
+      setView("work");
+    });
 
   return {
     state: { view, booting, busy, failure, runtime, learner, tasks, detail, skills, attempts, result, pending },

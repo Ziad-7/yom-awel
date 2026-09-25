@@ -1,0 +1,86 @@
+{
+  "task_id": "client-email",
+  "version": "1",
+  "status": "published",
+  "evaluator_id": "client-email",
+  "evaluator_version": "1",
+  "pass_threshold": 75,
+  "dataset_seed": 20260925,
+  "generator_version": "1",
+  "limits": {
+    "extensions": [
+      "txt"
+    ],
+    "max_bytes": 65536,
+    "max_expanded_bytes": 65536,
+    "max_sheets": 1,
+    "max_rows": 1,
+    "max_columns": 1
+  },
+  "policy": {
+    "kind": "client-email",
+    "case_file": "data/source.csv",
+    "min_words": 30,
+    "max_words": 350
+  },
+  "checks": [
+    {
+      "check_id": "recipient_and_subject",
+      "points": 25,
+      "critical": true,
+      "skill_id": "customer_communication",
+      "hint_ar": "ضع بريد العميل الصحيح بعد To: ورقم الطلب في سطر Subject: ثم سطراً فارغاً.",
+      "hint_en": "Put the customer's exact email after To: and the order ID in Subject:, then a blank line."
+    },
+    {
+      "check_id": "case_facts",
+      "points": 25,
+      "critical": true,
+      "skill_id": "customer_communication",
+      "hint_ar": "اذكر رقم الطلب والتاريخين كما في الملف ومبلغ الاسترداد بالجنيه.",
+      "hint_en": "State the order ID, both case dates, and the refund amount in EGP."
+    },
+    {
+      "check_id": "action_plan",
+      "points": 25,
+      "critical": true,
+      "skill_id": "customer_communication",
+      "hint_ar": "اعتذر بوضوح، واذكر الاسترداد والرد خلال يومي عمل.",
+      "hint_en": "Apologize, describe the refund, and promise a response within 2 business days."
+    },
+    {
+      "check_id": "professional_closing",
+      "points": 25,
+      "critical": false,
+      "skill_id": "customer_communication",
+      "hint_ar": "حيِّ العميل باسمه واكتب 30–350 كلمة واختم بتحية مهذبة وتوقيع يوم أول.",
+      "hint_en": "Greet the customer by name, write 30–350 words, and close politely as Yom Awel."
+    }
+  ],
+  "content": [
+    {
+      "path": "content/brief.ar-EG.md",
+      "sha256": "b9f532191ef4cee99288eeee2f7dd24d81498ca76ac4681ddd3df7f736e7df47"
+    },
+    {
+      "path": "content/brief.en.md",
+      "sha256": "e5accb15b8f707c3deaca0a54a889f56997fda05a3ae43549faf4b620b47653b"
+    },
+    {
+      "path": "content/hints.ar-EG.md",
+      "sha256": "cc1085e31924677c4bc8a84357d395e16678c1add6954d2186d23fb792f953ac"
+    },
+    {
+      "path": "content/hints.en.md",
+      "sha256": "8598846d7b3f68ce5ca1c34a536b4abfb729fd3ac9aca9edab2b55ac33cac617"
+    },
+    {
+      "path": "data/source.csv",
+      "sha256": "d93b97cb983e2761c0c58d24a1220ae9c484c5f8af66e7ed5ebb6e8084cd3691"
+    },
+    {
+      "path": "learning-objectives.yaml",
+      "sha256": "9fe110806034ee2229424f60900519cf0dbe2d39040f602a41e628fb57e8327a"
+    }
+  ]
+}

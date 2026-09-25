@@ -87,6 +87,7 @@ class TaskDetail(Output):
     hints_en: str
     pass_threshold: int
     formats: list[Literal["csv", "xlsx"]]
+    submission_formats: list[Literal["csv", "xlsx", "sql", "txt"]]
     max_bytes: int
     checks: list[CheckInfo]
 

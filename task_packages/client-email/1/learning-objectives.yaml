@@ -1,0 +1,47 @@
+task_id: client-email
+version: "1"
+intended_learner_level: junior
+workplace_context:
+  company_name: Yom Awel
+  scenario: Reply to a fictional customer about a delayed order using a CSV case brief.
+required_artifacts:
+  input:
+    filename: source.csv
+    format: csv
+  output:
+    filename_pattern: "*.txt"
+    encoding: UTF-8
+    format: txt
+learning_objectives:
+  - id: obj-address-message
+    skill_id: customer_communication
+    check_id: recipient_and_subject
+    points: 25
+    critical: true
+  - id: obj-accurate-case-facts
+    skill_id: customer_communication
+    check_id: case_facts
+    points: 25
+    critical: true
+  - id: obj-explain-action
+    skill_id: customer_communication
+    check_id: action_plan
+    points: 25
+    critical: true
+  - id: obj-professional-tone
+    skill_id: customer_communication
+    check_id: professional_closing
+    points: 25
+    critical: false
+pass_policy:
+  evaluator_id: client-email
+  evaluator_version: "1"
+  rule: score >= 75 AND all three critical checks pass
+  total_points: 100
+  pass_threshold: 75
+format_policy:
+  max_bytes: 65536
+  min_words: 30
+  max_words: 350
+  language: English or Arabic
+  note: Deterministic factual and structural checks; no AI-based grading.

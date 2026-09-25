@@ -8,6 +8,7 @@ import pytest
 from yom_awel.application.commands import ProcessSubmissionCommand
 from yom_awel.application.models import ProcessingState
 from yom_awel.application.submissions import ProcessSubmission
+from yom_awel.application.tasks import StartTask
 from yom_awel.domain.contracts import (
     EvaluationCheck,
     EvaluationResult,
@@ -232,6 +233,81 @@ async def test_concurrent_same_key(base_setup):
         # Only the winning finalization advances progress; the competing
         # request did not advance it again.
         assert progress.version == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("switch_back", [False, True])
+async def test_switching_tasks_during_grading_does_not_finalize_old_task(base_setup, switch_back):
+    cmd, uow_factory, evaluator, feedback, clock, id_gen = await seed_data(base_setup)
+    async with uow_factory() as uow:
+        first = await uow.tasks.get(cmd.task_version_id)
+        progress = await uow.learners.get_progress(cmd.learner_id)
+        assert first is not None and progress is not None
+        await uow.tasks.add(first.model_copy(update={"task_version_id": uuid4(), "task_id": "t2"}))
+        await uow.learners.save_progress(
+            progress.model_copy(update={"current_task_id": "t1", "version": 2}),
+            expected_version=1,
+        )
+        await uow.commit()
+
+    evaluator.started = asyncio.Event()
+    evaluator.release = asyncio.Event()
+    evaluator.result = EvaluationResult(
+        evaluator_id="e1",
+        evaluator_version="1",
+        task_version_id=cmd.task_version_id,
+        passed=True,
+        score=100,
+        checks=[
+            EvaluationCheck(
+                check_id="c1",
+                passed=True,
+                weight=10,
+                details_ar="نجح",
+                details_en="Passed",
+                diagnostic_code="c1_passed",
+            )
+        ],
+        errors=[],
+        summary_ar="ar",
+        summary_en="en",
+        duration_ms=1,
+    )
+    feedback.result = FeedbackResult(
+        feedback_text="fb",
+        language="en",
+        persona_id="tarek",
+        prompt_version="1",
+        provider="sys",
+        model=None,
+        used_fallback=False,
+        duration_ms=1,
+    )
+    pending = asyncio.create_task(
+        ProcessSubmission(uow_factory, evaluator, feedback, clock, id_gen).execute(cmd, "owner")
+    )
+    await evaluator.started.wait()
+    switched = await StartTask(uow_factory, clock, id_gen).execute(cmd.learner_id, "t2")
+    assert switched.status == LearnerStatus.IN_TASK.value
+    if switch_back:
+        restarted = await StartTask(uow_factory, clock, id_gen).execute(cmd.learner_id, "t1")
+        assert restarted.status == LearnerStatus.IN_TASK.value
+    evaluator.release.set()
+    with pytest.raises(DomainError) as error:
+        await pending
+    assert error.value.code == ("finalization_conflict" if switch_back else "task_not_current")
+    async with uow_factory() as uow:
+        progress = await uow.learners.get_progress(cmd.learner_id)
+        reservation = await uow.submissions.get_reservation(cmd.learner_id, cmd.idempotency_key)
+        attempts = await uow.attempts.list_for_task(cmd.learner_id, cmd.task_version_id)
+    assert progress is not None
+    assert (progress.current_task_id, progress.current_status) == (
+        "t1" if switch_back else "t2",
+        LearnerStatus.IN_TASK,
+    )
+    assert reservation is not None and reservation.outcome is None
+    assert reservation.lease_expires_at <= clock.now()
+    assert attempts == []
 
 
 @pytest.mark.asyncio

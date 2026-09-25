@@ -6,13 +6,11 @@ receives a deterministic grade plus coaching in Egyptian Arabic or English.
 
 ## Demo flow
 
-1. Pick the **clean-sales** task, in Arabic or English.
-2. Download the dirty sales file: duplicate orders, mixed date formats, negative numbers,
-   missing customer emails.
-3. Upload a cleaned CSV or XLSX.
-4. See a deterministic score for each of the four checks.
-5. Read bilingual feedback from Tarek explaining the result.
-6. See progress update: completed on a pass, retry otherwise.
+1. Pick **clean-sales**, **sql-report**, or **client-email**, in Arabic or English.
+2. Download the task source file and read the bilingual brief and hints.
+3. Submit a cleaned CSV/XLSX, a read-only SQL query, or a customer email in the task editor or as a file.
+4. See four deterministic checks, bilingual feedback from Tarek, and a pass or retry result.
+5. Switch tasks and revisit saved attempts and skills progress.
 
 The presenter kit in [`demo/`](demo/README.md) has ready-made uploads for each outcome (100 in CSV
 and XLSX, 75 retry, 50 retry, rejected), each graded by the real evaluator in a test.
@@ -21,7 +19,7 @@ and XLSX, 75 retry, 50 retry, rejected), each graded by the real evaluator in a 
 
 - `apps/web`: Next.js web app; the browser only calls relative `/api/v1` URLs, proxied to the API.
 - `services/api`: FastAPI transport over framework-free domain and application layers.
-- `services/api/src/yom_awel/evaluation`: the versioned `sales-cleaning@1` evaluator.
+- `services/api/src/yom_awel/evaluation`: versioned sales-cleaning, SQL-report, and client-email evaluators.
 - `services/api/src/yom_awel/feedback`: the Tarek persona, a Gemini adapter and a deterministic fallback.
 - Persistence: SQLite and local files in local mode; hosted Postgres and private storage in cloud mode.
 
@@ -42,6 +40,13 @@ scores 75 and is still a retry. Files that cannot be graded (wrong type, too lar
 duplicate columns, fewer than 40 rows, macros, several sheets) are rejected with a coded,
 bilingual reason. CSV and XLSX are read into the same table, so the format never changes the grade.
 The brief and hints are pinned by SHA-256 in `task.json`.
+
+[`sql-report`](task_packages/sql-report/1/task.json) grades a bounded, read-only `SELECT`
+against the published sales file and a modified validation dataset. Its four checks cover
+column names, paid regions, counts, and revenue. [`client-email`](task_packages/client-email/1/task.json)
+grades the recipient and subject, case facts, refund and response commitments, and professional
+closing. Both have a 75-point threshold and mandatory checks. The email rubric is a deterministic
+exercise in stated facts and commitments, not a human-quality writing assessment.
 
 ## How feedback works
 

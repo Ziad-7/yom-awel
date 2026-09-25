@@ -1,0 +1,37 @@
+{
+  "task_id": "sql-report",
+  "version": "1",
+  "status": "published",
+  "evaluator_id": "sql-report",
+  "evaluator_version": "1",
+  "pass_threshold": 75,
+  "dataset_seed": 20260925,
+  "generator_version": "1",
+  "limits": {
+    "extensions": ["sql"],
+    "max_bytes": 65536,
+    "max_expanded_bytes": 65536,
+    "max_sheets": 1,
+    "max_rows": 200,
+    "max_columns": 10
+  },
+  "policy": {
+    "kind": "sql-report",
+    "source_path": "data/source.csv",
+    "max_query_steps": 100000,
+    "max_output_rows": 200
+  },
+  "checks": [
+    {"check_id": "report_columns", "points": 25, "critical": true, "skill_id": "sql_reporting", "hint_ar": "سمّ أعمدة الناتج بالترتيب region وpaid_orders وtotal_revenue.", "hint_en": "Name the output columns, in order: region, paid_orders, total_revenue."},
+    {"check_id": "paid_regions", "points": 25, "critical": true, "skill_id": "sql_reporting", "hint_ar": "أظهر كل منطقة بها طلبات مدفوعة مرة واحدة فقط.", "hint_en": "Return every region with paid orders, exactly once."},
+    {"check_id": "paid_order_counts", "points": 25, "critical": false, "skill_id": "sql_reporting", "hint_ar": "احسب عدد الطلبات المدفوعة في كل منطقة بعد الترشيح.", "hint_en": "Count only paid orders in each region after filtering."},
+    {"check_id": "paid_revenue", "points": 25, "critical": false, "skill_id": "sql_reporting", "hint_ar": "اجمع حاصل quantity * unit_price للطلبات المدفوعة في كل منطقة.", "hint_en": "Sum quantity * unit_price for paid orders in each region."}
+  ],
+  "content": [
+    {"path": "content/brief.ar-EG.md", "sha256": "e1847a907fdc44314ad0500420261f87aa4b6588435c95162995caa81d3554f9"},
+    {"path": "content/brief.en.md", "sha256": "e887d434d6282fee723460812512da49676d26c11b9b30849120a0a1501e75a8"},
+    {"path": "content/hints.ar-EG.md", "sha256": "c0d116990b07a0d9ad04a31481f08fd778bf4ae455551690bffaee2f9115cfd9"},
+    {"path": "content/hints.en.md", "sha256": "5ff5d7665e41294f93bad0e91b59b200e0ef1acb63261b48adbb2ad43bec7b8b"},
+    {"path": "data/source.csv", "sha256": "0250474b75f085bfa6803cad9c6f8be19b4e1be85cb3b23cd5b0cd42422a2ea9"}
+  ]
+}

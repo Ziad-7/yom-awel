@@ -7,12 +7,20 @@ export type CheckId =
   | "unique_orders"
   | "standard_dates"
   | "valid_numeric_values"
-  | "complete_customer_records";
+  | "complete_customer_records"
+  | "report_columns"
+  | "paid_regions"
+  | "paid_order_counts"
+  | "paid_revenue"
+  | "recipient_and_subject"
+  | "case_facts"
+  | "action_plan"
+  | "professional_closing";
 export type SkillId =
   | "data_cleaning"
   | "attention_to_detail"
-  | "sql_querying"
-  | "business_communication";
+  | "sql_reporting"
+  | "customer_communication";
 export const REJECTION_CODES = [
   "unsupported_type",
   "artifact_too_large",
@@ -46,10 +54,18 @@ const CHECK_IDS: Record<CheckId, true> = {
   standard_dates: true,
   valid_numeric_values: true,
   complete_customer_records: true,
+  report_columns: true,
+  paid_regions: true,
+  paid_order_counts: true,
+  paid_revenue: true,
+  recipient_and_subject: true,
+  case_facts: true,
+  action_plan: true,
+  professional_closing: true,
 };
 const SKILL_IDS: Record<SkillId, true> = {
   data_cleaning: true,
   attention_to_detail: true,
-  sql_querying: true,
-  business_communication: true,
+  sql_reporting: true,
+  customer_communication: true,
 };

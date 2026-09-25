@@ -20,7 +20,7 @@ claims:
 
   - id: "claim-cap-artifact-upload"
     type: "capability"
-    wording: "Learner uploads are stored privately: local files in local mode and a private bucket behind signed URLs in cloud mode."
+    wording: "Learner uploads are ownership-checked and stored locally in local mode or in a dedicated Postgres schema in the hosted demo."
     usage_locations:
       - "README.md"
       - "submission/application.md"
@@ -30,7 +30,7 @@ claims:
     evidence:
       automated_tests:
         - "services/api/tests/persistence/test_local_artifacts.py"
-        - "services/api/tests/persistence/test_supabase_artifacts.py"
+        - "services/api/tests/transport/test_multitask_uploads.py"
       preview_checks:
         - "Verify upload authorization is restricted to the learner's own submission prefix."
 
@@ -185,7 +185,7 @@ claims:
 
   - id: "claim-cap-web-experience"
     type: "capability"
-    wording: "A bilingual Next.js web app (Arabic RTL and English) lets a learner pick the task, download the dataset, upload a file and see the score, feedback and progress."
+    wording: "A bilingual Next.js web app (Arabic RTL and English) lets a learner complete all three tasks, download source data, submit a file or text answer, and see task-specific scores, feedback and progress."
     usage_locations:
       - "README.md"
       - "submission/application.md"
@@ -196,9 +196,10 @@ claims:
     evidence:
       automated_tests:
         - "apps/web/tests/e2e/demo-flow.spec.ts"
+        - "apps/web/tests/e2e/three-tasks.spec.ts"
         - "services/api/tests/transport/test_journey.py"
       preview_checks:
-        - "Complete the demo flow in Arabic and English with CSV and XLSX uploads."
+        - "Complete all three tasks in Arabic and English, then reload and reopen saved results."
 
   - id: "claim-cap-local-demo"
     type: "capability"
@@ -218,11 +219,28 @@ claims:
 
   - id: "claim-cap-sql-sandbox"
     type: "capability"
-    wording: "Sandboxed SQL evaluation allows learners to practice relational database queries."
+    wording: "A bounded, read-only SQLite evaluator grades SQL sales reports against the published source and a modified validation dataset."
     usage_locations:
       - "submission/pitch-deck.md"
-    status: "roadmap"
+    status: "current"
     owner: "member-4"
     evidence:
-      automated_tests: []
-      preview_checks: []
+      automated_tests:
+        - "services/api/tests/evaluation/test_sql_report.py"
+        - "apps/web/tests/e2e/three-tasks.spec.ts"
+      preview_checks:
+        - "Submit a valid report and a hard-coded no-op read through the hosted web app."
+
+  - id: "claim-cap-client-email"
+    type: "capability"
+    wording: "A deterministic case-based rubric grades a bilingual customer update email for recipient, case facts, refund and response commitments, and professional closing."
+    usage_locations:
+      - "README.md"
+    status: "current"
+    owner: "member-5"
+    evidence:
+      automated_tests:
+        - "services/api/tests/evaluation/test_client_email.py"
+        - "apps/web/tests/e2e/three-tasks.spec.ts"
+      preview_checks:
+        - "Submit complete and negated-commitment emails in both languages through the hosted web app."
