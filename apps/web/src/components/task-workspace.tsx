@@ -1,7 +1,8 @@
 import { useRef } from "react";
-import type { GradedAttempt, TaskDetail } from "../lib/api/contract";
+import type { GradedAttempt, SampleInfo, TaskDetail } from "../lib/api/contract";
 import { useLanguage } from "../lib/i18n/language";
 import type { Busy } from "../lib/use-workplace";
+import { JudgeSamples } from "./judge";
 import { ProcessingState } from "./processing-state";
 import { ResultPanel } from "./result-panel";
 import { CheckList, DatasetDownloads, TaskBrief } from "./task-brief";
@@ -17,6 +18,10 @@ type TaskWorkspaceProps = {
   busy: Busy;
   pending: boolean;
   onSubmit: (file: File) => void;
+  /** Judge mode: one-click samples, and the tour shown at the top of the side column. */
+  samples: boolean;
+  onSample: (sample: SampleInfo) => void;
+  tour?: React.ReactNode;
   onCheck: () => void;
   onSkills: () => void;
   onBack: () => void;
@@ -77,6 +82,9 @@ export function TaskWorkspace(props: TaskWorkspaceProps) {
             onSkills={props.onSkills}
           />
         )}
+        {props.samples && !props.completed && (
+          <JudgeSamples taskId={task.task_id} busy={props.busy !== "" || props.pending} onSample={props.onSample} />
+        )}
         <TaskBrief task={task} />
         <DatasetDownloads task={task} />
         {props.completed ? (
@@ -98,6 +106,7 @@ export function TaskWorkspace(props: TaskWorkspaceProps) {
         )}
       </div>
       <aside className="context-column">
+        {props.tour}
         <CheckList task={task} />
         <JourneyCard completed={props.completed} />
       </aside>

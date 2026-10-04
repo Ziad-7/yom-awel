@@ -19,6 +19,8 @@ export type CellIssue = Schema["CellIssue"];
 export type TablePreview = Schema["TablePreview"];
 export type SqlInsight = Schema["SqlInsight"];
 export type EmailInsight = Schema["EmailInsight"];
+export type SampleInfo = Schema["SampleInfo"];
+export type SampleList = Schema["SampleList"];
 
 export type Runtime = Schema["RuntimeResult"];
 export type TaskSummary = Schema["TaskSummary"];

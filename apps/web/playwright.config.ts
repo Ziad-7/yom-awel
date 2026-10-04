@@ -21,7 +21,7 @@ export default defineConfig({
     // Browser flows against the typed contract mock: no API process involved.
     { name: "mock", testMatch: /mock-flow\.spec\.ts/, use: chromium },
     // The full demo against uvicorn, the real evaluator and Lane D's presenter files.
-    { name: "real", testMatch: /(demo-flow|three-tasks|xray)\.spec\.ts/, use: chromium },
+    { name: "real", testMatch: /(demo-flow|three-tasks|xray|judge)\.spec\.ts/, use: chromium },
     // `npm run demo:record`: the whole flow in Arabic then English, on video.
     {
       name: "record",

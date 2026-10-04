@@ -118,3 +118,22 @@ export const isIssueCode = (value: string): value is IssueCode =>
   ISSUE_CODES.includes(value as IssueCode);
 export const isEmailElementId = (value: string): value is EmailElementId =>
   EMAIL_ELEMENT_IDS.includes(value as EmailElementId);
+
+export const SAMPLE_IDS = [
+  "duplicates_left",
+  "half_done_excel",
+  "column_deleted",
+  "fully_cleaned",
+  "hard_coded",
+  "no_status_filter",
+  "correct_query",
+  "wrong_date_reply",
+  "vague_reply",
+  "complete_reply_en",
+  "complete_reply_ar",
+] as const;
+export type SampleId = (typeof SAMPLE_IDS)[number];
+export const isSampleId = (value: string): value is SampleId =>
+  SAMPLE_IDS.includes(value as SampleId);
+export const TOUR_STEPS = ["mistake", "fix", "sql", "email", "skills"] as const;
+export type TourStep = (typeof TOUR_STEPS)[number];

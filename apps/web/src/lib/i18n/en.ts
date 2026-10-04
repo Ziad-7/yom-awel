@@ -5,12 +5,16 @@ import type {
   MetricId,
   RegionStatus,
   RejectionCode,
+  SampleId,
   SkillId,
   TaskStatus,
+  TourStep,
 } from "./keys";
 
 type CheckCopy = { title: string; description: string };
 type MetricCopy = { label: string; hint: string };
+type SampleCopy = { title: string; note: string };
+type StepCopy = { title: string; hint: string };
 
 export const en = {
   meta: {
@@ -326,6 +330,73 @@ export const en = {
         company_signature: "Company signature",
         length: "A reasonable length",
       } satisfies Record<EmailElementId, string>,
+    },
+  },
+  judge: {
+    badge: "Judge mode",
+    title: "Try it in one click",
+    lead: "Each sample is uploaded and graded exactly like a learner's file. The label shows what the real evaluator gives it.",
+    loading: "Loading samples…",
+    outcome: {
+      pass: (score: number) => `Pass · ${score}`,
+      retry: (score: number) => `Retry · ${score}`,
+      rejected: () => "Rejected before grading",
+    },
+    samples: {
+      duplicates_left: {
+        title: "Duplicates left in",
+        note: "Everything fixed except repeated orders. Scores 75, yet the critical rule holds it back.",
+      },
+      half_done_excel: {
+        title: "Half done, in Excel",
+        note: "Duplicates and numbers fixed; dates and missing-email notes still wrong.",
+      },
+      column_deleted: {
+        title: "A column deleted",
+        note: "The learner removed missing_email_reason, so the file is refused before grading.",
+      },
+      fully_cleaned: { title: "Fully cleaned (Excel)", note: "Every check passes, from a typed Excel workbook." },
+      hard_coded: {
+        title: "Typed-in numbers",
+        note: "Today's right totals, typed by hand. A second run on changed data exposes them.",
+      },
+      no_status_filter: { title: "Forgot the paid filter", note: "Counts pending and refunded orders as sales." },
+      correct_query: { title: "Correct query", note: "Groups paid orders by region and computes from the table." },
+      wrong_date_reply: {
+        title: "One wrong date",
+        note: "A polished reply with the wrong delivery date. Case facts are critical.",
+      },
+      vague_reply: { title: "Vague reply", note: "Wrong recipient, no facts, no plan." },
+      complete_reply_en: {
+        title: "Complete reply (English)",
+        note: "Every fact, an apology, the refund and when they'll hear back.",
+      },
+      complete_reply_ar: { title: "Complete reply (Arabic)", note: "The same standard, in Egyptian Arabic." },
+    } satisfies Record<SampleId, SampleCopy>,
+    tour: {
+      title: "Judge's tour",
+      lead: "Five steps, about three minutes. Each one ticks itself off as you go.",
+      progress: (done: number, total: number) => `${done} of ${total} done`,
+      complete: "Tour complete. Everything you saw was graded live by the same deterministic checks.",
+      go: "Take me there",
+      done: "Done",
+      current: "Next",
+      steps: {
+        mistake: {
+          title: "See a mistake priced",
+          hint: "In the sales task, submit “Duplicates left in”. Scroll to the X-ray and what it would cost.",
+        },
+        fix: { title: "Fix it and pass", hint: "Submit “Fully cleaned (Excel)” and watch the task complete." },
+        sql: {
+          title: "Catch hard-coded SQL",
+          hint: "In the SQL task, submit “Typed-in numbers”. The query is re-run on changed data.",
+        },
+        email: {
+          title: "Coach a client email",
+          hint: "In the email task, submit “One wrong date”, then switch Tarek's feedback language.",
+        },
+        skills: { title: "See skills grow", hint: "Open Skills & progress: every point traces back to a check." },
+      } satisfies Record<TourStep, StepCopy>,
     },
   },
   rejections: {

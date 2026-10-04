@@ -7,6 +7,7 @@ import type {
   Learner,
   ProcessingState,
   Runtime,
+  SampleInfo,
   SkillsProfile,
   SubmissionInput,
   SubmissionOutcome,
@@ -83,6 +84,7 @@ export function useWorkplace(initialView: View) {
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [result, setResult] = useState<GradedAttempt | null>(null);
   const [pending, setPendingState] = useState<Pending | null>(null);
+  const [sawSkills, setSawSkills] = useState(initialView === "skills");
 
   const setPending = useCallback(
     (next: Pending | null) => {
@@ -210,22 +212,34 @@ export function useWorkplace(initialView: View) {
     await finish(await awaitOutcome(first, attempt.key));
   }
 
-  const submit = (file: File) =>
+  async function deliver(file: File) {
+    if (!detail) return;
+    if (pending) {
+      await evaluate(pending);
+      return;
+    }
+    const artifact = await uploadFile(file, detail.max_bytes);
+    const attempt: Pending = {
+      key: crypto.randomUUID(),
+      body: { ...artifact, task_version_id: detail.task_version_id },
+    };
+    setPending(attempt);
+    setResult(null);
+    await evaluate(attempt);
+  }
+
+  const submit = (file: File) => run("uploading", () => deliver(file));
+
+  /** Judge mode: the sample is downloaded, then uploaded and graded like any learner file. */
+  const submitSample = (sample: SampleInfo) =>
     run("uploading", async () => {
-      if (!detail) return;
-      if (pending) {
-        await evaluate(pending);
-        return;
-      }
-      const artifact = await uploadFile(file, detail.max_bytes);
-      const attempt: Pending = {
-        key: crypto.randomUUID(),
-        body: { ...artifact, task_version_id: detail.task_version_id },
-      };
-      setPending(attempt);
-      setResult(null);
-      await evaluate(attempt);
+      if (detail) await deliver(await api.sampleFile(detail.task_id, sample));
     });
+
+  const navigate = (next: View) => {
+    if (next === "skills") setSawSkills(true);
+    setView(next);
+  };
 
   const checkPending = () =>
     run("checking", async () => {
@@ -252,14 +266,15 @@ export function useWorkplace(initialView: View) {
     });
 
   return {
-    state: { view, booting, busy, failure, runtime, learner, tasks, detail, skills, attempts, result, pending },
+    state: { view, booting, busy, failure, runtime, learner, tasks, detail, skills, attempts, result, pending, sawSkills },
     actions: {
-      setView,
+      setView: navigate,
       dismiss: () => setFailure(null),
       join,
       changeLanguage,
       openTask,
       submit,
+      submitSample,
       checkPending,
       restart,
       viewAttempt,

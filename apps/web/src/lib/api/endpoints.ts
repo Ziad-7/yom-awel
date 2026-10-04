@@ -7,6 +7,8 @@ import type {
   Learner,
   ProcessingState,
   Runtime,
+  SampleInfo,
+  SampleList,
   SkillsProfile,
   SubmissionInput,
   SubmissionInsights,
@@ -15,6 +17,7 @@ import type {
   TaskList,
 } from "./contract";
 import type { ApiLanguage } from "../i18n/keys";
+import { contentTypeOf } from "../uploads";
 
 const json = (method: string, body: unknown): RequestInit => ({
   method,
@@ -53,6 +56,12 @@ export const api = {
     ),
   insights: (submissionId: string) =>
     request<SubmissionInsights>(`/submissions/${encodeURIComponent(submissionId)}/insights`),
+  samples: (taskId: string) => request<SampleList>(task(taskId) + "/samples"),
+  /** A judge-mode sample as a File, so it takes exactly the path of a learner's own upload. */
+  sampleFile: async (taskId: string, sample: SampleInfo) => {
+    const response = await send(`${task(taskId)}/samples/${encodeURIComponent(sample.sample_id)}`);
+    return new File([await response.blob()], sample.filename, { type: contentTypeOf(sample.filename) });
+  },
 };
 
 /** Same-origin link to the dirty learner file; the session cookie authorises the download. */

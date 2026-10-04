@@ -48,8 +48,14 @@ def test_health_runtime_and_protected_routes(client):
     assert client.get("/api/v1/runtime").json() == {
         "mode": "local",
         "feedback_provider": "deterministic",
+        "demo_samples": False,
     }
-    for path in ("/api/v1/tasks", "/api/v1/tasks/current", f"/api/v1/tasks/{TASK_ID}"):
+    for path in (
+        "/api/v1/tasks",
+        "/api/v1/tasks/current",
+        f"/api/v1/tasks/{TASK_ID}",
+        f"/api/v1/tasks/{TASK_ID}/samples",
+    ):
         assert client.get(path).status_code == 401
 
 

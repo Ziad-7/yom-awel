@@ -11,7 +11,7 @@ from typing import Annotated, Literal
 from uuid import UUID, uuid4
 
 import jwt
-from fastapi import Cookie, Depends, FastAPI, Header, Query, Request, Response
+from fastapi import Cookie, Depends, FastAPI, Header, Path, Query, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -33,8 +33,9 @@ from yom_awel.domain.contracts import (
 from yom_awel.domain.entities import Artifact, Learner
 from yom_awel.domain.enums import Channel, Language
 from yom_awel.domain.errors import DomainError
-from yom_awel.evaluation.catalog import dataset
+from yom_awel.evaluation.catalog import XLSX_MEDIA_TYPE, dataset
 from yom_awel.evaluation.insights import SubmissionInsights
+from yom_awel.evaluation.samples import sample, samples_for
 from yom_awel.transport.artifact_validation import validate_content, validate_metadata
 from yom_awel.transport.auth import SESSION_COOKIE, SESSION_SECONDS, Authenticator, Identity
 from yom_awel.transport.dependencies import Services, compose
@@ -45,6 +46,8 @@ from yom_awel.transport.models import (
     LanguageInput,
     OnboardInput,
     RuntimeResult,
+    SampleInfo,
+    SampleList,
     SessionResult,
     SubmissionInput,
     TaskDetail,
@@ -193,6 +196,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         return RuntimeResult(
             mode=config.mode,
             feedback_provider="gemini" if config.uses_gemini else "deterministic",
+            demo_samples=config.demo_samples,
         )
 
     @app.post("/api/v1/auth/session", response_model=SessionResult)
@@ -289,6 +293,52 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
             file.content,
             media_type=file.media_type,
             headers={"Content-Disposition": f'attachment; filename="{file.filename}"'},
+        )
+
+    def demo_samples_enabled() -> None:
+        if not config.demo_samples:
+            raise DomainError("not_found", "Sample submissions are not enabled")
+
+    @app.get("/api/v1/tasks/{task_id}/samples", response_model=SampleList)
+    async def samples(task_id: str, user: Annotated[Learner, Depends(learner)]) -> SampleList:
+        demo_samples_enabled()
+        service().catalog.get(task_id)
+        return SampleList(
+            samples=[
+                SampleInfo(
+                    sample_id=item.sample_id,
+                    filename=item.filename,
+                    outcome=item.outcome,
+                    score=item.score,
+                )
+                for item in samples_for(task_id)
+            ]
+        )
+
+    @app.get(
+        "/api/v1/tasks/{task_id}/samples/{sample_id}",
+        response_class=Response,
+        responses={200: {"content": {"text/csv": {}, "text/plain": {}, XLSX_MEDIA_TYPE: {}}}},
+    )
+    async def sample_file(
+        task_id: str,
+        sample_id: Annotated[str, Path(pattern=r"^[a-z0-9_]{1,40}$")],
+        user: Annotated[Learner, Depends(learner)],
+    ) -> Response:
+        demo_samples_enabled()
+        task = service().catalog.get(task_id)
+        item = sample(task_id, sample_id)
+        try:
+            content = item.build(task)
+        except OSError:
+            raise DomainError("not_found", "Sample not found") from None
+        return Response(
+            content,
+            media_type=item.media_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{item.filename}"',
+                "Cache-Control": "no-store",
+            },
         )
 
     @app.post("/api/v1/artifacts/upload-authorization", response_model=UploadAuthorizationResult)

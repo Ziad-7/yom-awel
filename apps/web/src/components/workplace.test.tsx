@@ -11,8 +11,8 @@ afterEach(() => {
   document.cookie = "yom_lang=; Max-Age=0; Path=/";
 });
 
-function mount(outcome = evaluation(), lang: Lang = "ar") {
-  const api = createMockApi(outcome);
+function mount(outcome = evaluation(), lang: Lang = "ar", demoSamples = false) {
+  const api = createMockApi(outcome, { demoSamples });
   vi.stubGlobal("fetch", vi.fn(api.fetch));
   render(
     <LanguageProvider initialLang={lang}>
@@ -103,5 +103,30 @@ describe("Workplace against the typed contract mock", () => {
     expect(document.documentElement).toHaveAttribute("dir", "rtl");
     const nav = screen.getByRole("navigation");
     expect(within(nav).getByRole("button", { name: /المهام/ })).toBeInTheDocument();
+  });
+
+  it("judge mode: a one-click sample goes through the normal upload and ticks the tour", async () => {
+    const api = mount(evaluation(["unique_orders"]), "en", true);
+    await onboardAndOpen("Judge");
+    expect(screen.getByRole("region", { name: "Judge's tour" })).toHaveTextContent("0 of 5 done");
+    const samples = await screen.findByRole("region", { name: "Try it in one click" });
+    expect(within(samples).getByRole("button", { name: /Pass · 100.*Fully cleaned \(Excel\)/ })).toBeInTheDocument();
+    fireEvent.click(within(samples).getByRole("button", { name: /Retry · 75.*Duplicates left in/ }));
+    await screen.findByRole("heading", { name: /Close, a few things/ });
+    const authorization = api.calls.find((call) => call.path === "/api/v1/artifacts/upload-authorization");
+    expect(authorization?.body).toMatchObject({
+      filename: "sales_retry_duplicates.csv",
+      content_type: "text/csv",
+    });
+    expect(api.calls.some((call) => call.path === "/api/v1/tasks/clean-sales/samples/duplicates_left")).toBe(true);
+    expect(screen.getByRole("region", { name: "Judge's tour" })).toHaveTextContent("1 of 5 done");
+  });
+
+  it("hides judge mode when the API does not offer samples", async () => {
+    const api = mount(evaluation(), "en");
+    await onboardAndOpen("Sara");
+    expect(screen.queryByRole("region", { name: "Judge's tour" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Try it in one click" })).toBeNull();
+    expect(api.calls.some((call) => call.path.includes("/samples"))).toBe(false);
   });
 });
