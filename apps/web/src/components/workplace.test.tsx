@@ -48,8 +48,9 @@ describe("Workplace against the typed contract mock", () => {
     await waitFor(() => expect(heading).toHaveFocus());
     expect(screen.getAllByText("25 من 25")).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: "Show in English" }));
-    const english = await screen.findByText(/Decision: resubmit\./);
-    expect(english).toHaveAttribute("dir", "ltr");
+    const english = await screen.findByText("submission needs rework.");
+    expect(english.closest(".feedback-text")).toHaveAttribute("dir", "ltr");
+    expect(screen.getByRole("heading", { level: 3, name: "Business impact" })).toBeInTheDocument();
     expect(screen.getAllByText(/Eng\. Tarek, Team Lead/)).toHaveLength(1);
     expect(screen.getByRole("button", { name: "اعرض بالعربي" })).toBeInTheDocument();
     const posts = api.calls.filter((call) => call.method !== "GET");

@@ -60,6 +60,35 @@ export function DatasetDownloads({ task }: { task: TaskDetail }) {
   );
 }
 
+function Mission({ task }: { task: TaskDetail }) {
+  const { t } = useLanguage();
+  const steps = t.mission.steps[task.task_id as keyof typeof t.mission.steps] ?? t.mission.steps["clean-sales"];
+  return (
+    <>
+      <h3 className="mission-title">{t.mission.title}</h3>
+      <ol className="mission-steps">
+        {steps.map((step, index) => (
+          <li key={step}>
+            <b aria-hidden="true">{index + 1}</b>
+            <div>
+              <p>{step}</p>
+              {index === 1 && (
+                <ul className="mission-checks">
+                  {task.checks.map((check) => (
+                    <li key={check.check_id} className={check.critical ? "critical" : undefined}>
+                      {isCheckId(check.check_id) ? t.checks[check.check_id].title : check.check_id}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
 export function TaskBrief({ task }: { task: TaskDetail }) {
   const { lang, t } = useLanguage();
   const brief = lang === "ar" ? task.brief_ar : task.brief_en;
@@ -76,7 +105,11 @@ export function TaskBrief({ task }: { task: TaskDetail }) {
       <h2 id="brief-title" className="visually-hidden">
         {t.workspace.brief}
       </h2>
-      <Markdown source={brief} />
+      <Mission task={task} />
+      <details className="full-brief">
+        <summary>{t.mission.fullBrief}</summary>
+        <Markdown source={brief} />
+      </details>
       <details className="hints">
         <summary>{t.workspace.hints}</summary>
         <Markdown source={hints} headingBase={4} />

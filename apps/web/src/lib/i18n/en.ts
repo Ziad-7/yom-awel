@@ -10,11 +10,13 @@ import type {
   TaskStatus,
   TourStep,
 } from "./keys";
+import type { FeedbackSection } from "../feedback";
 
 type CheckCopy = { title: string; description: string };
 type MetricCopy = { label: string; hint: string };
 type SampleCopy = { title: string; note: string };
 type StepCopy = { title: string; hint: string };
+type MissionTask = "clean-sales" | "sql-report" | "client-email";
 
 export const en = {
   meta: {
@@ -131,6 +133,27 @@ export const en = {
     intro: "Good morning! We have a sales file that needs reviewing before the report goes out. Focus on the details and take your time.",
     introSql: "The sales team needs a reliable regional report. Read the source data, write your query, and check the numbers.",
     introEmail: "A customer needs a clear update about a delayed order. Use the case facts and write a respectful response.",
+  },
+  mission: {
+    title: "Your mission",
+    steps: {
+      "clean-sales": [
+        "Download the raw sales file, in CSV or Excel.",
+        "Clean it until every check below passes:",
+        "Upload it, read the X-ray and Tarek's notes, and try again as often as you like.",
+      ],
+      "sql-report": [
+        "Download the sales data and look at its columns.",
+        "Write one SELECT query that gets these right:",
+        "Submit it, read the X-ray and Tarek's notes, and try again as often as you like.",
+      ],
+      "client-email": [
+        "Download the client case and note its exact facts.",
+        "Write a reply that covers all of this:",
+        "Submit it, read the X-ray and Tarek's notes, and try again as often as you like.",
+      ],
+    } satisfies Record<MissionTask, readonly [string, string, string]>,
+    fullBrief: "Read the full brief",
   },
   workspace: {
     back: "Back to tasks",
@@ -423,6 +446,14 @@ export const en = {
     toggle: "اعرض بالعربي",
     toggleLang: "ar",
     loading: "Preparing the other language…",
+    sections: {
+      decision: "Decision",
+      impact: "Business impact",
+      next: "Next action",
+      score: "Score explanation",
+    } satisfies Record<FeedbackSection, string>,
+    listen: "Listen",
+    stop: "Stop",
   },
   skills: {
     title: "Skills built through practice",

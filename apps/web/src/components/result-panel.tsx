@@ -97,7 +97,7 @@ export function ResultPanel({ attempt, taskId, passThreshold, criticalIds, canRe
         </div>
       </section>
       {verdict !== "rejected" && <InsightsPanel key={`insights:${attempt.submission_id}`} submissionId={attempt.submission_id} />}
-      <FeedbackCard key={attempt.submission_id} submissionId={attempt.submission_id} initial={attempt.feedback} />
+      <FeedbackCard key={attempt.submission_id} submissionId={attempt.submission_id} initial={attempt.feedback} passed={evaluation.passed} />
     </>
   );
 }

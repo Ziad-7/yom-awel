@@ -119,8 +119,8 @@ export const feedback = (language: ApiLanguage): FeedbackResult => ({
   language,
   feedback_text:
     language === "en"
-      ? "Eng. Tarek, Team Lead\nDecision: resubmit.\nNext step: remove duplicates."
-      : "م. طارق، مشرف الفريق\nالقرار: أعد التسليم.\nالخطوة الجاية: شيل التكرار.",
+      ? "Eng. Tarek, Team Lead\nDecision: submission needs rework.\nBusiness impact: duplicate orders inflate revenue.\nNext action: remove duplicates, then upload the file again.\nScore explanation: 75 of 100; the pass mark is 75."
+      : "م. طارق، مشرف الفريق\nالقرار: التسليم محتاج إعادة شغل.\nتأثير الشغل: الطلبات المكررة بتنفخ الإيراد.\nالخطوة الجاية: شيل التكرار وارفع الملف تاني.\nتفسير الدرجة: 75 من 100.",
   persona_id: "tarek",
   prompt_version: "1",
   provider: "deterministic",

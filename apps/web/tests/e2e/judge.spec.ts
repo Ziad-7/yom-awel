@@ -19,11 +19,18 @@ test("English judge: the five-step tour runs on one-click samples through the re
   await tour.getByRole("button", { name: t.judge.tour.go }).click();
   const samples = page.getByRole("region", { name: t.judge.title });
   await expect(samples.getByRole("button")).toHaveCount(4);
+  await expect(page.getByRole("heading", { level: 3, name: t.mission.title })).toBeVisible();
+  await expect(page.locator(".mission-checks li")).toHaveCount(4);
+  await expect(page.locator(".full-brief")).not.toHaveAttribute("open");
   await expect(samples).toContainText(t.judge.outcome.retry(75));
   await trySample(page, t.judge.samples.duplicates_left.title);
   await expect(page.locator(".score bdi")).toHaveText("75");
   await expect(page.getByRole("region", { name: t.insights.xrayTitle })).toBeVisible();
   await expect(tour.locator("li.done")).toContainText(steps.mistake.title);
+  const feedback = page.locator(".feedback-card");
+  await expect(feedback.locator(".feedback-section")).toHaveCount(4);
+  await expect(feedback.locator(".feedback-section.is-decision")).toHaveClass(/rework/);
+  await expect(feedback.getByRole("heading", { level: 3, name: t.feedback.sections.impact })).toBeVisible();
   await page.screenshot({ path: shot("judge-en-duplicates"), fullPage: true });
 
   await trySample(page, t.judge.samples.fully_cleaned.title);
