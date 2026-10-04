@@ -17,7 +17,7 @@ from openpyxl import Workbook
 from yom_awel.domain.contracts import TaskVersion
 from yom_awel.domain.errors import DomainError
 from yom_awel.evaluation.client_email import ClientEmailEvaluator
-from yom_awel.evaluation.registry import EvaluatorRegistry
+from yom_awel.evaluation.registry import EvaluatorKey, EvaluatorRegistry
 from yom_awel.evaluation.sales_cleaning import SalesCleaningEvaluator
 from yom_awel.evaluation.sql_report import SqlReportEvaluator
 from yom_awel.evaluation.task_package import (
@@ -30,6 +30,7 @@ from yom_awel.evaluation.task_package import (
     load_task_package,
 )
 
+TaskEvaluator = SalesCleaningEvaluator | SqlReportEvaluator | ClientEmailEvaluator
 TASK_VERSION_NAMESPACE = UUID("6f1d2c1e-9a55-4c7e-8f3b-2d0c6b7a4e10")
 CONTENT_FILES = {
     "brief_ar": "content/brief.ar-EG.md",
@@ -106,13 +107,16 @@ class TaskCatalog:
             None,
         )
 
+    def evaluators(self) -> dict[EvaluatorKey, TaskEvaluator]:
+        """One evaluator per published task; each both grades and explains submissions."""
+
+        return {
+            (task.package.evaluator_id, task.package.evaluator_version): _evaluator(task)
+            for task in self._tasks.values()
+        }
+
     def evaluator_registry(self) -> EvaluatorRegistry:
-        return EvaluatorRegistry(
-            {
-                (task.package.evaluator_id, task.package.evaluator_version): _evaluator(task)
-                for task in self._tasks.values()
-            }
-        )
+        return EvaluatorRegistry(self.evaluators())
 
 
 def task_version_id(package: TaskPackage) -> UUID:
@@ -208,9 +212,7 @@ def _catalog_task(package: TaskPackage, root: Path) -> CatalogTask:
     )
 
 
-def _evaluator(
-    task: CatalogTask,
-) -> SalesCleaningEvaluator | SqlReportEvaluator | ClientEmailEvaluator:
+def _evaluator(task: CatalogTask) -> TaskEvaluator:
     package = task.package
     if isinstance(package.policy, SqlReportPolicy):
         return SqlReportEvaluator(package, task.dataset_csv)

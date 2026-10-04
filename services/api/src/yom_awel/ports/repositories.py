@@ -69,6 +69,12 @@ class SubmissionRepository(Protocol):
 
     async def get_reservation(self, learner_id: UUID, key: str) -> SubmissionReservation | None: ...
 
+    async def get_by_submission(
+        self, learner_id: UUID, submission_id: UUID
+    ) -> SubmissionReservation | None:
+        """The learner's own reservation for a submission; another learner's is never found."""
+        ...
+
     async def expire(
         self,
         learner_id: UUID,

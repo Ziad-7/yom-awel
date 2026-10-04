@@ -34,6 +34,7 @@ from yom_awel.domain.entities import Artifact, Learner
 from yom_awel.domain.enums import Channel, Language
 from yom_awel.domain.errors import DomainError
 from yom_awel.evaluation.catalog import dataset
+from yom_awel.evaluation.insights import SubmissionInsights
 from yom_awel.transport.artifact_validation import validate_content, validate_metadata
 from yom_awel.transport.auth import SESSION_COOKIE, SESSION_SECONDS, Authenticator, Identity
 from yom_awel.transport.dependencies import Services, compose
@@ -429,6 +430,12 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         return ProcessingState(
             submission_id=submission_id, status=reservation.status, retry_after_seconds=retry
         )
+
+    @app.get("/api/v1/submissions/{submission_id}/insights", response_model=SubmissionInsights)
+    async def insights(
+        submission_id: UUID, user: Annotated[Learner, Depends(learner)]
+    ) -> SubmissionInsights:
+        return await service().insights(user.learner_id, submission_id)
 
     @app.get("/api/v1/submissions/{submission_id}/feedback", response_model=FeedbackResult)
     async def feedback(

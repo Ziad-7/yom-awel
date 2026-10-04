@@ -123,6 +123,16 @@ async def assert_reservation_and_finalization(factory: Factory) -> None:
             "worker-b",
         )
         assert active.submission_id == reservation.submission_id
+        found = await uow.submissions.get_by_submission(
+            learner.learner_id, reservation.submission_id
+        )
+        assert found is not None
+        assert (found.submission_id, found.artifact_id) == (
+            reservation.submission_id,
+            artifact.artifact_id,
+        )
+        assert await uow.submissions.get_by_submission(uuid4(), reservation.submission_id) is None
+        assert await uow.submissions.get_by_submission(learner.learner_id, uuid4()) is None
         assert active.lease_owner == "worker-a"
         with pytest.raises(IdempotencyConflict):
             await uow.submissions.reserve(

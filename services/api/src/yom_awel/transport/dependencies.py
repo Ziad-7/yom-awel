@@ -1,6 +1,7 @@
 """Composition and channel-independent orchestration; grading remains in the ports."""
 
 from collections import OrderedDict
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
@@ -18,11 +19,13 @@ from yom_awel.application.tasks import (
     GetCurrentTask,
     StartTask,
 )
-from yom_awel.domain.contracts import FeedbackResult, TaskVersion
+from yom_awel.domain.contracts import ArtifactRef, FeedbackResult, TaskVersion
 from yom_awel.domain.entities import Learner
-from yom_awel.domain.enums import Language, LearnerStatus
+from yom_awel.domain.enums import Language, LearnerStatus, SubmissionStatus
 from yom_awel.domain.errors import DomainError, UniqueConstraintViolation
 from yom_awel.evaluation.catalog import CatalogTask, TaskCatalog
+from yom_awel.evaluation.insights import InsightProvider, SubmissionInsights
+from yom_awel.evaluation.registry import EvaluatorKey, EvaluatorRegistry
 from yom_awel.feedback.config import build_feedback_provider
 from yom_awel.persistence.postgres import PostgresUnitOfWorkFactory
 from yom_awel.persistence.sqlite import SQLiteUnitOfWorkFactory
@@ -65,10 +68,12 @@ class Services:
         feedback: FeedbackProvider,
         *,
         artifact_store: ArtifactStore | None = None,
+        insights: Mapping[EvaluatorKey, InsightProvider] | None = None,
     ) -> None:
         self.factory = factory
         self.catalog = catalog
         self.feedback = feedback
+        self._insights = dict(insights or {})
         self.clock, self.ids = Clock(), IDs()
         self.onboarding = OnboardLearner(factory, self.clock, self.ids)
         self.tasks = GetCurrentTask(factory)
@@ -199,6 +204,36 @@ class Services:
                 self._translations.popitem(last=False)
         return cached
 
+    async def insights(self, learner_id: UUID, submission_id: UUID) -> SubmissionInsights:
+        """Explain a completed submission from the learner's own stored file."""
+
+        async with self.factory() as uow:
+            reservation = await uow.submissions.get_by_submission(learner_id, submission_id)
+            if (
+                reservation is None
+                or reservation.artifact_id is None
+                or reservation.status is not SubmissionStatus.COMPLETED
+            ):
+                raise DomainError("not_found", "Submission not found")
+            artifact = await uow.artifacts.get(reservation.artifact_id, learner_id)
+            content = await uow.artifacts.download(reservation.artifact_id, learner_id)
+            task = await uow.tasks.get(reservation.task_version_id)
+        if artifact is None or content is None or task is None:
+            raise DomainError("not_found", "Submission not found")
+        provider = self._insights.get((task.evaluator_id, task.evaluator_version))
+        if provider is None:
+            raise DomainError("not_found", "No insights for this task")
+        return await provider.insights(
+            task,
+            ArtifactRef(
+                artifact_id=artifact.artifact_id,
+                filename=artifact.filename,
+                size_bytes=artifact.size_bytes,
+                sha256=artifact.sha256,
+                content=content,
+            ),
+        )
+
 
 def compose(settings: Settings) -> Services:
     catalog = TaskCatalog.load(settings.task_packages)
@@ -209,8 +244,13 @@ def compose(settings: Settings) -> Services:
         return catalog.find_version(task_version_id)
 
     feedback = build_feedback_provider(settings.feedback, task_context_resolver=resolve)
+    evaluators = catalog.evaluators()
     return Services(
-        _unit_of_work_factory(settings), catalog, catalog.evaluator_registry(), feedback
+        _unit_of_work_factory(settings),
+        catalog,
+        EvaluatorRegistry(evaluators),
+        feedback,
+        insights=evaluators,
     )
 
 
