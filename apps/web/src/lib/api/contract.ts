@@ -13,6 +13,12 @@ export type ProcessingState = Schema["ProcessingState"];
 export type UploadAuthorization = Schema["UploadAuthorizationResult"];
 export type UploadCompletion = Schema["UploadCompletionResult"];
 export type CurrentTask = Schema["CurrentTaskResult"];
+export type SubmissionInsights = Schema["SubmissionInsights"];
+export type ImpactMetric = Schema["ImpactMetric"];
+export type CellIssue = Schema["CellIssue"];
+export type TablePreview = Schema["TablePreview"];
+export type SqlInsight = Schema["SqlInsight"];
+export type EmailInsight = Schema["EmailInsight"];
 
 export type Runtime = Schema["RuntimeResult"];
 export type TaskSummary = Schema["TaskSummary"];

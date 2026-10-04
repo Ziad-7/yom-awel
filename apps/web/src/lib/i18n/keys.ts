@@ -69,3 +69,52 @@ const SKILL_IDS: Record<SkillId, true> = {
   sql_reporting: true,
   customer_communication: true,
 };
+
+/** Ids the insights endpoint returns; unknown ids from a newer API are skipped, not shown raw. */
+export const METRIC_IDS = [
+  "revenue_overstated",
+  "revenue_untrusted",
+  "customers_unreachable",
+  "orders_off_timeline",
+  "regions_misreported",
+  "customer_questions_left_open",
+] as const;
+export type MetricId = (typeof METRIC_IDS)[number];
+export const ISSUE_CODES = [
+  "missing_order_id",
+  "duplicate_order_id",
+  "nonstandard_date",
+  "invalid_quantity",
+  "invalid_unit_price",
+  "invalid_revenue",
+  "revenue_mismatch",
+  "invalid_email",
+  "missing_email_reason",
+] as const;
+export type IssueCode = (typeof ISSUE_CODES)[number];
+export const EMAIL_ELEMENT_IDS = [
+  "recipient",
+  "subject_order",
+  "body",
+  "order_id",
+  "promised_date",
+  "updated_date",
+  "refund_amount",
+  "apology",
+  "refund",
+  "response_window",
+  "commitments_kept",
+  "greeting",
+  "closing_phrase",
+  "company_signature",
+  "length",
+] as const;
+export type EmailElementId = (typeof EMAIL_ELEMENT_IDS)[number];
+export type RegionStatus = "ok" | "unexpected" | "duplicate" | "unreadable";
+
+export const isMetricId = (value: string): value is MetricId =>
+  METRIC_IDS.includes(value as MetricId);
+export const isIssueCode = (value: string): value is IssueCode =>
+  ISSUE_CODES.includes(value as IssueCode);
+export const isEmailElementId = (value: string): value is EmailElementId =>
+  EMAIL_ELEMENT_IDS.includes(value as EmailElementId);

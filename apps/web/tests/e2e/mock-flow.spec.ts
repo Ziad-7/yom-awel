@@ -91,6 +91,10 @@ test("English: evaluator rejection code", async ({ page }) => {
   await expect(page.getByText(t.rejections.missing_columns)).toBeVisible();
 });
 
+/** A status poll, not the feedback or insights reads that share the /submissions/{id} prefix. */
+const isPoll = (call: { method: string; path: string }) =>
+  call.method === "GET" && /^\/api\/v1\/submissions\/[^/?]+$/.test(call.path);
+
 test("a processing submission polls with its original idempotency key", async ({ page }) => {
   const api = await mockApi(page, evaluation(), { deferSubmission: true });
   await onboard(page, "Sara", "en");
@@ -98,7 +102,7 @@ test("a processing submission polls with its original idempotency key", async ({
   await submitFile(page, "en", csv("sales_cleaned.csv"));
   await expect(page.locator("#result-heading")).toHaveText(copy.en.result.passTitle);
   const submission = api.calls.find((call) => call.method === "POST" && call.path === "/api/v1/submissions");
-  const poll = api.calls.find((call) => call.method === "GET" && call.path.startsWith("/api/v1/submissions/"));
+  const poll = api.calls.find(isPoll);
   expect(submission?.headers["idempotency-key"]).toBeTruthy();
   expect(poll?.headers["idempotency-key"]).toBe(submission?.headers["idempotency-key"]);
 });
@@ -114,7 +118,7 @@ test("an interrupted submission resumes after reload with the same key", async (
   await page.getByRole("button", { name: copy.en.catalogue.action.in_progress }).click();
   await expect(page.locator("#result-heading")).toHaveText(copy.en.result.passTitle);
   const submission = api.calls.find((call) => call.method === "POST" && call.path === "/api/v1/submissions");
-  const polls = api.calls.filter((call) => call.method === "GET" && call.path.startsWith("/api/v1/submissions/"));
+  const polls = api.calls.filter(isPoll);
   expect(polls).toHaveLength(2);
   expect(polls.every((call) => call.headers["idempotency-key"] === submission?.headers["idempotency-key"])).toBe(true);
 });

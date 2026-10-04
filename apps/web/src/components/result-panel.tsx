@@ -4,6 +4,7 @@ import { useLanguage } from "../lib/i18n/language";
 import { isCheckId } from "../lib/i18n/keys";
 import { rejectionMessage } from "../lib/messages";
 import { FeedbackCard } from "./feedback-card";
+import { InsightsPanel } from "./insights-panel";
 
 type ResultPanelProps = {
   attempt: GradedAttempt;
@@ -95,6 +96,7 @@ export function ResultPanel({ attempt, taskId, passThreshold, criticalIds, canRe
           ) : null}
         </div>
       </section>
+      {verdict !== "rejected" && <InsightsPanel key={`insights:${attempt.submission_id}`} submissionId={attempt.submission_id} />}
       <FeedbackCard key={attempt.submission_id} submissionId={attempt.submission_id} initial={attempt.feedback} />
     </>
   );
