@@ -57,6 +57,15 @@ uv run --project services/api pytest tools/quality/tests/test_demo_kit.py
 The output is byte-for-byte reproducible (fixed workbook properties and zip timestamps); the test
 fails if a committed file drifts from a fresh regeneration.
 
+## Judge mode / وضع لجنة التحكيم
+
+The same files, plus SQL and email samples, are one click away in the app when `DEMO_SAMPLES` is
+on (default in local mode). The builders live in `services/api/src/yom_awel/evaluation/samples.py`;
+this kit's generator imports them, so the app and the kit can never drift apart.
+
+نفس الملفات، ومعاها عيّنات SQL والإيميل، موجودة بضغطة واحدة جوه التطبيق لما `DEMO_SAMPLES` يبقى شغال
+(شغال تلقائياً في الوضع المحلي).
+
 ## Run the demo locally / تشغيل العرض محلياً
 
 See `demo/run_local.sh` and [the demo runbook](../docs/operations/demo-runbook.md).

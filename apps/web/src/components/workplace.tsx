@@ -1,10 +1,13 @@
 "use client";
 import { useLanguage } from "../lib/i18n/language";
 import { errorMessage } from "../lib/messages";
+import type { TourStep } from "../lib/i18n/keys";
+import { TOUR_TARGETS } from "../lib/tour";
 import { isStillProcessing, useWorkplace, type View } from "../lib/use-workplace";
 import { useState } from "react";
 import { AppShell, PageHeading } from "./app-shell";
 import { ErrorBanner } from "./error-banner";
+import { JudgeTour, SAMPLES_ID } from "./judge";
 import { Onboarding } from "./onboarding";
 import { RestartDialog } from "./restart-dialog";
 import { SkillsProgress } from "./skills-progress";
@@ -28,6 +31,24 @@ export default function Workplace({ initialView = "tasks" }: { initialView?: Vie
           ? detail.title_ar
           : detail.title_en
         : t.headings.greeting(learner.display_name);
+  const judge = !!state.runtime?.demo_samples;
+
+  function goTour(step: TourStep) {
+    const target = TOUR_TARGETS[step];
+    if (target === "skills") return actions.setView("skills");
+    if (view === "work" && detail?.task_id === target) {
+      const samples = document.getElementById(SAMPLES_ID);
+      samples?.scrollIntoView({ block: "start" });
+      samples?.querySelector<HTMLElement>("h2")?.focus();
+      return;
+    }
+    const task = state.tasks.find((item) => item.task_id === target);
+    if (task) void actions.openTask(task);
+  }
+
+  const tour = judge && learner && (
+    <JudgeTour attempts={state.attempts} tasks={state.tasks} sawSkills={state.sawSkills} busy={busy !== ""} onGo={goTour} />
+  );
 
   function body() {
     if (!learner)
@@ -40,7 +61,9 @@ export default function Workplace({ initialView = "tasks" }: { initialView?: Vie
       );
     if (view === "skills")
       return (
-        <SkillsProgress
+        <>
+          {tour}
+          <SkillsProgress
           skills={state.skills}
           attempts={state.attempts}
           tasks={state.tasks}
@@ -48,7 +71,8 @@ export default function Workplace({ initialView = "tasks" }: { initialView?: Vie
           onRetry={() => actions.setView("work")}
           onWork={() => actions.setView(detail ? "work" : "tasks")}
           onViewAttempt={actions.viewAttempt}
-        />
+          />
+        </>
       );
     if (view === "work" && detail)
       return (
@@ -60,12 +84,20 @@ export default function Workplace({ initialView = "tasks" }: { initialView?: Vie
           busy={busy}
           pending={state.pending?.body.task_version_id === detail.task_version_id}
           onSubmit={actions.submit}
+          samples={judge}
+          onSample={actions.submitSample}
+          tour={tour}
           onCheck={actions.checkPending}
           onSkills={() => actions.setView("skills")}
           onBack={() => actions.setView("tasks")}
         />
       );
-    return <TaskCatalogue tasks={state.tasks} disabled={busy !== ""} onOpen={actions.openTask} />;
+    return (
+      <>
+        {tour}
+        <TaskCatalogue tasks={state.tasks} disabled={busy !== ""} onOpen={actions.openTask} />
+      </>
+    );
   }
 
   return (

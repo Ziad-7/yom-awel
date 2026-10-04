@@ -56,6 +56,16 @@ before it is shown. On a missing key, timeout, error, or invalid output, the det
 fallback templates are used instead. `FEEDBACK_MODE=fallback` forces the fallback. Feedback never
 changes the score or the pass decision.
 
+## Judge mode
+
+With `DEMO_SAMPLES` on (the default in local mode; off in cloud unless set to `true`), every task
+offers one-click sample submissions, and a five-step judge's tour ticks itself off from real
+graded attempts. A sample is downloaded from `GET /api/v1/tasks/{task_id}/samples/{sample_id}`
+and then uploaded and graded exactly like a learner's file. Samples are built at runtime from each
+task's own pinned data. The outcome and score on every label are what the real evaluator returns,
+tested in `services/api/tests/evaluation/test_samples.py`. The samples include passing answers,
+so turn it on in cloud only for a judging window.
+
 ## Security posture
 
 - No secret is committed. `detect-secrets` runs in pre-commit and `gitleaks` scans full history

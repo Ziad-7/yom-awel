@@ -49,6 +49,20 @@ class HealthResult(Output):
 class RuntimeResult(Output):
     mode: Literal["local", "cloud"]
     feedback_provider: Literal["gemini", "deterministic"]
+    demo_samples: bool = False
+
+
+class SampleInfo(Output):
+    """A ready-made submission and the result the real evaluator gives it."""
+
+    sample_id: str
+    filename: str
+    outcome: Literal["pass", "retry", "rejected"]
+    score: int
+
+
+class SampleList(Output):
+    samples: list[SampleInfo]
 
 
 TaskStatus = Literal["available", "in_progress", "completed"]

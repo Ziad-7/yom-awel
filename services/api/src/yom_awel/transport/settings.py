@@ -28,6 +28,8 @@ class Settings:
     telegram_token: str = field(default="", repr=False)
     telegram_secret: str = field(default="", repr=False)
     rate_limit: int = 120
+    # One-click sample submissions for judges and demos; never on in cloud unless asked for.
+    demo_samples: bool = False
 
     @property
     def uses_gemini(self) -> bool:
@@ -68,6 +70,7 @@ class Settings:
             telegram_token=env.get("TELEGRAM_BOT_TOKEN", ""),
             telegram_secret=env.get("TELEGRAM_WEBHOOK_SECRET", ""),
             rate_limit=int(env.get("RATE_LIMIT", "120")),
+            demo_samples=_flag(env.get("DEMO_SAMPLES", ""), default=mode == "local"),
         )
         settings.validate()
         return settings
@@ -105,6 +108,17 @@ def task_packages_dir(env: Mapping[str, str]) -> Path:
         return Path(configured)
     repository = REPOSITORY_ROOT / "task_packages"
     return repository if repository.is_dir() else BUNDLED_TASK_PACKAGES
+
+
+def _flag(value: str, *, default: bool) -> bool:
+    normalized = value.strip().lower()
+    if not normalized:
+        return default
+    if normalized in ("1", "true", "on", "yes"):
+        return True
+    if normalized in ("0", "false", "off", "no"):
+        return False
+    raise ValueError("DEMO_SAMPLES must be true or false")
 
 
 def _mode(value: str) -> Mode:

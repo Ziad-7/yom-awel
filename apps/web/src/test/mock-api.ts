@@ -5,6 +5,7 @@ import type {
   FeedbackResult,
   Learner,
   Runtime,
+  SampleInfo,
   SkillsProfile,
   SubmissionInsights,
   SubmissionOutcome,
@@ -109,6 +110,11 @@ export function insightsFor(outcome: EvaluationResult): SubmissionInsights {
   };
 }
 
+export const SAMPLES: SampleInfo[] = [
+  { sample_id: "duplicates_left", filename: "sales_retry_duplicates.csv", outcome: "retry", score: 75 },
+  { sample_id: "fully_cleaned", filename: "sales_cleaned.xlsx", outcome: "pass", score: 100 },
+];
+
 export const feedback = (language: ApiLanguage): FeedbackResult => ({
   language,
   feedback_text:
@@ -125,7 +131,7 @@ export const feedback = (language: ApiLanguage): FeedbackResult => ({
 
 export function createMockApi(
   outcome: EvaluationResult,
-  options: { deferSubmission?: boolean; failFirstPoll?: boolean } = {},
+  options: { deferSubmission?: boolean; failFirstPoll?: boolean; demoSamples?: boolean } = {},
 ) {
   const calls: Call[] = [];
   let session = false;
@@ -135,7 +141,7 @@ export function createMockApi(
   let pendingResult: SubmissionOutcome | null = null;
   let submissionKey: string | null = null;
   let failFirstPoll = options.failFirstPoll ?? false;
-  const runtime: Runtime = { mode: "local", feedback_provider: "deterministic" };
+  const runtime: Runtime = { mode: "local", feedback_provider: "deterministic", demo_samples: options.demoSamples ?? false };
   const tasks = (): TaskList => ({
     tasks: [
       {
@@ -182,6 +188,7 @@ export function createMockApi(
     if (path === "/api/v1/tasks/clean-sales/start") return (status = "in_progress"), [200, { status: "IN_TASK", task: null }];
     if (path === "/api/v1/tasks/clean-sales") return [200, detail];
     if (path === "/api/v1/skills") return [200, skills()];
+    if (path === "/api/v1/tasks/clean-sales/samples" && runtime.demo_samples) return [200, { samples: SAMPLES }];
     if (path === "/api/v1/attempts") return [200, attempts];
     if (path === "/api/v1/artifacts/upload-authorization")
       return [200, { artifact_id: "00000000-0000-4000-8000-00000000000c", upload_url: "/api/v1/artifacts/00000000-0000-4000-8000-00000000000c/content", headers: {}, expires_in_seconds: 300, upload_token: null }];
@@ -235,6 +242,9 @@ export function createMockApi(
     calls.push({ method, path: url, headers, body });
     if (method !== "GET" && headers["x-yom-awel"] !== "1")
       return new Response(JSON.stringify({ code: "csrf" }), { status: 403 });
+    const sample = url.match(/^\/api\/v1\/tasks\/clean-sales\/samples\/([a-z_]+)$/)?.[1];
+    if (sample && session && runtime.demo_samples)
+      return new Response(`order_id\n${sample}\n`, { status: 200, headers: { "Content-Type": "text/csv; charset=utf-8" } });
     const [code, payload] = route(url, body, headers);
     return new Response(JSON.stringify(payload), { status: code, headers: { "Content-Type": "application/json" } });
   };

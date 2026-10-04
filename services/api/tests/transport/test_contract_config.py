@@ -71,6 +71,27 @@ def test_cloud_settings_fail_closed(overrides, message):
         Settings.from_env(CLOUD | overrides)
 
 
+@pytest.mark.parametrize(
+    ("environ", "enabled"),
+    [
+        ({}, False),
+        ({"DEMO_SAMPLES": "true"}, True),
+        ({"DEMO_SAMPLES": " On "}, True),
+        ({"DEMO_SAMPLES": "0"}, False),
+    ],
+)
+def test_demo_samples_are_off_in_cloud_unless_asked_for(environ, enabled):
+    assert Settings.from_env(CLOUD | environ).demo_samples is enabled
+
+
+def test_demo_samples_default_on_locally_and_reject_unclear_values(tmp_path):
+    local = {"LOCAL_SECRET_PATH": str(tmp_path / "key")}
+    assert Settings.from_env(local).demo_samples is True
+    assert Settings.from_env(local | {"DEMO_SAMPLES": "false"}).demo_samples is False
+    with pytest.raises(ValueError, match="DEMO_SAMPLES"):
+        Settings.from_env(CLOUD | {"DEMO_SAMPLES": "maybe"})
+
+
 def test_fallback_mode_ignores_a_configured_key():
     settings = Settings.from_env(CLOUD | {"GEMINI_API_KEY": FAKE_KEY, "FEEDBACK_MODE": "fallback"})
     assert not settings.uses_gemini
