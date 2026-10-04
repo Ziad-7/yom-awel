@@ -672,6 +672,15 @@ class _Submissions(_Repo):
         )
         return _reservation(row) if row else None
 
+    async def get_by_submission(
+        self, learner_id: UUID, submission_id: UUID
+    ) -> SubmissionReservation | None:
+        row = await self._one(
+            "SELECT * FROM submissions WHERE learner_id=%s AND submission_id=%s",
+            (learner_id, submission_id),
+        )
+        return _reservation(row) if row else None
+
     async def expire(
         self,
         learner_id: UUID,

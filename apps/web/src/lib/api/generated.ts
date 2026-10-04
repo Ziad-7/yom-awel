@@ -254,6 +254,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/{submission_id}/insights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Insights */
+        get: operations["insights_api_v1_submissions__submission_id__insights_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks": {
         parameters: {
             query?: never;
@@ -382,6 +399,20 @@ export interface components {
              */
             submission_id: string;
         };
+        /**
+         * CellIssue
+         * @description A cell in the learner's file; ``row`` is the spreadsheet row, the header being row 1.
+         */
+        CellIssue: {
+            /** Check Id */
+            check_id: string;
+            /** Column */
+            column: string;
+            /** Issue */
+            issue: string;
+            /** Row */
+            row: number;
+        };
         /** CheckInfo */
         CheckInfo: {
             /** Check Id */
@@ -391,11 +422,46 @@ export interface components {
             /** Points */
             points: number;
         };
+        /** CheckInsight */
+        CheckInsight: {
+            /** Check Id */
+            check_id: string;
+            /** Issue Count */
+            issue_count: number;
+            /** Passed */
+            passed: boolean;
+        };
         /** CurrentTaskResult */
         CurrentTaskResult: {
             /** Status */
             status: string;
             task?: components["schemas"]["TaskVersion"] | null;
+        };
+        /** EmailElement */
+        EmailElement: {
+            /** Check Id */
+            check_id: string;
+            /** Element Id */
+            element_id: string;
+            /** End */
+            end?: number | null;
+            /** Found */
+            found: boolean;
+            /** Start */
+            start?: number | null;
+        };
+        /** EmailInsight */
+        EmailInsight: {
+            /** Elements */
+            elements: components["schemas"]["EmailElement"][];
+            /** Max Words */
+            max_words: number;
+            /** Min Words */
+            min_words: number;
+            /** Text */
+            text: string;
+            /** Word Count */
+            word_count: number;
         };
         /**
          * ErrorCategory
@@ -480,6 +546,18 @@ export interface components {
              */
             status: string;
         };
+        /** ImpactMetric */
+        ImpactMetric: {
+            /** Metric Id */
+            metric_id: string;
+            /**
+             * Unit
+             * @enum {string}
+             */
+            unit: "egp" | "orders" | "customers" | "regions" | "elements";
+            /** Value */
+            value: string;
+        };
         JsonValue: unknown;
         /**
          * Language
@@ -528,6 +606,13 @@ export interface components {
             display_name: string;
             /** @default ar-EG */
             preferred_language: components["schemas"]["Language"];
+        };
+        /** PreviewRow */
+        PreviewRow: {
+            /** Cells */
+            cells: string[];
+            /** Row */
+            row: number;
         };
         /** ProcessingState */
         ProcessingState: {
@@ -584,6 +669,33 @@ export interface components {
             /** Skills */
             skills: components["schemas"]["SkillSummary"][];
         };
+        /** SqlInsight */
+        SqlInsight: {
+            /** Columns */
+            columns: string[];
+            /** Columns Ok */
+            columns_ok: boolean;
+            /** Missing Regions */
+            missing_regions: number;
+            /** Robustness Failed */
+            robustness_failed: boolean;
+            /** Rows */
+            rows: components["schemas"]["SqlRowFinding"][];
+        };
+        /** SqlRowFinding */
+        SqlRowFinding: {
+            /** Cells */
+            cells: string[];
+            /** Count Ok */
+            count_ok: boolean;
+            /**
+             * Region Status
+             * @enum {string}
+             */
+            region_status: "ok" | "unexpected" | "duplicate" | "unreadable";
+            /** Revenue Ok */
+            revenue_ok: boolean;
+        };
         /** SubmissionInput */
         SubmissionInput: {
             /**
@@ -600,6 +712,33 @@ export interface components {
              * Format: uuid
              */
             task_version_id: string;
+        };
+        /** SubmissionInsights */
+        SubmissionInsights: {
+            /** Checks */
+            checks: components["schemas"]["CheckInsight"][];
+            email?: components["schemas"]["EmailInsight"] | null;
+            /**
+             * Impact
+             * @default []
+             */
+            impact: components["schemas"]["ImpactMetric"][];
+            /**
+             * Issues
+             * @default []
+             */
+            issues: components["schemas"]["CellIssue"][];
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "table" | "sql" | "email";
+            /** Rejected Code */
+            rejected_code?: string | null;
+            sql?: components["schemas"]["SqlInsight"] | null;
+            table?: components["schemas"]["TablePreview"] | null;
+            /** Task Id */
+            task_id: string;
         };
         /** SubmissionOutcome */
         SubmissionOutcome: {
@@ -627,6 +766,15 @@ export interface components {
          * @enum {string}
          */
         SubmissionStatus: "RECEIVED" | "EVALUATING" | "COMPLETED" | "FAILED";
+        /** TablePreview */
+        TablePreview: {
+            /** Columns */
+            columns: string[];
+            /** Rows */
+            rows: components["schemas"]["PreviewRow"][];
+            /** Total Rows */
+            total_rows: number;
+        };
         /** TaskDetail */
         TaskDetail: {
             /** Brief Ar */
@@ -2382,6 +2530,120 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeedbackResult"];
+                };
+            };
+            /** @description Malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description State or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Artifact too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Unsupported or unsafe artifact */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Validation or artifact integrity failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Evaluation, persistence or infrastructure unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+        };
+    };
+    insights_api_v1_submissions__submission_id__insights_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: {
+                yom_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionInsights"];
                 };
             };
             /** @description Malformed request */

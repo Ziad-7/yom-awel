@@ -19,6 +19,16 @@ from yom_awel.domain.contracts import (
     TaskVersion,
 )
 from yom_awel.domain.errors import DomainError
+from yom_awel.evaluation.insights import (
+    MAX_PREVIEW_ROWS,
+    CheckInsight,
+    ImpactMetric,
+    RegionStatus,
+    SqlInsight,
+    SqlRowFinding,
+    SubmissionInsights,
+    clip,
+)
 from yom_awel.evaluation.task_package import SqlReportPolicy, TaskPackage, load_task_package
 
 EVALUATOR_ID = "sql-report"
@@ -33,6 +43,7 @@ FUNCTIONS = frozenset({"sum", "count", "round", "lower", "upper", "trim", "coale
 Clock = Callable[[], int]
 SourceRow = tuple[str, str, str, int, str]
 SourceRows = tuple[SourceRow, ...]
+Expected = dict[str, tuple[int, Decimal]]
 
 
 class SqlReportEvaluator:
@@ -60,7 +71,7 @@ class SqlReportEvaluator:
             raise DomainError("task_package_invalid", "SQL source path escapes task package")
         return cls(package, source.read_bytes(), clock)
 
-    async def evaluate(self, task_version: TaskVersion, artifact: ArtifactRef) -> EvaluationResult:
+    def _require_matching(self, task_version: TaskVersion) -> None:
         package = self._package
         if (
             task_version.task_id,
@@ -76,6 +87,85 @@ class SqlReportEvaluator:
             package.pass_threshold,
         ):
             raise DomainError("task_version_mismatch", "SQL task version differs from package")
+
+    async def insights(
+        self, task_version: TaskVersion, artifact: ArtifactRef
+    ) -> SubmissionInsights:
+        """The learner's own query output, region by region, without the expected numbers."""
+
+        self._require_matching(task_version)
+        try:
+            query = _read_query(artifact, self._package.limits.max_bytes)
+            names, rows = self._execute(query, self._source)
+            failures = self._grade(names, rows, self._source)
+            probe = _probe_source(self._source)
+            probe_names, probe_rows = self._execute(query, probe)
+            probe_failures = self._grade(probe_names, probe_rows, probe)
+        except QueryRejected as rejection:
+            return SubmissionInsights(
+                kind="sql",
+                task_id=self._package.task_id,
+                rejected_code=rejection.code,
+                checks=[
+                    CheckInsight(check_id=check_id, passed=False, issue_count=0)
+                    for check_id in CHECK_IDS
+                ],
+            )
+        expected = _expected(self._source)
+        columns_ok = names == OUTPUT_COLUMNS
+        findings = _findings(rows, expected) if columns_ok else _unreadable(rows)
+        reported = {f.cells[0] for f in findings if f.region_status in ("ok", "duplicate")}
+        missing = len(set(expected) - reported) if columns_ok else len(expected)
+        wrong = {
+            f.cells[0]
+            for f in findings
+            if f.region_status == "ok" and not (f.count_ok and f.revenue_ok)
+        }
+        # The grader fails every value check when any row is a duplicate or unreadable.
+        broken = sum(f.region_status in ("duplicate", "unreadable") for f in findings)
+        issue_counts = {
+            "report_columns": 0 if columns_ok else 1,
+            "paid_regions": missing
+            + broken
+            + sum(f.region_status == "unexpected" for f in findings),
+            "paid_order_counts": missing
+            + broken
+            + sum(f.region_status == "ok" and not f.count_ok for f in findings),
+            "paid_revenue": missing
+            + broken
+            + sum(f.region_status == "ok" and not f.revenue_ok for f in findings),
+        }
+        failed = failures | probe_failures
+        return SubmissionInsights(
+            kind="sql",
+            task_id=self._package.task_id,
+            checks=[
+                CheckInsight(
+                    check_id=check_id,
+                    passed=check_id not in failed,
+                    issue_count=issue_counts[check_id] if check_id in failed else 0,
+                )
+                for check_id in CHECK_IDS
+            ],
+            impact=[
+                ImpactMetric(
+                    metric_id="regions_misreported",
+                    value=Decimal(missing + len(wrong)),
+                    unit="regions",
+                )
+            ],
+            sql=SqlInsight(
+                columns=list(names),
+                columns_ok=columns_ok,
+                rows=findings[:MAX_PREVIEW_ROWS],
+                missing_regions=missing,
+                robustness_failed=bool(probe_failures - failures),
+            ),
+        )
+
+    async def evaluate(self, task_version: TaskVersion, artifact: ArtifactRef) -> EvaluationResult:
+        package = self._package
+        self._require_matching(task_version)
         started = self._clock()
         try:
             query = _read_query(artifact, package.limits.max_bytes)
@@ -205,12 +295,7 @@ class SqlReportEvaluator:
             except (ValueError, TypeError, InvalidOperation):
                 return set(CHECK_IDS) - {"report_columns"}
             actual[region] = (paid_count, paid_revenue)
-        expected: dict[str, tuple[int, Decimal]] = {}
-        for _order, region, status, quantity, price in source:
-            if status != "paid":
-                continue
-            old_count, old_revenue = expected.get(region, (0, Decimal(0)))
-            expected[region] = (old_count + 1, old_revenue + quantity * Decimal(str(price)))
+        expected = _expected(source)
         if set(actual) != set(expected):
             failures.add("paid_regions")
         if any(
@@ -223,6 +308,62 @@ class SqlReportEvaluator:
         ):
             failures.add("paid_revenue")
         return failures
+
+
+def _expected(source: SourceRows) -> Expected:
+    expected: Expected = {}
+    for _order, region, status, quantity, price in source:
+        if status != "paid":
+            continue
+        old_count, old_revenue = expected.get(region, (0, Decimal(0)))
+        expected[region] = (old_count + 1, old_revenue + quantity * Decimal(str(price)))
+    return expected
+
+
+def _findings(rows: list[tuple[object, ...]], expected: Expected) -> list[SqlRowFinding]:
+    """Judge each output row on its own, with the same parsing the grader uses."""
+
+    seen: set[str] = set()
+    findings = []
+    for region, count, revenue in rows:
+        cells = [clip(str(cell)) for cell in (region, count, revenue)]
+        try:
+            if not isinstance(region, str) or not isinstance(count, (int, str)):
+                raise TypeError("unreadable row")
+            parsed = (int(count), Decimal(str(revenue)).quantize(Decimal("0.01")))
+        except (ValueError, TypeError, InvalidOperation):
+            findings.append(
+                SqlRowFinding(
+                    cells=cells, region_status="unreadable", count_ok=False, revenue_ok=False
+                )
+            )
+            continue
+        status: RegionStatus = (
+            "duplicate" if region in seen else "ok" if region in expected else "unexpected"
+        )
+        seen.add(region)
+        want = expected.get(region)
+        findings.append(
+            SqlRowFinding(
+                cells=cells,
+                region_status=status,
+                count_ok=status == "ok" and want is not None and want[0] == parsed[0],
+                revenue_ok=status == "ok" and want is not None and want[1] == parsed[1],
+            )
+        )
+    return findings
+
+
+def _unreadable(rows: list[tuple[object, ...]]) -> list[SqlRowFinding]:
+    return [
+        SqlRowFinding(
+            cells=[clip(str(cell)) for cell in row],
+            region_status="unreadable",
+            count_ok=False,
+            revenue_ok=False,
+        )
+        for row in rows
+    ]
 
 
 class QueryRejected(Exception):

@@ -58,6 +58,37 @@
         "title": "AttemptResult",
         "type": "object"
       },
+      "CellIssue": {
+        "additionalProperties": false,
+        "description": "A cell in the learner's file; ``row`` is the spreadsheet row, the header being row 1.",
+        "properties": {
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "issue": {
+            "title": "Issue",
+            "type": "string"
+          },
+          "row": {
+            "minimum": 2.0,
+            "title": "Row",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row",
+          "column",
+          "check_id",
+          "issue"
+        ],
+        "title": "CellIssue",
+        "type": "object"
+      },
       "CheckInfo": {
         "additionalProperties": false,
         "properties": {
@@ -82,6 +113,31 @@
         "title": "CheckInfo",
         "type": "object"
       },
+      "CheckInsight": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "issue_count": {
+            "minimum": 0.0,
+            "title": "Issue Count",
+            "type": "integer"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "check_id",
+          "passed",
+          "issue_count"
+        ],
+        "title": "CheckInsight",
+        "type": "object"
+      },
       "CurrentTaskResult": {
         "additionalProperties": false,
         "properties": {
@@ -104,6 +160,94 @@
           "status"
         ],
         "title": "CurrentTaskResult",
+        "type": "object"
+      },
+      "EmailElement": {
+        "additionalProperties": false,
+        "properties": {
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "element_id": {
+            "title": "Element Id",
+            "type": "string"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "found": {
+            "title": "Found",
+            "type": "boolean"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          }
+        },
+        "required": [
+          "element_id",
+          "check_id",
+          "found"
+        ],
+        "title": "EmailElement",
+        "type": "object"
+      },
+      "EmailInsight": {
+        "additionalProperties": false,
+        "properties": {
+          "elements": {
+            "items": {
+              "$ref": "#/components/schemas/EmailElement"
+            },
+            "title": "Elements",
+            "type": "array"
+          },
+          "max_words": {
+            "minimum": 0.0,
+            "title": "Max Words",
+            "type": "integer"
+          },
+          "min_words": {
+            "minimum": 0.0,
+            "title": "Min Words",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "word_count": {
+            "minimum": 0.0,
+            "title": "Word Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "text",
+          "elements",
+          "word_count",
+          "min_words",
+          "max_words"
+        ],
+        "title": "EmailInsight",
         "type": "object"
       },
       "ErrorCategory": {
@@ -333,6 +477,38 @@
         "title": "HealthResult",
         "type": "object"
       },
+      "ImpactMetric": {
+        "additionalProperties": false,
+        "properties": {
+          "metric_id": {
+            "title": "Metric Id",
+            "type": "string"
+          },
+          "unit": {
+            "enum": [
+              "egp",
+              "orders",
+              "customers",
+              "regions",
+              "elements"
+            ],
+            "title": "Unit",
+            "type": "string"
+          },
+          "value": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "metric_id",
+          "value",
+          "unit"
+        ],
+        "title": "ImpactMetric",
+        "type": "object"
+      },
       "JsonValue": {},
       "Language": {
         "enum": [
@@ -434,6 +610,29 @@
           "display_name"
         ],
         "title": "OnboardInput",
+        "type": "object"
+      },
+      "PreviewRow": {
+        "additionalProperties": false,
+        "properties": {
+          "cells": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "row": {
+            "minimum": 2.0,
+            "title": "Row",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "row",
+          "cells"
+        ],
+        "title": "PreviewRow",
         "type": "object"
       },
       "ProcessingState": {
@@ -575,6 +774,85 @@
         "title": "SkillsProfile",
         "type": "object"
       },
+      "SqlInsight": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "columns_ok": {
+            "title": "Columns Ok",
+            "type": "boolean"
+          },
+          "missing_regions": {
+            "minimum": 0.0,
+            "title": "Missing Regions",
+            "type": "integer"
+          },
+          "robustness_failed": {
+            "title": "Robustness Failed",
+            "type": "boolean"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/SqlRowFinding"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "columns",
+          "columns_ok",
+          "rows",
+          "missing_regions",
+          "robustness_failed"
+        ],
+        "title": "SqlInsight",
+        "type": "object"
+      },
+      "SqlRowFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "cells": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "count_ok": {
+            "title": "Count Ok",
+            "type": "boolean"
+          },
+          "region_status": {
+            "enum": [
+              "ok",
+              "unexpected",
+              "duplicate",
+              "unreadable"
+            ],
+            "title": "Region Status",
+            "type": "string"
+          },
+          "revenue_ok": {
+            "title": "Revenue Ok",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cells",
+          "region_status",
+          "count_ok",
+          "revenue_ok"
+        ],
+        "title": "SqlRowFinding",
+        "type": "object"
+      },
       "SubmissionInput": {
         "additionalProperties": false,
         "properties": {
@@ -612,6 +890,95 @@
           "artifact_sha256"
         ],
         "title": "SubmissionInput",
+        "type": "object"
+      },
+      "SubmissionInsights": {
+        "additionalProperties": false,
+        "properties": {
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckInsight"
+            },
+            "title": "Checks",
+            "type": "array"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmailInsight"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "impact": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ImpactMetric"
+            },
+            "title": "Impact",
+            "type": "array"
+          },
+          "issues": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CellIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "kind": {
+            "enum": [
+              "table",
+              "sql",
+              "email"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "rejected_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected Code"
+          },
+          "sql": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SqlInsight"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "table": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TablePreview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "task_id",
+          "checks"
+        ],
+        "title": "SubmissionInsights",
         "type": "object"
       },
       "SubmissionOutcome": {
@@ -674,6 +1041,37 @@
         ],
         "title": "SubmissionStatus",
         "type": "string"
+      },
+      "TablePreview": {
+        "additionalProperties": false,
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total_rows": {
+            "minimum": 0.0,
+            "title": "Total Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "columns",
+          "rows",
+          "total_rows"
+        ],
+        "title": "TablePreview",
+        "type": "object"
       },
       "TaskDetail": {
         "additionalProperties": false,
@@ -3165,6 +3563,152 @@
           }
         },
         "summary": "Feedback"
+      }
+    },
+    "/api/v1/submissions/{submission_id}/insights": {
+      "get": {
+        "operationId": "insights_api_v1_submissions__submission_id__insights_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Submission Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "yom_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Yom Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmissionInsights"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Malformed request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Access denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "State or idempotency conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Artifact too large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Unsupported or unsafe artifact"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Validation or artifact integrity failure"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Evaluation, persistence or infrastructure unavailable"
+          }
+        },
+        "summary": "Insights"
       }
     },
     "/api/v1/tasks": {

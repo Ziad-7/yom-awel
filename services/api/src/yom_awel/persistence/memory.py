@@ -287,6 +287,21 @@ class _Submissions(_MemoryRepository):
         reservation_id = self._state.reservation_keys.get((learner_id, key))
         return _copy(self._state.reservations.get(reservation_id)) if reservation_id else None
 
+    async def get_by_submission(
+        self, learner_id: UUID, submission_id: UUID
+    ) -> SubmissionReservation | None:
+        return _copy(
+            next(
+                (
+                    reservation
+                    for reservation in self._state.reservations.values()
+                    if reservation.submission_id == submission_id
+                    and reservation.learner_id == learner_id
+                ),
+                None,
+            )
+        )
+
     async def expire(
         self,
         learner_id: UUID,
