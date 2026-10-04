@@ -1,10 +1,12 @@
 import type {
   Attempt,
+  CellIssue,
   EvaluationResult,
   FeedbackResult,
   Learner,
   Runtime,
   SkillsProfile,
+  SubmissionInsights,
   SubmissionOutcome,
   TaskDetail,
   TaskList,
@@ -60,6 +62,50 @@ export function evaluation(failing: string[] = [], errors: string[] = []): Evalu
     summary_ar: "",
     summary_en: "",
     duration_ms: 3,
+  };
+}
+
+const COLUMNS = ["order_id", "customer_email", "order_date", "quantity", "unit_price", "revenue", "missing_email_reason"];
+const ROWS = [
+  ["SO-1", "a@example.com", "2026-01-03", "2", "100", "200", ""],
+  ["SO-2", "b@example.com", "2026-01-04", "1", "50", "60", ""],
+  ["SO-1", "a@example.com", "2026-01-03", "2", "100", "200", ""],
+  ["SO-3", "c@example.com", "03/01/2026", "5", "10", "50", ""],
+  ["SO-4", "", "2026-01-06", "1", "30", "30", ""],
+  ["SO-5", "d@example.com", "2026-01-07", "3", "20", "60", ""],
+];
+const issue = (row: number, column: string, check_id: string, code: string): CellIssue => ({ row, column, check_id, issue: code });
+const ISSUES: Record<string, CellIssue[]> = {
+  unique_orders: [issue(2, "order_id", "unique_orders", "duplicate_order_id"), issue(4, "order_id", "unique_orders", "duplicate_order_id")],
+  standard_dates: [issue(5, "order_date", "standard_dates", "nonstandard_date")],
+  valid_numeric_values: [issue(3, "revenue", "valid_numeric_values", "revenue_mismatch")],
+  complete_customer_records: [issue(6, "missing_email_reason", "complete_customer_records", "missing_email_reason")],
+};
+
+/** Table insights that agree with `evaluation(failing, errors)`, as the real evaluator guarantees. */
+export function insightsFor(outcome: EvaluationResult): SubmissionInsights {
+  const failing = (id: string) => outcome.checks.some((check) => check.check_id === id && !check.passed);
+  const checks = outcome.checks.map((check) => ({
+    check_id: check.check_id,
+    passed: check.passed,
+    issue_count: check.passed || outcome.errors.length ? 0 : ISSUES[check.check_id].length,
+  }));
+  if (outcome.errors.length)
+    return { kind: "table", task_id: "clean-sales", rejected_code: outcome.errors[0].code, checks, impact: [], issues: [] };
+  const amount = (id: string, value: string) => (failing(id) ? value : "0");
+  return {
+    kind: "table",
+    task_id: "clean-sales",
+    rejected_code: null,
+    checks,
+    impact: [
+      { metric_id: "revenue_overstated", unit: "egp", value: amount("unique_orders", "200.00") },
+      { metric_id: "revenue_untrusted", unit: "egp", value: amount("valid_numeric_values", "60.00") },
+      { metric_id: "customers_unreachable", unit: "customers", value: amount("complete_customer_records", "1") },
+      { metric_id: "orders_off_timeline", unit: "orders", value: amount("standard_dates", "1") },
+    ],
+    issues: outcome.checks.flatMap((check) => (check.passed ? [] : ISSUES[check.check_id])),
+    table: { columns: COLUMNS, rows: ROWS.map((cells, index) => ({ row: index + 2, cells })), total_rows: ROWS.length },
   };
 }
 
@@ -174,6 +220,7 @@ export function createMockApi(
       pendingResult = null;
       return [200, result];
     }
+    if (path === `/api/v1/submissions/${SUBMISSION}/insights` && attempts.length) return [200, insightsFor(outcome)];
     const language = new URL(path, "http://x").searchParams.get("language") as ApiLanguage | null;
     if (path.startsWith(`/api/v1/submissions/${SUBMISSION}/feedback`) && language) return [200, feedback(language)];
     return [404, { code: "not_found" }];

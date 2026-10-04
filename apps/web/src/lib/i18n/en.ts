@@ -1,6 +1,16 @@
-import type { CheckId, RejectionCode, SkillId, TaskStatus } from "./keys";
+import type {
+  CheckId,
+  EmailElementId,
+  IssueCode,
+  MetricId,
+  RegionStatus,
+  RejectionCode,
+  SkillId,
+  TaskStatus,
+} from "./keys";
 
 type CheckCopy = { title: string; description: string };
+type MetricCopy = { label: string; hint: string };
 
 export const en = {
   meta: {
@@ -204,6 +214,119 @@ export const en = {
     uploadRevision: "Upload revision",
     viewSkills: "View skills profile",
     checksTitle: "Check results",
+  },
+  insights: {
+    impactTitle: "What this would cost the business",
+    impactLead: "Measured on your own submission, by the same checks that set your score.",
+    impactClear: "Nothing slipped through. As submitted, this work costs the business nothing.",
+    metrics: {
+      revenue_overstated: {
+        label: "Revenue inflated by duplicate orders",
+        hint: "Counted twice in the sales report if the file goes out as is.",
+      },
+      revenue_untrusted: {
+        label: "Revenue sitting in broken rows",
+        hint: "Quantities, prices or totals that don't add up.",
+      },
+      customers_unreachable: {
+        label: "Customers the team can't contact",
+        hint: "An invalid email, or no reason recorded for a missing one.",
+      },
+      orders_off_timeline: {
+        label: "Orders that fall off the timeline",
+        hint: "Dates outside YYYY-MM-DD can't be sorted or filtered.",
+      },
+      regions_misreported: {
+        label: "Regions management would misread",
+        hint: "Missing from the report, or carrying wrong numbers.",
+      },
+      customer_questions_left_open: {
+        label: "Customer questions left open",
+        hint: "Case facts or next steps the client still has to chase.",
+      },
+    } satisfies Record<MetricId, MetricCopy>,
+    xrayTitle: "Mistake X-ray",
+    xrayLead: "Every highlight points at your own work. The same rules that graded you found it.",
+    loading: "Building your X-ray…",
+    unavailable: "The detailed review isn't available right now.",
+    retry: "Try again",
+    table: {
+      summary: (cells: number, rows: number) =>
+        `${cells} ${cells === 1 ? "cell needs" : "cells need"} attention across ${rows} ${rows === 1 ? "row" : "rows"}.`,
+      clean: "Every row passes every check.",
+      filters: "Show issues for",
+      all: "All checks",
+      onlyIssues: "Only rows with issues",
+      caption: "Your file, with every cell that failed a check highlighted",
+      region: "Your file. Scroll sideways to see every column.",
+      row: "Row",
+      problems: "What's wrong",
+      empty: "(empty)",
+      alsoIn: (rows: string) => `same as row ${rows}`,
+      showing: (shown: number, total: number) => `Showing ${shown} of ${total} rows.`,
+      beyondPreview: (n: number) =>
+        n === 1 ? "1 more issue is past the first 200 rows." : `${n} more issues are past the first 200 rows.`,
+    },
+    issues: {
+      missing_order_id: "Order ID is empty",
+      duplicate_order_id: "Duplicate order ID",
+      nonstandard_date: "Date isn't YYYY-MM-DD",
+      invalid_quantity: "Quantity isn't a positive whole number",
+      invalid_unit_price: "Unit price is missing or negative",
+      invalid_revenue: "Revenue is missing or negative",
+      revenue_mismatch: "Revenue ≠ quantity × unit price",
+      invalid_email: "Email address isn't valid",
+      missing_email_reason: "Missing email has no “unavailable” note",
+    } satisfies Record<IssueCode, string>,
+    sql: {
+      caption: "Your query's result, row by row",
+      verdict: "Finding",
+      empty: "Your query returned no rows.",
+      columnsWrong: (columns: string) =>
+        `Your result has the columns ${columns}. The report needs region, paid_orders and total_revenue, in that order.`,
+      missing: (n: number) =>
+        n === 1
+          ? "1 paid region is missing from your result."
+          : `${n} paid regions are missing from your result.`,
+      robustnessTitle: "Hard-coded numbers detected",
+      robustness:
+        "We re-ran your query on a second copy of the sales data with a few extra orders, and your results didn't move with it. Compute every value from the sales table instead of typing it in.",
+      region: {
+        ok: "Paid region",
+        unexpected: "Not a paid region",
+        duplicate: "Listed twice",
+        unreadable: "Can't read this row",
+      } satisfies Record<RegionStatus, string>,
+      countOk: "Count correct",
+      countWrong: "Count wrong",
+      revenueOk: "Revenue correct",
+      revenueWrong: "Revenue wrong",
+    },
+    email: {
+      text: "Your email, with what the reviewer found highlighted",
+      checklist: "What the reviewer looked for",
+      found: "Found",
+      missing: "Missing",
+      words: (count: number, min: number, max: number) =>
+        `${count} words. Aim for ${min} to ${max}.`,
+      elements: {
+        recipient: "The customer's email on the To: line",
+        subject_order: "Order number in the subject",
+        body: "A message body",
+        order_id: "Order number",
+        promised_date: "Originally promised date",
+        updated_date: "New delivery date",
+        refund_amount: "Exact refund amount",
+        apology: "An apology",
+        refund: "The refund explained",
+        response_window: "When they'll hear back",
+        commitments_kept: "No promise taken back",
+        greeting: "Greeting by name",
+        closing_phrase: "A polite sign-off",
+        company_signature: "Company signature",
+        length: "A reasonable length",
+      } satisfies Record<EmailElementId, string>,
+    },
   },
   rejections: {
     unsupported_type: "Unsupported file type. Accepted formats are CSV or Excel (.xlsx) spreadsheets only.",

@@ -9,6 +9,7 @@ import type {
   Runtime,
   SkillsProfile,
   SubmissionInput,
+  SubmissionInsights,
   SubmissionOutcome,
   TaskDetail,
   TaskList,
@@ -50,6 +51,8 @@ export const api = {
     request<FeedbackResult>(
       `/submissions/${encodeURIComponent(submissionId)}/feedback?language=${language}`,
     ),
+  insights: (submissionId: string) =>
+    request<SubmissionInsights>(`/submissions/${encodeURIComponent(submissionId)}/insights`),
 };
 
 /** Same-origin link to the dirty learner file; the session cookie authorises the download. */
