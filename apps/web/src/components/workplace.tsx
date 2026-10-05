@@ -2,6 +2,7 @@
 import { useLanguage } from "../lib/i18n/language";
 import { errorMessage } from "../lib/messages";
 import type { TourStep } from "../lib/i18n/keys";
+import { taskHistory } from "../lib/progress";
 import { TOUR_TARGETS } from "../lib/tour";
 import { isStillProcessing, useWorkplace, type View } from "../lib/use-workplace";
 import { useState } from "react";
@@ -79,6 +80,7 @@ export default function Workplace({ initialView = "tasks" }: { initialView?: Vie
         <TaskWorkspace
           task={detail}
           result={state.result}
+          history={taskHistory(state.attempts, detail.task_version_id)}
           completed={completed}
           attemptNumber={state.attempts.filter((attempt) => attempt.evaluation.task_version_id === detail.task_version_id).length + 1}
           busy={busy}
