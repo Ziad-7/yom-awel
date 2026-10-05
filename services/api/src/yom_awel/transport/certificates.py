@@ -37,6 +37,8 @@ def verify(secret: str, token: str) -> UUID:
     if len(token) != TOKEN_LENGTH or len(raw) != 16 + TAG_BYTES:
         raise DomainError("not_found", "Certificate not found")
     learner_id = UUID(bytes=raw[:16])
-    if not hmac.compare_digest(raw[16:], _tag(secret, learner_id)):
+    # Only the canonical encoding verifies: the last character also carries unused bits, and
+    # a variant spelling of the same bytes must not pass as a different, still-valid link.
+    if not hmac.compare_digest(token, issue(secret, learner_id)):
         raise DomainError("not_found", "Certificate not found")
     return learner_id

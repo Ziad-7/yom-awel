@@ -2,6 +2,7 @@ import { API_BASE, request, send } from "./client";
 import type {
   Attempt,
   Certificate,
+  CoachAnswer,
   CurrentTask,
   DatasetFormat,
   FeedbackResult,
@@ -57,6 +58,9 @@ export const api = {
     ),
   insights: (submissionId: string) =>
     request<SubmissionInsights>(`/submissions/${encodeURIComponent(submissionId)}/insights`),
+  /** Ask Tarek about one's own graded submission; answers come from its facts only. */
+  ask: (submissionId: string, question: string, language: ApiLanguage) =>
+    request<CoachAnswer>(`/submissions/${encodeURIComponent(submissionId)}/questions`, json("POST", { question, language })),
   myCertificate: () => request<Certificate>("/learners/me/certificate"),
   /** Public: verifies a shared certificate link; needs no session. */
   certificate: (token: string) => request<Certificate>("/certificates/" + encodeURIComponent(token)),

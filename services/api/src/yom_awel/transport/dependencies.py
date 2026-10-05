@@ -26,6 +26,7 @@ from yom_awel.domain.errors import DomainError, UniqueConstraintViolation
 from yom_awel.evaluation.catalog import CatalogTask, TaskCatalog
 from yom_awel.evaluation.insights import InsightProvider, SubmissionInsights
 from yom_awel.evaluation.registry import EvaluatorKey, EvaluatorRegistry
+from yom_awel.feedback.coach import Coach, CoachAnswer, GoogleCoachClient, build_facts
 from yom_awel.feedback.config import build_feedback_provider
 from yom_awel.persistence.postgres import PostgresUnitOfWorkFactory
 from yom_awel.persistence.sqlite import SQLiteUnitOfWorkFactory
@@ -72,8 +73,10 @@ class Services:
         *,
         artifact_store: ArtifactStore | None = None,
         insights: Mapping[EvaluatorKey, InsightProvider] | None = None,
+        coach: Coach | None = None,
     ) -> None:
         self.factory = factory
+        self.coach = coach or Coach(client=None, model="")
         self.catalog = catalog
         self.feedback = feedback
         self._insights = dict(insights or {})
@@ -253,6 +256,41 @@ class Services:
                 self._translations.popitem(last=False)
         return cached
 
+    async def ask(
+        self, learner_id: UUID, submission_id: UUID, question: str, language: Language
+    ) -> CoachAnswer:
+        """Answer a question about the learner's own graded submission from its facts only."""
+
+        attempt = next(
+            (
+                item
+                for item in await self.history(learner_id)
+                if item.submission_id == submission_id
+            ),
+            None,
+        )
+        if attempt is None:
+            raise DomainError("not_found", "Submission not found")
+        task = next(
+            (
+                item
+                for item in self.catalog.tasks()
+                if item.task_version.task_version_id == attempt.evaluation.task_version_id
+            ),
+            None,
+        )
+        try:
+            insights = await self.insights(learner_id, submission_id)
+        except DomainError:
+            insights = None
+        facts = build_facts(
+            attempt.evaluation,
+            task.package.checks if task else (),
+            insights,
+            task.package.pass_threshold if task else 75,
+        )
+        return await self.coach.answer(facts, question, language)
+
     async def insights(self, learner_id: UUID, submission_id: UUID) -> SubmissionInsights:
         """Explain a completed submission from the learner's own stored file."""
 
@@ -294,12 +332,17 @@ def compose(settings: Settings) -> Services:
 
     feedback = build_feedback_provider(settings.feedback, task_context_resolver=resolve)
     evaluators = catalog.evaluators()
+    config = settings.feedback
+    coach_client = (
+        GoogleCoachClient(config.api_key) if config.mode == "gemini" and config.api_key else None
+    )
     return Services(
         _unit_of_work_factory(settings),
         catalog,
         EvaluatorRegistry(evaluators),
         feedback,
         insights=evaluators,
+        coach=Coach(client=coach_client, model=config.model),
     )
 
 

@@ -114,6 +114,11 @@ class AttemptResult(Output):
     feedback: FeedbackResult
 
 
+class QuestionInput(Input):
+    question: str = Field(min_length=1, max_length=300)
+    language: Language = Language.AR_EG
+
+
 class CertificateTask(Output):
     """A task the learner passed, as first proven by the evaluator."""
 
