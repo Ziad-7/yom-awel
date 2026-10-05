@@ -7,6 +7,7 @@ import { TOUR_TARGETS } from "../lib/tour";
 import { isStillProcessing, useWorkplace, type View } from "../lib/use-workplace";
 import { useState } from "react";
 import { AppShell, PageHeading } from "./app-shell";
+import { CertificateCard } from "./certificate";
 import { ErrorBanner } from "./error-banner";
 import { JudgeTour, SAMPLES_ID } from "./judge";
 import { Onboarding } from "./onboarding";
@@ -64,6 +65,7 @@ export default function Workplace({ initialView = "tasks" }: { initialView?: Vie
       return (
         <>
           {tour}
+          <CertificateCard key={state.attempts.filter((attempt) => attempt.evaluation.passed).length} />
           <SkillsProgress
           skills={state.skills}
           attempts={state.attempts}

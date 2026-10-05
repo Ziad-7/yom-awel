@@ -36,6 +36,9 @@ from yom_awel.ports.unit_of_work import UnitOfWorkFactory
 from yom_awel.transport.auth import Identity
 from yom_awel.transport.models import (
     AttemptResult,
+    Certificate,
+    CertificateSkill,
+    CertificateTask,
     CheckInfo,
     OnboardInput,
     TaskDetail,
@@ -174,6 +177,52 @@ class Services:
                             )
                         )
             return outcomes
+
+    async def certificate(self, learner_id: UUID, token: str) -> Certificate:
+        """Skills proven by passed attempts only; each task is dated by its first pass."""
+
+        async with self.factory() as uow:
+            learner = await uow.learners.get(learner_id)
+            if learner is None:
+                raise DomainError("not_found", "Certificate not found")
+            tasks: list[CertificateTask] = []
+            evidence: dict[str, list[str]] = {}
+            for task in self.catalog.tasks():
+                attempts = await uow.attempts.list_for_task(
+                    learner_id, task.task_version.task_version_id
+                )
+                for attempt in sorted(attempts, key=lambda item: item.attempt_number):
+                    evaluation = await uow.evaluations.get(attempt.evaluation_id)
+                    if evaluation is None or not evaluation.result.passed:
+                        continue
+                    passed = [check.check_id for check in evaluation.result.checks if check.passed]
+                    tasks.append(
+                        CertificateTask(
+                            task_id=task.task_id,
+                            title_ar=task.title_ar,
+                            title_en=task.title_en,
+                            score=evaluation.result.score,
+                            attempts=attempt.attempt_number,
+                            passed_at=attempt.completed_at or attempt.started_at,
+                            checks=passed,
+                        )
+                    )
+                    for spec in task.package.checks:
+                        if spec.check_id in passed:
+                            evidence.setdefault(spec.skill_id, []).append(spec.check_id)
+                    break
+        if not tasks:
+            raise DomainError("not_found", "Certificate not found")
+        return Certificate(
+            token=token,
+            display_name=learner.display_name,
+            tasks=tasks,
+            skills=[
+                CertificateSkill(skill_id=skill_id, evidence=checks)
+                for skill_id, checks in sorted(evidence.items())
+            ],
+            verified_at=self.clock.now(),
+        )
 
     async def feedback_in(
         self, learner_id: UUID, submission_id: UUID, language: Language

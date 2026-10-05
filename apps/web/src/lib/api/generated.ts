@@ -101,6 +101,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/certificates/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public Certificate
+         * @description Public and read-only: anyone holding the link can verify it, nothing else.
+         */
+        get: operations["public_certificate_api_v1_certificates__token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/health": {
         parameters: {
             query?: never;
@@ -127,6 +147,23 @@ export interface paths {
         };
         /** Me */
         get: operations["me_api_v1_learners_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/learners/me/certificate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Certificate */
+        get: operations["my_certificate_api_v1_learners_me_certificate_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -446,6 +483,52 @@ export interface components {
             issue: string;
             /** Row */
             row: number;
+        };
+        /** Certificate */
+        Certificate: {
+            /** Display Name */
+            display_name: string;
+            /** Skills */
+            skills: components["schemas"]["CertificateSkill"][];
+            /** Tasks */
+            tasks: components["schemas"]["CertificateTask"][];
+            /** Token */
+            token: string;
+            /**
+             * Verified At
+             * Format: date-time
+             */
+            verified_at: string;
+        };
+        /** CertificateSkill */
+        CertificateSkill: {
+            /** Evidence */
+            evidence: string[];
+            /** Skill Id */
+            skill_id: string;
+        };
+        /**
+         * CertificateTask
+         * @description A task the learner passed, as first proven by the evaluator.
+         */
+        CertificateTask: {
+            /** Attempts */
+            attempts: number;
+            /** Checks */
+            checks: string[];
+            /**
+             * Passed At
+             * Format: date-time
+             */
+            passed_at: string;
+            /** Score */
+            score: number;
+            /** Task Id */
+            task_id: string;
+            /** Title Ar */
+            title_ar: string;
+            /** Title En */
+            title_en: string;
         };
         /** CheckInfo */
         CheckInfo: {
@@ -1659,6 +1742,118 @@ export interface operations {
             };
         };
     };
+    public_certificate_api_v1_certificates__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Certificate"];
+                };
+            };
+            /** @description Malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description State or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Artifact too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Unsupported or unsafe artifact */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Validation or artifact integrity failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Evaluation, persistence or infrastructure unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+        };
+    };
     health_api_v1_health_get: {
         parameters: {
             query?: never;
@@ -1787,6 +1982,118 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Learner"];
+                };
+            };
+            /** @description Malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description State or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Artifact too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Unsupported or unsafe artifact */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Validation or artifact integrity failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Evaluation, persistence or infrastructure unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+        };
+    };
+    my_certificate_api_v1_learners_me_certificate_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                yom_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Certificate"];
                 };
             };
             /** @description Malformed request */
