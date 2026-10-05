@@ -250,6 +250,41 @@
         "title": "CheckInsight",
         "type": "object"
       },
+      "CoachAnswer": {
+        "additionalProperties": false,
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "grounded_on": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Grounded On",
+            "type": "array"
+          },
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
+          "source": {
+            "enum": [
+              "gemini",
+              "guide"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer",
+          "language",
+          "source",
+          "grounded_on"
+        ],
+        "title": "CoachAnswer",
+        "type": "object"
+      },
       "CurrentTaskResult": {
         "additionalProperties": false,
         "properties": {
@@ -771,6 +806,26 @@
           "retry_after_seconds"
         ],
         "title": "ProcessingState",
+        "type": "object"
+      },
+      "QuestionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "language": {
+            "$ref": "#/components/schemas/Language",
+            "default": "ar-EG"
+          },
+          "question": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "QuestionInput",
         "type": "object"
       },
       "RuntimeResult": {
@@ -4145,6 +4200,163 @@
           }
         },
         "summary": "Insights"
+      }
+    },
+    "/api/v1/submissions/{submission_id}/questions": {
+      "post": {
+        "description": "Ask Tarek about one's own graded submission; answers use its facts only.",
+        "operationId": "ask_api_v1_submissions__submission_id__questions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "submission_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Submission Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "yom_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Yom Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoachAnswer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Malformed request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Authentication required"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Access denied"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Resource not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "State or idempotency conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Artifact too large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Unsupported or unsafe artifact"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Validation or artifact integrity failure"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationError"
+                }
+              }
+            },
+            "description": "Evaluation, persistence or infrastructure unavailable"
+          }
+        },
+        "summary": "Ask"
       }
     },
     "/api/v1/tasks": {

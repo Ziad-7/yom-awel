@@ -22,6 +22,7 @@ export type EmailInsight = Schema["EmailInsight"];
 export type SampleInfo = Schema["SampleInfo"];
 export type SampleList = Schema["SampleList"];
 export type Certificate = Schema["Certificate"];
+export type CoachAnswer = Schema["CoachAnswer"];
 
 export type Runtime = Schema["RuntimeResult"];
 export type TaskSummary = Schema["TaskSummary"];

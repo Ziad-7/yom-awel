@@ -308,6 +308,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/{submission_id}/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask
+         * @description Ask Tarek about one's own graded submission; answers use its facts only.
+         */
+        post: operations["ask_api_v1_submissions__submission_id__questions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tasks": {
         parameters: {
             query?: never;
@@ -548,6 +568,19 @@ export interface components {
             /** Passed */
             passed: boolean;
         };
+        /** CoachAnswer */
+        CoachAnswer: {
+            /** Answer */
+            answer: string;
+            /** Grounded On */
+            grounded_on: string[];
+            language: components["schemas"]["Language"];
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "gemini" | "guide";
+        };
         /** CurrentTaskResult */
         CurrentTaskResult: {
             /** Status */
@@ -741,6 +774,13 @@ export interface components {
              * Format: uuid
              */
             submission_id: string;
+        };
+        /** QuestionInput */
+        QuestionInput: {
+            /** @default ar-EG */
+            language: components["schemas"]["Language"];
+            /** Question */
+            question: string;
         };
         /** RuntimeResult */
         RuntimeResult: {
@@ -3012,6 +3052,124 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubmissionInsights"];
+                };
+            };
+            /** @description Malformed request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Authentication required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Access denied */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description State or idempotency conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Artifact too large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Unsupported or unsafe artifact */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Validation or artifact integrity failure */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+            /** @description Evaluation, persistence or infrastructure unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationError"];
+                };
+            };
+        };
+    };
+    ask_api_v1_submissions__submission_id__questions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                submission_id: string;
+            };
+            cookie?: {
+                yom_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuestionInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoachAnswer"];
                 };
             };
             /** @description Malformed request */

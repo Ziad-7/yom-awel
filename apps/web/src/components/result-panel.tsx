@@ -3,6 +3,7 @@ import type { Attempt, EvaluationResult, GradedAttempt } from "../lib/api/contra
 import { useLanguage } from "../lib/i18n/language";
 import { isCheckId } from "../lib/i18n/keys";
 import { rejectionMessage } from "../lib/messages";
+import { AskTarek } from "./ask-tarek";
 import { FeedbackCard } from "./feedback-card";
 import { InsightsPanel } from "./insights-panel";
 import { ProgressCard } from "./progress-card";
@@ -102,6 +103,7 @@ export function ResultPanel({ attempt, taskId, passThreshold, criticalIds, canRe
       <ProgressCard key={`progress:${attempt.submission_id}`} current={attempt} history={history} threshold={passThreshold} />
       {verdict !== "rejected" && <InsightsPanel key={`insights:${attempt.submission_id}`} submissionId={attempt.submission_id} />}
       <FeedbackCard key={attempt.submission_id} submissionId={attempt.submission_id} initial={attempt.feedback} passed={evaluation.passed} />
+      <AskTarek key={`ask:${attempt.submission_id}`} submissionId={attempt.submission_id} />
     </>
   );
 }

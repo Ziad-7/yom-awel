@@ -36,6 +36,7 @@ from yom_awel.domain.errors import DomainError
 from yom_awel.evaluation.catalog import XLSX_MEDIA_TYPE, dataset
 from yom_awel.evaluation.insights import SubmissionInsights
 from yom_awel.evaluation.samples import sample, samples_for
+from yom_awel.feedback.coach import CoachAnswer
 from yom_awel.transport import certificates
 from yom_awel.transport.artifact_validation import validate_content, validate_metadata
 from yom_awel.transport.auth import SESSION_COOKIE, SESSION_SECONDS, Authenticator, Identity
@@ -47,6 +48,7 @@ from yom_awel.transport.models import (
     HealthResult,
     LanguageInput,
     OnboardInput,
+    QuestionInput,
     RuntimeResult,
     SampleInfo,
     SampleList,
@@ -63,6 +65,8 @@ CSRF_HEADER = "x-yom-awel"
 CSRF_EXEMPT = frozenset({"/api/v1/telegram/webhook"})
 # Learners sharing one address (venue Wi-Fi, a proxy) share this many per-session budgets.
 SHARED_ADDRESS_FACTOR = 20
+# Each question may call Gemini, so learners get a smaller budget for them.
+QUESTIONS_PER_MINUTE = 10
 
 
 def validate_file(body: UploadInput) -> None:
@@ -276,6 +280,15 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     @app.get("/api/v1/attempts", response_model=list[AttemptResult])
     async def attempts(user: Annotated[Learner, Depends(learner)]) -> list[AttemptResult]:
         return await service().history(user.learner_id)
+
+    @app.post("/api/v1/submissions/{submission_id}/questions", response_model=CoachAnswer)
+    async def ask(
+        submission_id: UUID, body: QuestionInput, user: Annotated[Learner, Depends(learner)]
+    ) -> CoachAnswer:
+        """Ask Tarek about one's own graded submission; answers use its facts only."""
+
+        limit(f"questions:{user.learner_id}", QUESTIONS_PER_MINUTE)
+        return await service().ask(user.learner_id, submission_id, body.question, body.language)
 
     @app.get("/api/v1/learners/me/certificate", response_model=Certificate)
     async def my_certificate(user: Annotated[Learner, Depends(learner)]) -> Certificate:
