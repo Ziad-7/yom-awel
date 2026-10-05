@@ -1,6 +1,7 @@
 """Skills certificates: live, tamper-evident, and public only to whoever holds the link."""
 
 import base64
+import string
 from uuid import UUID, uuid4
 
 import pytest
@@ -39,6 +40,15 @@ def test_tokens_round_trip_and_reject_any_edit_or_other_secret():
     for forged in (flipped, certificates.issue("another-secret-" + "y" * 32, learner_id), "!" * 43):
         with pytest.raises(DomainError):
             certificates.verify(TEST_SECRET, forged)
+
+
+def test_every_other_spelling_of_the_last_character_is_rejected():
+    alphabet = string.ascii_letters + string.digits + "-_"
+    for _ in range(20):
+        token = certificates.issue(TEST_SECRET, uuid4())
+        for char in alphabet.replace(token[-1], ""):
+            with pytest.raises(DomainError):
+                certificates.verify(TEST_SECRET, token[:-1] + char)
 
 
 def test_no_certificate_before_a_pass(client):
