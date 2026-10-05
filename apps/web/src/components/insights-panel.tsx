@@ -8,10 +8,10 @@ import type {
   SubmissionInsights,
   TablePreview,
 } from "../lib/api/contract";
-import { api } from "../lib/api/endpoints";
 import { useLanguage } from "../lib/i18n/language";
 import { isCheckId, isEmailElementId, isIssueCode, isMetricId } from "../lib/i18n/keys";
 import { emailSegments, formatMetric, isZero, peersOf, tableXray } from "../lib/insights";
+import { cachedInsights } from "../lib/progress";
 
 type Load = { status: "loading" } | { status: "error" } | { status: "ready"; insights: SubmissionInsights };
 type Check = SubmissionInsights["checks"][number];
@@ -324,7 +324,7 @@ export function InsightsPanel({ submissionId }: { submissionId: string }) {
 
   useEffect(() => {
     let alive = true;
-    api.insights(submissionId).then(
+    cachedInsights(submissionId).then(
       (insights) => alive && setLoad({ status: "ready", insights }),
       () => alive && setLoad({ status: "error" }),
     );

@@ -1253,6 +1253,166 @@ input::file-selector-button {
   color: var(--muted);
 }
 
+/* Progress since the previous attempt */
+.progress-card h3 {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 16px 0 8px;
+}
+.progress-headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 4px 0 12px;
+}
+.progress-headline strong {
+  font-size: 26px;
+  line-height: 1.2;
+}
+.progress-headline.up strong {
+  color: var(--green);
+}
+.progress-headline.down strong {
+  color: var(--danger);
+}
+.progress-headline span {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.progress-note {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--green-soft);
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.progress-changes,
+.progress-metrics {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.progress-changes li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 14px;
+}
+.change-status {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.progress-changes .fixed .change-status {
+  background: #e5f1e0;
+  color: #1f5230;
+}
+.progress-changes .open .change-status {
+  background: var(--gold-soft);
+  color: #6d4417;
+}
+.progress-changes .regressed .change-status {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.change-count {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.progress-metrics li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-inline-start: 4px solid #4f7f5c;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.progress-metrics li.worse {
+  border-inline-start-color: var(--danger);
+}
+.progress-metrics li span:last-child {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.score-chart {
+  margin: 16px 0 0;
+}
+.score-chart figcaption {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.score-chart-frame {
+  position: relative;
+  max-width: 400px;
+}
+.score-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.score-chart .pass-line {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+.score-chart .pass-label,
+.score-point text {
+  font-size: 10px;
+  fill: var(--muted);
+}
+.score-point text {
+  fill: var(--ink);
+  font-weight: 700;
+}
+.score-line {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.score-point .hit {
+  fill: transparent;
+}
+.score-point .dot {
+  fill: var(--paper);
+  stroke: var(--green);
+  stroke-width: 2;
+}
+.score-point.passed .dot {
+  fill: var(--green);
+}
+.score-point:focus {
+  outline: none;
+}
+.score-point:focus-visible .dot {
+  stroke: var(--focus);
+  stroke-width: 3;
+}
+.chart-tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 14px));
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* Insights: business impact and the mistake X-ray */
 .insights-lead {
   color: var(--muted);

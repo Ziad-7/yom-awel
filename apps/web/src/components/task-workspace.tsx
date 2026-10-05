@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { GradedAttempt, SampleInfo, TaskDetail } from "../lib/api/contract";
+import type { Attempt, GradedAttempt, SampleInfo, TaskDetail } from "../lib/api/contract";
 import { useLanguage } from "../lib/i18n/language";
 import type { Busy } from "../lib/use-workplace";
 import { JudgeSamples } from "./judge";
@@ -13,6 +13,7 @@ const PROCESSING: ReadonlySet<Busy> = new Set(["uploading", "evaluating", "check
 type TaskWorkspaceProps = {
   task: TaskDetail;
   result: GradedAttempt | null;
+  history: Attempt[];
   completed: boolean;
   attemptNumber: number;
   busy: Busy;
@@ -80,6 +81,7 @@ export function TaskWorkspace(props: TaskWorkspaceProps) {
             canRevise={!props.completed}
             onRevise={revise}
             onSkills={props.onSkills}
+            history={props.history}
           />
         )}
         {props.samples && !props.completed && (

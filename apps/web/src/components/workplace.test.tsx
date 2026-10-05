@@ -3,10 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { LanguageProvider } from "../lib/i18n/language";
 import type { Lang } from "../lib/i18n/keys";
 import { createMockApi, evaluation } from "../test/mock-api";
+import { clearInsightsCache } from "../lib/progress";
 import Workplace from "./workplace";
 
 afterEach(() => {
   cleanup();
+  clearInsightsCache();
   vi.unstubAllGlobals();
   document.cookie = "yom_lang=; Max-Age=0; Path=/";
 });

@@ -1,10 +1,11 @@
 import { useEffect, useRef } from "react";
-import type { EvaluationResult, GradedAttempt } from "../lib/api/contract";
+import type { Attempt, EvaluationResult, GradedAttempt } from "../lib/api/contract";
 import { useLanguage } from "../lib/i18n/language";
 import { isCheckId } from "../lib/i18n/keys";
 import { rejectionMessage } from "../lib/messages";
 import { FeedbackCard } from "./feedback-card";
 import { InsightsPanel } from "./insights-panel";
+import { ProgressCard } from "./progress-card";
 
 type ResultPanelProps = {
   attempt: GradedAttempt;
@@ -14,6 +15,8 @@ type ResultPanelProps = {
   canRevise: boolean;
   onRevise: () => void;
   onSkills: () => void;
+  /** This learner's graded attempts at the same task version. */
+  history: Attempt[];
 };
 
 export type Verdict = "passed" | "rejected" | "critical_failed" | "failed";
@@ -50,7 +53,7 @@ function CheckRows({ evaluation }: { evaluation: EvaluationResult }) {
   );
 }
 
-export function ResultPanel({ attempt, taskId, passThreshold, criticalIds, canRevise, onRevise, onSkills }: ResultPanelProps) {
+export function ResultPanel({ attempt, taskId, passThreshold, criticalIds, canRevise, onRevise, onSkills, history }: ResultPanelProps) {
   const { t } = useLanguage();
   const heading = useRef<HTMLHeadingElement>(null);
   const { evaluation } = attempt;
@@ -96,6 +99,7 @@ export function ResultPanel({ attempt, taskId, passThreshold, criticalIds, canRe
           ) : null}
         </div>
       </section>
+      <ProgressCard key={`progress:${attempt.submission_id}`} current={attempt} history={history} threshold={passThreshold} />
       {verdict !== "rejected" && <InsightsPanel key={`insights:${attempt.submission_id}`} submissionId={attempt.submission_id} />}
       <FeedbackCard key={attempt.submission_id} submissionId={attempt.submission_id} initial={attempt.feedback} passed={evaluation.passed} />
     </>

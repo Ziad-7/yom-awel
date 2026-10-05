@@ -4,12 +4,14 @@ import type { SubmissionInsights } from "../lib/api/contract";
 import { LanguageProvider } from "../lib/i18n/language";
 import type { Lang } from "../lib/i18n/keys";
 import { evaluation, insightsFor } from "../test/mock-api";
+import { clearInsightsCache } from "../lib/progress";
 import { InsightsPanel } from "./insights-panel";
 
 const SUBMISSION = "00000000-0000-4000-8000-00000000000b";
 
 afterEach(() => {
   cleanup();
+  clearInsightsCache();
   vi.unstubAllGlobals();
 });
 
