@@ -59,6 +59,8 @@ from yom_awel.transport.settings import Settings
 CSRF_HEADER = "x-yom-awel"
 # Telegram authenticates with its own secret header and cannot send the CSRF header.
 CSRF_EXEMPT = frozenset({"/api/v1/telegram/webhook"})
+# Learners sharing one address (venue Wi-Fi, a proxy) share this many per-session budgets.
+SHARED_ADDRESS_FACTOR = 20
 
 
 def validate_file(body: UploadInput) -> None:
@@ -102,7 +104,7 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     app.state.auth = auth
     buckets: dict[str, deque[float]] = defaultdict(deque)
 
-    def limit(key: str) -> None:
+    def limit(key: str, maximum: int | None = None) -> None:
         now = time.monotonic()
         if len(buckets) > 10000:
             for stale in list(buckets):
@@ -113,14 +115,27 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
         bucket = buckets[key]
         while bucket and bucket[0] < now - 60:
             bucket.popleft()
-        if len(bucket) >= config.rate_limit:
+        if len(bucket) >= (maximum or config.rate_limit):
             raise DomainError("rate_limited", "Rate limit reached")
         bucket.append(now)
 
+    def signed_in(request: Request) -> bool:
+        try:
+            auth.verify(request.cookies.get(SESSION_COOKIE))
+        except DomainError:
+            return False
+        return True
+
     @app.middleware("http")
     async def boundary(request: Request, call_next):  # type: ignore[no-untyped-def]
+        # Learners are limited per session (see `identity`), so many learners behind one
+        # venue network or proxy share only a wide flood ceiling. Requests without a valid
+        # session keep the strict per-address limit.
+        address = request.client.host if request.client else "unknown"
         try:
-            limit("request:" + (request.client.host if request.client else "unknown"))
+            limit("address:" + address, config.rate_limit * SHARED_ADDRESS_FACTOR)
+            if not signed_in(request):
+                limit("request:" + address)
         except DomainError:
             return error_response("rate_limited", 429)
         if (

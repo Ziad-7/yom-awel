@@ -8,7 +8,16 @@ import jwt
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.transport.support import CLEAN_CSV, CLEAN_XLSX, DIRTY_CSV, TEST_SECRET, settings_for
+from tests.transport.support import (
+    CLEAN_CSV,
+    CLEAN_XLSX,
+    CSRF,
+    DIRTY_CSV,
+    TEST_SECRET,
+    browser,
+    onboard,
+    settings_for,
+)
 from yom_awel.domain.errors import DomainError
 from yom_awel.transport.app import create_app
 from yom_awel.transport.auth import AUDIENCE, ISSUER, Authenticator
@@ -568,3 +577,25 @@ def test_rate_limit_and_error_redaction(tmp_path: Path) -> None:
         response = client.get("/api/v1/health")
         assert response.status_code == 429
         assert response.headers["Retry-After"] == "60"
+
+
+def test_learners_on_one_address_are_limited_per_session(tmp_path: Path) -> None:
+    """A venue network or proxy shares one address; each learner keeps a full budget."""
+
+    app = create_app(settings_for(tmp_path, rate_limit=6))
+    with TestClient(app, headers=CSRF) as first:
+        second = browser(app)
+        onboard(first)
+        statuses = [first.get("/api/v1/tasks").status_code for _ in range(6)]
+        assert statuses[-1] == 429
+        assert onboard(second)["display_name"]
+        assert second.get("/api/v1/tasks").status_code == 200
+
+
+def test_one_address_still_has_a_flood_ceiling(tmp_path: Path) -> None:
+    app = create_app(settings_for(tmp_path, rate_limit=2))
+    with TestClient(app, headers=CSRF) as client:
+        assert client.post("/api/v1/auth/session").status_code == 200
+        statuses = [client.get("/api/v1/health").status_code for _ in range(41)]
+    assert statuses.count(200) == 2 * 20 - 1
+    assert statuses[-1] == 429
