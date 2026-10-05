@@ -1,6 +1,7 @@
 import { API_BASE, request, send } from "./client";
 import type {
   Attempt,
+  Certificate,
   CurrentTask,
   DatasetFormat,
   FeedbackResult,
@@ -56,6 +57,9 @@ export const api = {
     ),
   insights: (submissionId: string) =>
     request<SubmissionInsights>(`/submissions/${encodeURIComponent(submissionId)}/insights`),
+  myCertificate: () => request<Certificate>("/learners/me/certificate"),
+  /** Public: verifies a shared certificate link; needs no session. */
+  certificate: (token: string) => request<Certificate>("/certificates/" + encodeURIComponent(token)),
   samples: (taskId: string) => request<SampleList>(task(taskId) + "/samples"),
   /** A judge-mode sample as a File, so it takes exactly the path of a learner's own upload. */
   sampleFile: async (taskId: string, sample: SampleInfo) => {

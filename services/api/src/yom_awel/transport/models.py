@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -111,3 +112,28 @@ class AttemptResult(Output):
     attempt_number: int
     evaluation: EvaluationResult
     feedback: FeedbackResult
+
+
+class CertificateTask(Output):
+    """A task the learner passed, as first proven by the evaluator."""
+
+    task_id: str
+    title_ar: str
+    title_en: str
+    score: int
+    attempts: int
+    passed_at: datetime
+    checks: list[str]
+
+
+class CertificateSkill(Output):
+    skill_id: str
+    evidence: list[str]
+
+
+class Certificate(Output):
+    token: str
+    display_name: str
+    tasks: list[CertificateTask]
+    skills: list[CertificateSkill]
+    verified_at: datetime

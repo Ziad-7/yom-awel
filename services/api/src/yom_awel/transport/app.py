@@ -36,12 +36,14 @@ from yom_awel.domain.errors import DomainError
 from yom_awel.evaluation.catalog import XLSX_MEDIA_TYPE, dataset
 from yom_awel.evaluation.insights import SubmissionInsights
 from yom_awel.evaluation.samples import sample, samples_for
+from yom_awel.transport import certificates
 from yom_awel.transport.artifact_validation import validate_content, validate_metadata
 from yom_awel.transport.auth import SESSION_COOKIE, SESSION_SECONDS, Authenticator, Identity
 from yom_awel.transport.dependencies import Services, compose
 from yom_awel.transport.errors import domain_error, error_response
 from yom_awel.transport.models import (
     AttemptResult,
+    Certificate,
     HealthResult,
     LanguageInput,
     OnboardInput,
@@ -274,6 +276,20 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     @app.get("/api/v1/attempts", response_model=list[AttemptResult])
     async def attempts(user: Annotated[Learner, Depends(learner)]) -> list[AttemptResult]:
         return await service().history(user.learner_id)
+
+    @app.get("/api/v1/learners/me/certificate", response_model=Certificate)
+    async def my_certificate(user: Annotated[Learner, Depends(learner)]) -> Certificate:
+        token = certificates.issue(config.secret, user.learner_id)
+        return await service().certificate(user.learner_id, token)
+
+    @app.get("/api/v1/certificates/{token}", response_model=Certificate)
+    async def public_certificate(
+        token: Annotated[str, Path(pattern=certificates.TOKEN_PATTERN)],
+    ) -> Certificate:
+        """Public and read-only: anyone holding the link can verify it, nothing else."""
+
+        learner_id = certificates.verify(config.secret, token)
+        return await service().certificate(learner_id, token)
 
     @app.get("/api/v1/tasks/{task_id}", response_model=TaskDetail)
     async def task_detail(task_id: str, user: Annotated[Learner, Depends(learner)]) -> TaskDetail:
